@@ -12,6 +12,7 @@ import json
 import argparse
 from contextlib import nullcontext
 
+# collect datasets
 class OpenWebTextDataset(Dataset):
     def __init__(self, split: str, max_length: int = 128):
         self.dataset = load_dataset("openwebtext", split=split)
