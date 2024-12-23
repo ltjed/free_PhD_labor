@@ -123,12 +123,16 @@ def perform_experiments(idea, folder_name, coder, baseline_results) -> bool:
         max_runs=MAX_RUNS,
         baseline_results=baseline_results,
     )
+    print(f"Starting experiment with prompt for coder: {next_prompt}")
     while run < MAX_RUNS + 1:
+        print(f"Currently on iteration {current_iter} of run {run}")
         if current_iter >= MAX_ITERS:
             print("Max iterations reached")
             break
         coder_out = coder.run(next_prompt)
-        print(coder_out)
+        # print(coder_out)
+        print(f"coder_out: {coder_out}, type: {type(coder_out)}")
+
         if "ALL_COMPLETED" in coder_out:
             break
         return_code, next_prompt = run_experiment(folder_name, run)

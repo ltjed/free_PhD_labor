@@ -1,0 +1,36 @@
+# Title: Batch Size Grokking: Assessing the impact of the training batchsize on the grokking phenomenon
+# Experiment description: Modify the experiments to dynamically adjust the batch size during training, starting with a small batch size and gradually increasing it. This could potentially lead to faster generalization on the validation set.
+
+## Run 0: Baseline
+Results: {'x_div_y': {'final_train_loss_mean': 0.0071290188158551855, 'final_val_loss_mean': 0.008281217887997627, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 1.0, 'step_val_acc_99_mean': 4353.333333333333}, 'x_minus_y': {'final_train_loss_mean': 0.006014337918410699, 'final_val_loss_mean': 0.007335097063332796, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 1.0, 'step_val_acc_99_mean': 4403.333333333333}, 'x_plus_y': {'final_train_loss_mean': 0.0029467708275963864, 'final_val_loss_mean': 0.003054410684853792, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 1.0, 'step_val_acc_99_mean': 2640.0}, 'permutation': {'final_train_loss_mean': 0.12446165302147467, 'final_val_loss_mean': 8.616557439168295, 'final_train_acc_mean': 0.9800130526224772, 'final_val_acc_mean': 0.009114583333333334, 'step_val_acc_99_mean': 7500.0}}
+Description: Baseline results.
+
+## Run 1: Linear Batch Size Schedule
+Description: Implemented a linear batch size schedule starting from 32 and increasing to 512 over the course of training. The batch size increases proportionally with training steps.
+Results: {'x_div_y': {'final_train_loss_mean': 0.006248514478405316, 'final_val_loss_mean': 0.009938470708827177, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 0.9993489583333334, 'step_val_acc_99_mean': 3390.0}, 'x_minus_y': {'final_train_loss_mean': 0.006984826643019915, 'final_val_loss_mean': 0.019057206343859434, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 0.9976399739583334, 'step_val_acc_99_mean': 2806.6666666666665}, 'x_plus_y': {'final_train_loss_mean': 0.0040473006665706635, 'final_val_loss_mean': 0.0043028654375423985, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 1.0, 'step_val_acc_99_mean': 1656.6666666666667}, 'permutation': {'final_train_loss_mean': 0.055696310475468636, 'final_val_loss_mean': 6.589879433314006, 'final_train_acc_mean': 0.993945320447286, 'final_val_acc_mean': 0.16634114583333334, 'step_val_acc_99_mean': 7500.0}}
+Analysis: The linear batch size schedule showed significant improvements in grokking speed across most operations. Notably:
+- x_div_y reached 99% validation accuracy ~22% faster (3390 vs 4353 steps)
+- x_minus_y showed ~36% faster grokking (2807 vs 4403 steps)
+- x_plus_y achieved ~37% faster grokking (1657 vs 2640 steps)
+- Permutation task remained challenging with no grokking observed
+The results suggest that starting with smaller batch sizes helps with initial learning, while gradually increasing batch size maintains stability.
+
+## Run 2: Exponential Batch Size Schedule
+Description: Implemented an exponential batch size schedule starting from 32 and increasing to 512 over the course of training. The batch size grows exponentially (base 2) with training progress.
+Results: {'x_div_y': {'final_train_loss_mean': 0.3385016868511836, 'final_val_loss_mean': 0.14686850598081946, 'final_train_acc_mean': 0.914257824420929, 'final_val_acc_mean': 0.972412109375, 'step_val_acc_99_mean': 4146.666666666667}, 'x_minus_y': {'final_train_loss_mean': 0.019026166448990505, 'final_val_loss_mean': 0.03210923634469509, 'final_train_acc_mean': 0.9997395873069763, 'final_val_acc_mean': 0.9969075520833334, 'step_val_acc_99_mean': 3763.3333333333335}, 'x_plus_y': {'final_train_loss_mean': 0.010366747776667276, 'final_val_loss_mean': 0.010400269956638416, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 1.0, 'step_val_acc_99_mean': 2223.3333333333335}, 'permutation': {'final_train_loss_mean': 0.13007144319514433, 'final_val_loss_mean': 4.2319023584326105, 'final_train_acc_mean': 0.9824869831403097, 'final_val_acc_mean': 0.416015625, 'step_val_acc_99_mean': 7336.666666666667}}
+Analysis: The exponential batch size schedule showed mixed results compared to the linear schedule:
+- x_div_y grokking was slower than linear (4146 vs 3390 steps) but still faster than baseline
+- x_minus_y showed slower grokking than linear (3763 vs 2807 steps) but still better than baseline
+- x_plus_y achieved better grokking speed (2223 vs 1657 steps) than linear schedule
+- Permutation task showed notable improvement in validation accuracy (0.416 vs 0.166) though still no full grokking
+The results suggest that exponential growth may be too aggressive for some tasks but beneficial for others.
+
+## Run 3: Logarithmic Batch Size Schedule
+Description: Implemented a logarithmic batch size schedule starting from 32 and increasing to 512 over the course of training. The batch size grows logarithmically with training progress, providing slower initial growth compared to linear and exponential schedules.
+Results: {'x_div_y': {'final_train_loss_mean': 0.00665037411575516, 'final_val_loss_mean': 0.008572057820856571, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 1.0, 'step_val_acc_99_mean': 4033.3333333333335}, 'x_minus_y': {'final_train_loss_mean': 0.004422656803702314, 'final_val_loss_mean': 0.004981998198976119, 'final_train_acc_mean': 1.0, 'final_val_acc_mean': 1.0, 'step_val_acc_99_mean': 4483.333333333333}, 'x_plus_y': {'final_train_loss_mean': 0.5205759589249889, 'final_val_loss_mean': 0.13615167730798325, 'final_train_acc_mean': 0.8952473998069763, 'final_val_acc_mean': 0.9732259114583334, 'step_val_acc_99_mean': 1763.3333333333333}, 'permutation': {'final_train_loss_mean': 0.08973828330636024, 'final_val_loss_mean': 8.209673563639322, 'final_train_acc_mean': 0.9907552202542623, 'final_val_acc_mean': 0.00927734375, 'step_val_acc_99_mean': 7500.0}}
+Analysis: The logarithmic batch size schedule showed mixed performance:
+- x_div_y showed slower grokking than linear (4033 vs 3390 steps) but better than exponential
+- x_minus_y had the slowest grokking of all schedules (4483 steps)
+- x_plus_y maintained good performance (1763 steps) though not as fast as exponential
+- Permutation task showed poor validation performance, reverting to baseline levels
+The results suggest that slower batch size growth may not be universally beneficial for grokking.

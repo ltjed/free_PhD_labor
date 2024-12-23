@@ -288,8 +288,9 @@ def run(out_dir: str):
     return final_info
 
 if __name__ == "__main__":
+    print("Started running experiment.py")
     # Set up command line arguments
-    parser = argparse.ArgumentParser(description="Run mechanical interpretation experiment")
+    parser = argparse.ArgumentParser(description="Run mech interpretation experiment")
     parser.add_argument("--out_dir", type=str, default="run_0", help="Output directory")
     args = parser.parse_args()
     
