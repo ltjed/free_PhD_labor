@@ -36,12 +36,14 @@ NEW IDEA JSON:
 ```
 
 In <THOUGHT>, first briefly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. Justify how the idea is different from the existing ones.
-Also detail the reasoning behind why they expect the modification of autoencoder you propose will work well.
+Also detail the reasoning behind why they expect the modification of autoencoder you propose will work better for mechanistic interpretability purposes.
 
 In <JSON>, provide the new idea in JSON format with the following fields:
 - "Name": A shortened descriptor of the idea. Lowercase, no spaces, underscores allowed.
 - "Title": A title for the idea, will be used for the report writing.
 - "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
+- "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms.
+- "Research_Impact": Identify a specific challenge in latest mechanistic interpretability literature. Then, explain how the proposed research address that challenge, citing specific issues and resolutions.
 - "Interestingness": A rating from 1 to 10 (lowest to highest).
 - "Feasibility": A rating from 1 to 10 (lowest to highest).
 - "Novelty": A rating from 1 to 10 (lowest to highest).
