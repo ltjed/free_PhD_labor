@@ -1,420 +1,650 @@
-import os
-import json
 import torch
-import argparse
+import os
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
-from transformers import GPT2Config, GPT2LMHeadModel, GPT2Tokenizer
-from torch.nn import CrossEntropyLoss
-from contextlib import nullcontext
-from typing import Dict, List
-import numpy as np
+from collections import namedtuple
+from huggingface_hub import hf_hub_download
+from dataclasses import dataclass
+from typing import Optional
+from datetime import datetime
+from nnsight import LanguageModel
+from dictionary_learning.utils import hf_dataset_to_generator
+from dictionary_learning.buffer import ActivationBuffer
 
-from datasets import load_dataset  # Make sure you have: pip install datasets fsspec pyarrow
+# Do not modify CustomSAEConfig class as this defines the right format for SAE to be evaluated!
+@dataclass
+class CustomSAEConfig:
+    model_name: str
+    d_in: int
+    d_sae: int
+    hook_layer: int
+    hook_name: str
 
-# -------------------------------
-# 1) Define Model & Autoencoder
-# -------------------------------
-class SparseAutoencoder(nn.Module):
-    def __init__(self, input_dim: int, latent_dim: int, tied_weights: bool = False):
-        super().__init__()
-        self.encoder = nn.Linear(input_dim, latent_dim)
-        if tied_weights:
-            self.decoder = nn.Linear(latent_dim, input_dim)
-            self.decoder.weight = nn.Parameter(self.encoder.weight.t())
-        else:
-            self.decoder = nn.Linear(latent_dim, input_dim)
-        
-    def forward(self, x):
-        latents = F.relu(self.encoder(x))
-        reconstruction = self.decoder(latents)
-        return reconstruction, latents
+    # The following are used for the core/main.py SAE evaluation
+    context_size: int = None  # Can be used for auto-interp
+    hook_head_index: Optional[int] = None
 
-class ModifiedGPT2(GPT2LMHeadModel):
-    """
-    GPT-2 model that can optionally accept a 'custom_hidden_states' dict
-    to replace the hidden states at certain layers.
-    """
-    def forward(
+    # Architecture settings
+    architecture: str = ""
+    apply_b_dec_to_input: bool = None
+    finetuning_scaling_factor: bool = None
+    activation_fn_str: str = ""
+    activation_fn_kwargs = {}
+    prepend_bos: bool = True
+    normalize_activations: str = "none"
+
+    # Model settings
+    dtype: str = ""
+    device: str = ""
+    model_from_pretrained_kwargs = {}
+
+    # Dataset settings
+    dataset_path: str = ""
+    dataset_trust_remote_code: bool = True
+    seqpos_slice: tuple = (None,)
+    training_tokens: int = -100_000
+
+    # Metadata
+    sae_lens_training_version: Optional[str] = None
+    neuronpedia_id: Optional[str] = None
+
+
+class VanillaSAE(nn.Module):
+    """An implementation of a Vanilla Sparse Autoencoder."""
+    def __init__(
         self,
-        input_ids=None,
-        attention_mask=None,
-        labels=None,
-        custom_hidden_states=None,
-        output_hidden_states=False,
+        d_in: int,
+        d_sae: int,
+        hook_layer: int,
+        model_name: str = "pythia-70m",
+        hook_name: Optional[str] = None,
     ):
-        if custom_hidden_states is None:
-            # Normal forward pass
-            return super().forward(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels,
-                output_hidden_states=output_hidden_states,
-            )
+        super().__init__()
+        self.W_enc = nn.Parameter(torch.zeros(d_in, d_sae))
+        self.W_dec = nn.Parameter(torch.zeros(d_sae, d_in))
+        self.b_enc = nn.Parameter(torch.zeros(d_sae))
+        self.b_dec = nn.Parameter(torch.zeros(d_in))
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.dtype = torch.float32
         
-        # If custom_hidden_states is provided
-        inputs_embeds = self.transformer.wte(input_ids)
-        position_ids = torch.arange(input_ids.size(1), dtype=torch.long, device=input_ids.device)
-        position_embeds = self.transformer.wpe(position_ids)
-        hidden_states = inputs_embeds + position_embeds
-        
-        all_hidden_states = () if not output_hidden_states else (hidden_states,)
-        
-        for i, block in enumerate(self.transformer.h):
-            if i in custom_hidden_states:
-                hidden_states = custom_hidden_states[i]
-            else:
-                layer_outputs = block(hidden_states, attention_mask=attention_mask)
-                hidden_states = layer_outputs[0]
-            
-            if output_hidden_states:
-                all_hidden_states += (hidden_states,)
+        # Add properties to match the interface expected by VanillaTrainer
+        self.activation_dim = d_in
+        self.dict_size = d_sae
 
-        hidden_states = self.transformer.ln_f(hidden_states)
-        if output_hidden_states:
-            all_hidden_states += (hidden_states,)
+        # Add CustomSAEConfig integration
+        if hook_name is None:
+            hook_name = f"blocks.{hook_layer}.hook_resid_post"
 
-        lm_logits = self.lm_head(hidden_states)
-
-        loss = None
-        if labels is not None:
-            shift_logits = lm_logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
-            loss_fct = CrossEntropyLoss()
-            loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1)
-            )
-        
-        return {
-            'loss': loss,
-            'logits': lm_logits,
-            'hidden_states': all_hidden_states if output_hidden_states else None
-        }
-
-# -------------------------------
-# 2) Define Dataset Class
-# -------------------------------
-class OpenWebTextSubset(Dataset):
-    """
-    Loads a tiny subset from the openwebtext dataset for quick testing.
-
-    We do:
-      - full_data = load_dataset("openwebtext", split="train")
-      - sub_data_train = full_data.select(range(0, N)) for training
-      - sub_data_val   = full_data.select(range(N, 2N)) for validation
-    """
-    def __init__(self, indices_range, max_length: int = 128):
-        # Load the entire "train" split (openwebtext only has 'train')
-        dataset_full = load_dataset("openwebtext", split="train")
-        # Select a small subset
-        dataset_small = dataset_full.select(indices_range)
-
-        self.samples = dataset_small
-        self.max_length = max_length
-
-        # GPT2 tokenizer
-        self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-        # GPT2 has no pad_token by default, so set it to eos_token
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        text = self.samples[idx]["text"]
-        encoding = self.tokenizer(
-            text,
-            truncation=True,
-            max_length=self.max_length,
-            padding="max_length",
-            return_tensors="pt"
+        self.cfg = CustomSAEConfig(
+            model_name=model_name,
+            d_in=d_in,
+            d_sae=d_sae,
+            hook_name=hook_name,
+            hook_layer=hook_layer,
+            # Set some reasonable defaults for VanillaSAE
+            architecture="vanilla",
+            activation_fn_str="relu",
+            apply_b_dec_to_input=True,
         )
-        return {
-            "input_ids": encoding["input_ids"].squeeze(0),
-            "attention_mask": encoding["attention_mask"].squeeze(0),
-        }
 
-# -------------------------------
-# 3) Compute Functions
-# -------------------------------
-def compute_entropy(tensor: torch.Tensor) -> float:
-    """
-    Compute an approximate empirical entropy of the last dimension of a tensor by:
-    1. Flattening all but the feature dimension
-    2. Computing a histogram
-    3. Summation of -p * log(p)
-    """
-    flat_tensor = tensor.view(-1, tensor.size(-1))
-    hist = torch.histc(flat_tensor, bins=100)
-    probs = hist / hist.sum()
-    probs = probs[probs > 0]
-    return -(probs * torch.log(probs)).sum().item()
+    def encode(self, input_acts):
+        pre_acts = (input_acts - self.b_dec) @ self.W_enc + self.b_enc
+        acts = torch.relu(pre_acts)
+        return acts
 
-def train_transformer(model, train_loader, optimizer, device, num_epochs=1000):
-    model.train()
-    log = []
+    def decode(self, acts):
+        return (acts @ self.W_dec) + self.b_dec
+
+    def forward(self, acts, output_features=False):
+        encoded = self.encode(acts)
+        decoded = self.decode(encoded)
+        if output_features:
+            return decoded, encoded
+        return decoded
+
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        device = kwargs.get("device", None)
+        dtype = kwargs.get("dtype", None)
+        if device:
+            self.device = device
+        if dtype:
+            self.dtype = dtype
+        return self
+
+
+class ConstrainedAdam(torch.optim.Adam):
+    """A variant of Adam where some parameters are constrained to have unit norm."""
+    def __init__(self, params, constrained_params, lr):
+        super().__init__(params, lr=lr)
+        self.constrained_params = list(constrained_params)
     
-    for epoch in range(num_epochs):
-        epoch_loss = 0
-        for batch in train_loader:
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device).float()  # [batch, seq_len]
+    def step(self, closure=None):
+        with torch.no_grad():
+            for p in self.constrained_params:
+                normed_p = p / p.norm(dim=0, keepdim=True)
+                p.grad -= (p.grad * normed_p).sum(dim=0, keepdim=True) * normed_p
+        super().step(closure=closure)
+        with torch.no_grad():
+            for p in self.constrained_params:
+                p /= p.norm(dim=0, keepdim=True)
 
-            outputs = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=input_ids
-            )
 
-            loss = outputs["loss"]
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+class SAETrainer:
+    """Base class for implementing SAE training algorithms."""
+    def __init__(self, seed=None):
+        self.seed = seed
+        self.logging_parameters = []
 
-            epoch_loss += loss.item()
+    def update(self, step, activations):
+        """Update step for training. To be implemented by subclasses."""
+        pass
 
-        avg_loss = epoch_loss / len(train_loader)
-        log.append({"epoch": epoch, "loss": avg_loss})
-        print(f"[Transformer] Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+    def get_logging_parameters(self):
+        stats = {}
+        for param in self.logging_parameters:
+            if hasattr(self, param):
+                stats[param] = getattr(self, param)
+            else:
+                print(f"Warning: {param} not found in {self}")
+        return stats
+    
+    @property
+    def config(self):
+        return {
+            'wandb_name': 'trainer',
+        }
 
-    return log
 
-def train_autoencoder(autoencoder, activations, optimizer, device, num_epochs=2, l1_coefficient=0.1):
-    autoencoder.train()
-    log = []
+class VanillaTrainer(SAETrainer):
+    """Trainer for Vanilla Sparse Autoencoder using L1 regularization."""
+    def __init__(self,
+                 activation_dim=512,
+                 dict_size=64*512,
+                 lr=1e-3, 
+                 l1_penalty=1e-1,
+                 warmup_steps=1000,
+                 resample_steps=None,
+                 seed=None,
+                 device=None,
+                 layer=None,
+                 lm_name=None,
+                 wandb_name='VanillaTrainer',
+                 submodule_name=None,
+    ):
+        super().__init__(seed)
 
-    # Ensure activations are on the correct device
-    activations = activations.to(device)
+        assert layer is not None and lm_name is not None
+        self.layer = layer
+        self.lm_name = lm_name
+        self.submodule_name = submodule_name
 
-    for epoch in range(num_epochs):
-        reconstruction, latents = autoencoder(activations)
+        if seed is not None:
+            torch.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
 
-        recon_loss = F.mse_loss(reconstruction, activations)
-        l1_loss = l1_coefficient * torch.mean(torch.abs(latents))
-        total_loss = recon_loss + l1_loss
+        # Initialize autoencoder
+        self.ae = VanillaSAE(d_in=activation_dim, d_sae=dict_size)
 
-        optimizer.zero_grad()
-        total_loss.backward()
-        optimizer.step()
+        self.lr = lr
+        self.l1_penalty = l1_penalty
+        self.warmup_steps = warmup_steps
+        self.wandb_name = wandb_name
 
-        log.append({
-            "epoch": epoch,
-            "total_loss": total_loss.item(),
-            "recon_loss": recon_loss.item(),
-            "l1_loss": l1_loss.item()
-        })
-        print(
-            f"[Autoencoder] Epoch {epoch+1}/{num_epochs}, "
-            f"Total Loss: {total_loss.item():.4f}, "
-            f"Recon Loss: {recon_loss.item():.4f}, "
-            f"L1 Loss: {l1_loss.item():.4f}"
+        if device is None:
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        else:
+            self.device = device
+        self.ae.to(self.device)
+
+        self.resample_steps = resample_steps
+
+        if self.resample_steps is not None:
+            self.steps_since_active = torch.zeros(self.ae.dict_size, dtype=int).to(self.device)
+        else:
+            self.steps_since_active = None 
+
+        # Initialize optimizer with constrained decoder weights
+        self.optimizer = ConstrainedAdam(
+            self.ae.parameters(),
+            [self.ae.W_dec],  # Constrain decoder weights
+            lr=lr
         )
+        
+        # Setup learning rate warmup
+        if resample_steps is None:
+            def warmup_fn(step):
+                return min(step / warmup_steps, 1.)
+        else:
+            def warmup_fn(step):
+                return min((step % resample_steps) / warmup_steps, 1.)
+        self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=warmup_fn)
 
-    return log
+    def resample_neurons(self, deads, activations):
+        with torch.no_grad():
+            if deads.sum() == 0:
+                return
+            print(f"resampling {deads.sum().item()} neurons")
 
-def evaluate_interpretability(
-    transformer: nn.Module,
-    autoencoder: SparseAutoencoder,
-    val_loader: DataLoader,
-    layer_idx: int,
-    device: torch.device
+            # Compute loss for each activation
+            losses = (activations - self.ae(activations)).norm(dim=-1)
+
+            # Sample input to create encoder/decoder weights from
+            n_resample = min([deads.sum(), losses.shape[0]])
+            indices = torch.multinomial(losses, num_samples=n_resample, replacement=False)
+            sampled_vecs = activations[indices]
+
+            # Get norm of the living neurons
+            alive_norm = self.ae.W_enc[~deads].norm(dim=-1).mean()
+
+            # Resample first n_resample dead neurons
+            deads[deads.nonzero()[n_resample:]] = False
+            self.ae.W_enc[deads] = sampled_vecs * alive_norm * 0.2
+            self.ae.W_dec[:,deads] = (sampled_vecs / sampled_vecs.norm(dim=-1, keepdim=True)).T
+            self.ae.b_enc[deads] = 0.
+
+            # Reset Adam parameters for dead neurons
+            state_dict = self.optimizer.state_dict()['state']
+            for param_id, param in enumerate(self.optimizer.param_groups[0]['params']):
+                if param_id == 0:  # W_enc
+                    state_dict[param]['exp_avg'][deads] = 0.
+                    state_dict[param]['exp_avg_sq'][deads] = 0.
+                elif param_id == 1:  # W_dec
+                    state_dict[param]['exp_avg'][:,deads] = 0.
+                    state_dict[param]['exp_avg_sq'][:,deads] = 0.
+                elif param_id == 2:  # b_enc
+                    state_dict[param]['exp_avg'][deads] = 0.
+                    state_dict[param]['exp_avg_sq'][deads] = 0.
+    
+    def loss(self, x, logging=False, **kwargs):
+        x_hat, f = self.ae(x, output_features=True)
+        l2_loss = torch.linalg.norm(x - x_hat, dim=-1).mean()
+        l1_loss = f.norm(p=1, dim=-1).mean()
+
+        if self.steps_since_active is not None:
+            # Update steps_since_active
+            deads = (f == 0).all(dim=0)
+            self.steps_since_active[deads] += 1
+            self.steps_since_active[~deads] = 0
+        
+        loss = l2_loss + self.l1_penalty * l1_loss
+
+        if not logging:
+            return loss
+        else:
+            return namedtuple('LossLog', ['x', 'x_hat', 'f', 'losses'])(
+                x, x_hat, f,
+                {
+                    'l2_loss': l2_loss.item(),
+                    'mse_loss': (x - x_hat).pow(2).sum(dim=-1).mean().item(),
+                    'sparsity_loss': l1_loss.item(),
+                    'loss': loss.item()
+                }
+            )
+
+    def update(self, step, activations):
+        activations = activations.to(self.device)
+
+        self.optimizer.zero_grad()
+        loss = self.loss(activations)
+        loss.backward()
+        self.optimizer.step()
+        self.scheduler.step()
+
+        if self.resample_steps is not None and step % self.resample_steps == 0:
+            self.resample_neurons(self.steps_since_active > self.resample_steps / 2, activations)
+
+    @property
+    def config(self):
+        return {
+            'trainer_class': 'VanillaTrainer',
+            'activation_dim': self.ae.activation_dim,
+            'dict_size': self.ae.dict_size,
+            'lr': self.lr,
+            'l1_penalty': self.l1_penalty,
+            'warmup_steps': self.warmup_steps,
+            'resample_steps': self.resample_steps,
+            'device': self.device,
+            'layer': self.layer,
+            'lm_name': self.lm_name,
+            'wandb_name': self.wandb_name,
+            'submodule_name': self.submodule_name,
+        }
+
+
+def run_sae_training(
+    layer: int,
+    dict_size: int,
+    num_tokens: int,
+    out_dir: str,  # Changed from save_dir to out_dir for consistency
+    device: str,
+    model_name: str = "google/gemma-2b",
+    context_length: int = 128,
+    buffer_size: int = 2048,
+    llm_batch_size: int = 24,
+    sae_batch_size: int = 2048,
+    learning_rate: float = 3e-4,
+    sparsity_penalty: float = 0.04,
+    warmup_steps: int = 1000,
+    seed: int = 0,
+    wandb_logging: bool = False,
+    wandb_entity: str = None,
+    wandb_project: str = None,
 ):
-    transformer.eval()
-    autoencoder.eval()
-
-    original_losses = []
-    reconstructed_losses = []
-    all_activations = []
-    all_latents = []
-
-    with torch.no_grad():
-        for batch in val_loader:
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device).float()
-            # Manually reshape the attention mask so it can broadcast
-            # to [batch, n_heads, seq_len, seq_len] internally.
-            # We do [batch, 1, 1, seq_len].
-            bsz, seq_len = attention_mask.shape
-            attention_mask = attention_mask.view(bsz, 1, 1, seq_len)
-
-            # 1) Original model pass
-            outputs = transformer(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=input_ids,
-                output_hidden_states=True
-            )
-            original_loss = outputs["loss"]
-            activations = outputs["hidden_states"][layer_idx]  # [bsz, seq_len, embed_dim]
-
-            # 2) Autoencoder pass
-            flat_activations = activations.view(-1, activations.size(-1))
-            reconstructed, latents = autoencoder(flat_activations)
-
-            all_activations.append(flat_activations.cpu())
-            all_latents.append(latents.cpu())
-
-            # Reshape reconstructed back
-            reconstructed = reconstructed.view(activations.shape)
-
-            # 3) Transformer pass w/ reconstructed hidden states
-            modified_outputs = transformer(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=input_ids,
-                custom_hidden_states={layer_idx: reconstructed}
-            )
-            reconstructed_loss = modified_outputs["loss"]
-
-            original_losses.append(original_loss.item())
-            reconstructed_losses.append(reconstructed_loss.item())
-
-    avg_original_loss = float(np.mean(original_losses))
-    avg_reconstructed_loss = float(np.mean(reconstructed_losses))
-
-    activations_concat = torch.cat(all_activations, dim=0)
-    latents_concat = torch.cat(all_latents, dim=0)
-
-    interpretability_metrics = {
-        "original_loss": avg_original_loss,
-        "reconstructed_loss": avg_reconstructed_loss,
-        "loss_difference": avg_reconstructed_loss - avg_original_loss,
-        "neuron_sparsity": torch.mean((activations_concat > 0).float()).item(),
-        "latent_sparsity": torch.mean((latents_concat > 0).float()).item(),
-        "activation_entropy": compute_entropy(activations_concat),
-        "latent_entropy": compute_entropy(latents_concat),
-    }
-
-    return interpretability_metrics
-
-# -------------------------------
-# 4) Main 'run' function
-# -------------------------------
-def run(out_dir: str):
+    # Convert out_dir to absolute path and create directory
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    ctx = nullcontext() if device == "cpu" else torch.amp.autocast(device_type="cuda")
+    # Calculate steps
+    steps = int(num_tokens / sae_batch_size)
 
-    # GPT-2 config
-    model_config = GPT2Config(
-        n_layer=6,
-        n_head=8,
-        n_embd=512,     # Smaller dimension for demonstration
-        vocab_size=50257
+    # Initialize model and buffer
+    model = LanguageModel(
+        model_name,
+        device_map=device,
+        low_cpu_mem_usage=True,
+        attn_implementation="eager",
+        torch_dtype=torch.bfloat16,
+        cache_dir=None,
     )
-    model = ModifiedGPT2(model_config).to(device)
+    submodule = model.model.layers[layer]
+    submodule_name = f"resid_post_layer_{layer}"
+    activation_dim = model.config.hidden_size
 
-    # ----------------------------------------
-    # Load tiny subset from openwebtext
-    # We'll select 10 samples for "train" and 10 for "val"
-    # If you want more, increase the range size
-    # ----------------------------------------
-    train_dataset = OpenWebTextSubset(indices_range=range(10), max_length=128)
-    val_dataset   = OpenWebTextSubset(indices_range=range(10, 20), max_length=128)
+    # Setup dataset and buffer
+    generator = hf_dataset_to_generator("monology/pile-uncopyrighted")
+    activation_buffer = ActivationBuffer(
+        generator,
+        model,
+        submodule,
+        n_ctxs=buffer_size,
+        ctx_len=context_length,
+        refresh_batch_size=llm_batch_size,
+        out_batch_size=sae_batch_size,
+        io="out",
+        d_submodule=activation_dim,
+        device=device,
+    )
 
-    train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
-    val_loader   = DataLoader(val_dataset, batch_size=2)
+    # Initialize trainer  
+    trainer = VanillaTrainer(
+        activation_dim=activation_dim,
+        dict_size=dict_size,
+        lr=learning_rate,
+        l1_penalty=sparsity_penalty,
+        warmup_steps=warmup_steps,
+        seed=seed,
+        device=device,
+        layer=layer,
+        lm_name=model_name,
+        submodule_name=submodule_name
+    )
 
-    # 1) Train Transformer
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-    with ctx:
-        transformer_log = train_transformer(model, train_loader, optimizer, device, num_epochs=1000)
+    training_log = []
+    
+    # Training loop
+    for step in range(steps):
+        activations = next(activation_buffer)
+        loss_dict = trainer.update(step, activations)
+        training_log.append(loss_dict)
+        
+        if step % 100 == 0:
+            print(f"Step {step}: {loss_dict}")
+            
+            if wandb_logging and wandb_entity and wandb_project:
+                import wandb
+                wandb.log(loss_dict, step=step)
 
-    # Save transformer checkpoint
-    torch.save({
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-    }, os.path.join(out_dir, "transformer_checkpoint.pt"))
-
-    # 2) Train Autoencoder on intermediate layer
-    layer_idx = model_config.n_layer // 2
-    input_dim = model_config.n_embd
-    latent_dim = input_dim // 2
-
-    autoencoder = SparseAutoencoder(input_dim, latent_dim).to(device)
-    optimizer_ae = torch.optim.Adam(autoencoder.parameters(), lr=1e-3)
-
-    # Collect activations from training set
-    activations = []
-    model.eval()
-    with torch.no_grad():
-        for batch in train_loader:
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device).float()
-
-            outputs = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                output_hidden_states=True
-            )
-            # Middle-layer activations
-            layer_activations = outputs["hidden_states"][layer_idx]  # [bsz, seq_len, embed_dim]
-            activations.append(layer_activations.cpu())
-
-    # Combine all
-    activations = torch.cat(activations, dim=0).view(-1, input_dim)
-    with ctx:
-        autoencoder_log = train_autoencoder(autoencoder, activations, optimizer_ae, device=device, num_epochs=1000)
-
-    torch.save({
-        "model_state_dict": autoencoder.state_dict(),
-        "optimizer_state_dict": optimizer_ae.state_dict(),
-    }, os.path.join(out_dir, "autoencoder_checkpoint.pt"))
-
-    # 3) Evaluate interpretability
-    metrics = evaluate_interpretability(model, autoencoder, val_loader, layer_idx, device)
-
-    # Prepare final info
+    # Prepare final results
     final_info = {
-        "transformer_loss": transformer_log[-1]["loss"],
-        "transformer_perplexity": float(torch.exp(torch.tensor(transformer_log[-1]["loss"]))),
-        "autoencoder_loss": autoencoder_log[-1]["total_loss"],
-        "reconstruction_error": metrics["loss_difference"],
-        "downstream_loss_original": metrics["original_loss"],
-        "downstream_loss_reconstructed": metrics["reconstructed_loss"],
-        "downstream_loss_delta_absolute": metrics["loss_difference"],
-        "downstream_loss_delta_percent": (
-            metrics["loss_difference"] / metrics["original_loss"] * 100
-            if metrics["original_loss"] != 0 else float("nan")
-        ),
-        "neuron_sparsity": metrics["neuron_sparsity"],
-        "latent_sparsity": metrics["latent_sparsity"],
-        "activation_entropy": metrics["activation_entropy"],
-        "latent_entropy": metrics["latent_entropy"],
+        "training_steps": steps,
+        "final_loss": training_log[-1]["loss"] if training_log else None,
+        "layer": layer,
+        "dict_size": dict_size,
+        "learning_rate": learning_rate,
+        "sparsity_penalty": sparsity_penalty
     }
 
-    print("\n=== Final Info ===")
-    for k, v in final_info.items():
-        print(f"{k}: {v}")
+    # Save model checkpoint 
+    checkpoint = {
+        "model_state_dict": trainer.ae.state_dict(),
+        "optimizer_state_dict": trainer.optimizer.state_dict(),
+    }
+    torch.save(checkpoint, os.path.join(out_dir, "autoencoder_checkpoint.pt"))
 
-    # Save logs
+    # Save all results and metrics
     results = {
-        "transformer_training": transformer_log,
-        "autoencoder_training": autoencoder_log,
-        "interpretability_metrics": metrics
+        "training_log": training_log,
+        "config": trainer.config(),
+        "final_info": final_info
     }
 
-    # with open(os.path.join(out_dir, "results.json"), "w") as f:
-    #     json.dump(results, f, indent=2)
-
+    # Save results using numpy format (similar to mech_interp)
     with open(os.path.join(out_dir, "all_results.npy"), "wb") as f:
         np.save(f, results)
 
-    # Optionally, you can also save final_info in a separate JSON
+    # Save final info separately as JSON (similar to mech_interp) 
     with open(os.path.join(out_dir, "final_info.json"), "w") as f:
         json.dump(final_info, f, indent=2)
 
-# -------------------------------
-# 5) Entrypoint
-# -------------------------------
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--out_dir", type=str, default="openwebtext_test")
-    args = parser.parse_args()
-    run(args.out_dir)
+import os
+import json
+import torch
+import numpy as np
+from pathlib import Path
+from typing import Any, Optional, List, Dict, Union, Tuple
+from tqdm import tqdm
 
+# Make imports relative to root directory
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# Evaluation imports
+from evals.absorption.main import run_eval as absorption_run_eval, AbsorptionEvalConfig
+from evals.autointerp.main import run_eval as autointerp_run_eval, AutoInterpEvalConfig
+from evals.core.main import multiple_evals
+from evals.scr_and_tpp.main import run_scr_eval, run_tpp_eval, SCREvalConfig, TPPEvalConfig
+from evals.sparse_probing.main import run_eval as sparse_probing_run_eval, SparseProbeEvalConfig
+from evals.unlearning.main import run_eval as unlearning_run_eval, UnlearningEvalConfig
+from sae_bench_utils.general_utils import general_utils
+
+RANDOM_SEED = 42
+
+def run(out_dir: str):
+    """
+    Run the SAE training experiment with the same directory structure as mech_interp.
+    
+    Args:
+        out_dir: str, the output directory where results will be saved
+    """
+    out_dir = os.path.abspath(out_dir)
+    
+    # Create run_i directory structure
+    i = 0
+    while os.path.exists(os.path.join(out_dir, f"run_{i}")):
+        i += 1
+    run_dir = os.path.join(out_dir, f"run_{i}")
+    os.makedirs(run_dir, exist_ok=True)
+
+    # Run the training with default parameters
+    run_sae_training(
+        layer=5,  # Using first layer from gemma-2b config
+        dict_size=512,  # Standard dictionary size
+        num_tokens=1_000_000,  # 1M tokens for training
+        out_dir=run_dir,
+        device="cuda" if torch.cuda.is_available() else "cpu",
+    )
+
+MODEL_CONFIGS = {
+    "pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3, 4], "d_model": 512},
+    "gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
+}
+
+output_folders = {
+    "absorption": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/absorption"),
+    "autointerp": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/autointerp"),
+    "core": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/core"),
+    "scr": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/scr"),
+    "tpp": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/tpp"),
+    "sparse_probing": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/sparse_probing"),
+    "unlearning": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/unlearning"),
+}
+
+def evaluate_trained_sae(
+    sae_model,
+    model_name: str,
+    eval_types: list[str],
+    device: str,
+    llm_batch_size: Optional[int] = None,
+    llm_dtype: Optional[str] = None,
+    api_key: Optional[str] = None,
+    force_rerun: bool = False,
+    save_activations: bool = False,
+):
+    """Run evaluations for the given model and SAE.
+    
+    Args:
+        sae_model: The trained SAE model to evaluate
+        model_name: Name of the base LLM model
+        eval_types: List of evaluation types to run
+        device: Device to run evaluations on
+        llm_batch_size: Batch size for LLM inference
+        llm_dtype: Data type for LLM ('float32' or 'bfloat16')
+        api_key: Optional API key for certain evaluations
+        force_rerun: Whether to force rerun of evaluations
+        save_activations: Whether to save activations during evaluation
+    """
+    if model_name not in MODEL_CONFIGS:
+        raise ValueError(f"Unsupported model: {model_name}")
+    
+    if llm_batch_size is None or llm_dtype is None:
+        config = MODEL_CONFIGS[model_name]
+        llm_batch_size = llm_batch_size or config["batch_size"]
+        llm_dtype = llm_dtype or config["dtype"]
+    
+    selected_saes = [("custom_sae", sae_model)]
+    
+    # Mapping of eval types to their functions
+    # Try to load API key for autointerp if needed
+    if "autointerp" in eval_types and api_key is None:
+        try:
+            api_key_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "openai_api_key.txt")
+            with open(api_key_path) as f:
+                api_key = f.read().strip()
+        except FileNotFoundError:
+            print("Warning: openai_api_key.txt not found. Autointerp evaluation will be skipped.")
+    
+    eval_runners = {
+        "absorption": (
+            lambda: absorption_run_eval(
+                AbsorptionEvalConfig(
+                    model_name=model_name,
+                    random_seed=RANDOM_SEED,
+                    llm_batch_size=llm_batch_size,
+                    llm_dtype=llm_dtype,
+                ),
+                selected_saes,
+                device,
+                output_folders["absorption"],
+                force_rerun,
+            )
+        ),
+        "autointerp": (
+            lambda: autointerp_run_eval(
+                AutoInterpEvalConfig(
+                    model_name=model_name,
+                    random_seed=RANDOM_SEED,
+                    llm_batch_size=llm_batch_size,
+                    llm_dtype=llm_dtype,
+                ),
+                selected_saes,
+                device,
+                api_key,
+                output_folders["autointerp"],
+                force_rerun,
+            )
+        ),
+        "core": (
+            lambda: core.multiple_evals(
+                selected_saes=selected_saes,
+                n_eval_reconstruction_batches=200,
+                n_eval_sparsity_variance_batches=2000,
+                eval_batch_size_prompts=16,
+                compute_featurewise_density_statistics=False,
+                compute_featurewise_weight_based_metrics=False,
+                exclude_special_tokens_from_reconstruction=True,
+                dataset="Skylion007/openwebtext",
+                context_size=128,
+                output_folder=output_folders["core"],
+                verbose=True,
+                dtype=llm_dtype,
+            )
+        ),
+        "scr": (
+            lambda: scr_and_tpp.run_scr_eval(
+                scr_and_tpp.SCREvalConfig(
+                    model_name=model_name,
+                    random_seed=RANDOM_SEED,
+                    llm_batch_size=llm_batch_size,
+                    llm_dtype=llm_dtype,
+                ),
+                selected_saes,
+                device,
+                output_folders["scr"],
+                force_rerun,
+            )
+        ),
+        "tpp": (
+            lambda: scr_and_tpp.run_tpp_eval(
+                scr_and_tpp.TPPEvalConfig(
+                    model_name=model_name,
+                    random_seed=RANDOM_SEED,
+                    llm_batch_size=llm_batch_size,
+                    llm_dtype=llm_dtype,
+                ),
+                selected_saes,
+                device,
+                output_folders["tpp"],
+                force_rerun,
+            )
+        ),
+        "sparse_probing": (
+            lambda: sparse_probing_run_eval(
+                SparseProbeEvalConfig(
+                    model_name=model_name,
+                    random_seed=RANDOM_SEED,
+                    llm_batch_size=llm_batch_size,
+                    llm_dtype=llm_dtype,
+                ),
+                selected_saes,
+                device,
+                output_folders["sparse_probing"],
+                force_rerun,
+            )
+        ),
+        "unlearning": (
+            lambda: unlearning_run_eval(
+                UnlearningEvalConfig(
+                    model_name=model_name,
+                    random_seed=RANDOM_SEED,
+                    llm_batch_size=llm_batch_size,
+                    llm_dtype=llm_dtype,
+                ),
+                selected_saes,
+                device,
+                output_folders["unlearning"],
+                force_rerun,
+            )
+        ),
+    }
+    
+    # Create output directories if they don't exist
+    for folder in output_folders.values():
+        os.makedirs(folder, exist_ok=True)
+    
+    # Run selected evaluations
+    for eval_type in eval_types:
+        if eval_type in eval_runners:
+            print(f"\nRunning {eval_type} evaluation...")
+            eval_runners[eval_type]()
+        else:
+            print(f"Warning: Unknown evaluation type {eval_type}")
