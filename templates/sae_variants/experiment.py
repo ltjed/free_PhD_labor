@@ -439,13 +439,20 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Evaluation imports
-from evals.absorption.main import run_eval as absorption_run_eval, AbsorptionEvalConfig
-from evals.autointerp.main import run_eval as autointerp_run_eval, AutoInterpEvalConfig
-from evals.core.main import multiple_evals
-from evals.scr_and_tpp.main import run_scr_eval, run_tpp_eval, SCREvalConfig, TPPEvalConfig
-from evals.sparse_probing.main import run_eval as sparse_probing_run_eval, SparseProbeEvalConfig
-from evals.unlearning.main import run_eval as unlearning_run_eval, UnlearningEvalConfig
-from sae_bench_utils.general_utils import general_utils
+# from evals.absorption.main import run_eval as absorption_run_eval, AbsorptionEvalConfig
+# from evals.autointerp.main import run_eval as autointerp_run_eval, AutoInterpEvalConfig
+# from evals.core.main import multiple_evals
+# from evals.scr_and_tpp.main import run_scr_eval, run_tpp_eval, SCREvalConfig, TPPEvalConfig
+# from evals.sparse_probing.main import run_eval as sparse_probing_run_eval, SparseProbeEvalConfig
+# from evals.unlearning.main import run_eval as unlearning_run_eval, UnlearningEvalConfig
+
+
+import evals.absorption.main as absorption
+import evals.autointerp.main as autointerp
+import evals.core.main as core
+import evals.scr_and_tpp.main as scr_and_tpp
+import evals.sparse_probing.main as sparse_probing
+import evals.unlearning.main as unlearning
 
 RANDOM_SEED = 42
 
@@ -535,8 +542,8 @@ def evaluate_trained_sae(
     
     eval_runners = {
         "absorption": (
-            lambda: absorption_run_eval(
-                AbsorptionEvalConfig(
+            lambda: absorption.run_eval(
+                absorption.AbsorptionEvalConfig(
                     model_name=model_name,
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
@@ -549,8 +556,8 @@ def evaluate_trained_sae(
             )
         ),
         "autointerp": (
-            lambda: autointerp_run_eval(
-                AutoInterpEvalConfig(
+            lambda: autointerp.run_eval(
+                autointerp.AutoInterpEvalConfig(
                     model_name=model_name,
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
@@ -580,8 +587,8 @@ def evaluate_trained_sae(
             )
         ),
         "scr": (
-            lambda: scr_and_tpp.run_scr_eval(
-                scr_and_tpp.SCREvalConfig(
+            lambda: scr_and_tpp.run_eval(
+                scr_and_tpp.ScrAndTppEvalConfig(
                     model_name=model_name,
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
@@ -594,8 +601,8 @@ def evaluate_trained_sae(
             )
         ),
         "tpp": (
-            lambda: scr_and_tpp.run_tpp_eval(
-                scr_and_tpp.TPPEvalConfig(
+            lambda: scr_and_tpp.run_eval(
+                scr_and_tpp.ScrAndTppEvalConfig(
                     model_name=model_name,
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
@@ -608,8 +615,8 @@ def evaluate_trained_sae(
             )
         ),
         "sparse_probing": (
-            lambda: sparse_probing_run_eval(
-                SparseProbeEvalConfig(
+            lambda: sparse_probing.run_eval(
+                sparse_probing.SparseProbingEvalConfig(
                     model_name=model_name,
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
@@ -622,8 +629,8 @@ def evaluate_trained_sae(
             )
         ),
         "unlearning": (
-            lambda: unlearning_run_eval(
-                UnlearningEvalConfig(
+            lambda: unlearning.run_eval(
+                unlearning.UnlearningEvalConfig(
                     model_name=model_name,
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
