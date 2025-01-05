@@ -426,6 +426,8 @@ def run_sae_training(
     with open(os.path.join(out_dir, "final_info.json"), "w") as f:
         json.dump(final_info, f, indent=2)
 
+    return trainer.ae
+
 import os
 import json
 import torch
@@ -456,30 +458,8 @@ import evals.unlearning.main as unlearning
 
 RANDOM_SEED = 42
 
-def run(out_dir: str):
-    """
-    Run the SAE training experiment with the same directory structure as mech_interp.
-    
-    Args:
-        out_dir: str, the output directory where results will be saved
-    """
-    out_dir = os.path.abspath(out_dir)
-    
-    # Create run_i directory structure
-    i = 0
-    while os.path.exists(os.path.join(out_dir, f"run_{i}")):
-        i += 1
-    run_dir = os.path.join(out_dir, f"run_{i}")
-    os.makedirs(run_dir, exist_ok=True)
 
-    # Run the training with default parameters
-    run_sae_training(
-        layer=5,  # Using first layer from gemma-2b config
-        dict_size=512,  # Standard dictionary size
-        num_tokens=1_000_000,  # 1M tokens for training
-        out_dir=run_dir,
-        device="cuda" if torch.cuda.is_available() else "cpu",
-    )
+
 
 MODEL_CONFIGS = {
     "pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3, 4], "d_model": 512},
@@ -497,7 +477,7 @@ output_folders = {
 }
 
 def evaluate_trained_sae(
-    sae_model,
+    selected_saes: list[tuple[str, Any]],
     model_name: str,
     eval_types: list[str],
     device: str,
@@ -528,7 +508,7 @@ def evaluate_trained_sae(
         llm_batch_size = llm_batch_size or config["batch_size"]
         llm_dtype = llm_dtype or config["dtype"]
     
-    selected_saes = [("custom_sae", sae_model)]
+    selected_saes = selected_saes
     
     # Mapping of eval types to their functions
     # Try to load API key for autointerp if needed
@@ -655,3 +635,104 @@ def evaluate_trained_sae(
             eval_runners[eval_type]()
         else:
             print(f"Warning: Unknown evaluation type {eval_type}")
+def str_to_dtype(dtype_str: str) -> torch.dtype:
+    dtype_map = {
+        "float32": torch.float32,
+        "float64": torch.float64,
+        "float16": torch.float16,
+        "bfloat16": torch.bfloat16,
+    }
+    dtype = dtype_map.get(dtype_str.lower())
+    if dtype is None:
+        raise ValueError(
+            f"Unsupported dtype: {dtype_str}. Supported dtypes: {list(dtype_map.keys())}"
+        )
+    return dtype
+
+if __name__ == "__main__":
+    
+    model_name = "pythia-70m-deduped"
+    model_name = "gemma-2-2b"
+    d_model = MODEL_CONFIGS[model_name]["d_model"]
+    llm_batch_size = MODEL_CONFIGS[model_name]["batch_size"]
+    llm_dtype = MODEL_CONFIGS[model_name]["dtype"]
+    # Initialize variables that were previously args
+    layers = MODEL_CONFIGS[model_name]["layers"]
+    save_dir = "output_dir"  # Set default save directory
+    num_tokens = 1000 # Set default number of tokens
+    width_exponents = [8, 9, 10] # Set default width exponents
+    architectures = ["tied", "untied"] # Set default architectures
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dry_run = False # Set default dry run flag
+    no_wandb_logging = False # Set default wandb logging flag
+    
+    saes = []
+    for layer in layers:
+        saes.append(run_sae_training(
+            layer=layer,
+            dict_size=d_model,
+            num_tokens=num_tokens,
+            out_dir=save_dir,
+            device=device,
+            model_name=model_name,
+            context_length=128,
+            buffer_size=2048,
+            llm_batch_size=llm_batch_size,
+            sae_batch_size=2048,
+            learning_rate=3e-4,
+            sparsity_penalty=0.04,
+            warmup_steps=1000,
+            seed=42,
+            wandb_logging=not no_wandb_logging,
+            wandb_entity=None,
+            wandb_project=None
+            ))        
+
+
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+    # Note: Unlearning is not recommended for models with < 2B parameters and we recommend an instruct tuned model
+    # Unlearning will also require requesting permission for the WMDP dataset (see unlearning/README.md)
+    # Absorption not recommended for models < 2B parameters
+
+    # Select your eval types here.
+    eval_types = [
+        "absorption",
+        "autointerp",
+        "core",
+        "scr",
+        "tpp",
+        "sparse_probing",
+        "unlearning",
+    ]
+
+    if "autointerp" in eval_types:
+        try:
+            with open("openai_api_key.txt") as f:
+                api_key = f.read().strip()
+        except FileNotFoundError:
+            raise Exception("Please create openai_api_key.txt with your API key")
+    else:
+        api_key = None
+
+    save_activations = False
+
+    for k in len(layers):
+        selected_saes = [(f"{model_name}_layer_{layers[k]}_sae", saes[k])]
+        for sae_name, sae in selected_saes:
+            sae = sae.to(dtype=str_to_dtype(llm_dtype))
+            sae.cfg.dtype = llm_dtype
+
+        evaluate_trained_sae(
+            selected_saes,
+            model_name,
+            llm_batch_size,
+            llm_dtype,
+            device,
+            eval_types=eval_types,
+            api_key=api_key,
+            force_rerun=False,
+            save_activations=False,
+        )
