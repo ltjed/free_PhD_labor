@@ -47,9 +47,9 @@ class CustomSAEConfig:
     sae_lens_training_version: Optional[str] = None
     neuronpedia_id: Optional[str] = None
 
-
-class VanillaSAE(nn.Module):
-    """An implementation of a Vanilla Sparse Autoencoder."""
+# modify the following subclass to implement the proposed SAE variant
+class CustomSAE(nn.Module):
+    """An implementation of a Custom Sparse Autoencoder."""
     def __init__(
         self,
         d_in: int,
@@ -66,7 +66,7 @@ class VanillaSAE(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float32
         
-        # Add properties to match the interface expected by VanillaTrainer
+        # Add properties to match the interface expected by CustomTrainer
         self.activation_dim = d_in
         self.dict_size = d_sae
 
@@ -80,8 +80,8 @@ class VanillaSAE(nn.Module):
             d_sae=d_sae,
             hook_name=hook_name,
             hook_layer=hook_layer,
-            # Set some reasonable defaults for VanillaSAE
-            architecture="vanilla",
+            # Set some reasonable defaults for CustomSAE
+            architecture="Custom",
             activation_fn_str="relu",
             apply_b_dec_to_input=True,
         )
@@ -154,9 +154,9 @@ class SAETrainer:
             'wandb_name': 'trainer',
         }
 
-
-class VanillaTrainer(SAETrainer):
-    """Trainer for Vanilla Sparse Autoencoder using L1 regularization."""
+# modify the following subclass to implement the proposed SAE variant training
+class CustomTrainer(SAETrainer):
+    """Trainer for Custom Sparse Autoencoder using L1 regularization."""
     def __init__(self,
                  activation_dim=512,
                  dict_size=64*512,
@@ -168,7 +168,7 @@ class VanillaTrainer(SAETrainer):
                  device=None,
                  layer=None,
                  lm_name=None,
-                 wandb_name='VanillaTrainer',
+                 wandb_name='CustomTrainer',
                  submodule_name=None,
     ):
         super().__init__(seed)
@@ -183,7 +183,7 @@ class VanillaTrainer(SAETrainer):
             torch.cuda.manual_seed_all(seed)
 
         # Initialize autoencoder
-        self.ae = VanillaSAE(d_in=activation_dim, d_sae=dict_size)
+        self.ae = CustomSAE(d_in=activation_dim, d_sae=dict_size)
 
         self.lr = lr
         self.l1_penalty = l1_penalty
@@ -296,7 +296,7 @@ class VanillaTrainer(SAETrainer):
     @property
     def config(self):
         return {
-            'trainer_class': 'VanillaTrainer',
+            'trainer_class': 'CustomTrainer',
             'activation_dim': self.ae.activation_dim,
             'dict_size': self.ae.dict_size,
             'lr': self.lr,
@@ -366,7 +366,7 @@ def run_sae_training(
     )
 
     # Initialize trainer  
-    trainer = VanillaTrainer(
+    trainer = CustomTrainer(
         activation_dim=activation_dim,
         dict_size=dict_size,
         lr=learning_rate,
@@ -441,14 +441,6 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # Evaluation imports
-# from evals.absorption.main import run_eval as absorption_run_eval, AbsorptionEvalConfig
-# from evals.autointerp.main import run_eval as autointerp_run_eval, AutoInterpEvalConfig
-# from evals.core.main import multiple_evals
-# from evals.scr_and_tpp.main import run_scr_eval, run_tpp_eval, SCREvalConfig, TPPEvalConfig
-# from evals.sparse_probing.main import run_eval as sparse_probing_run_eval, SparseProbeEvalConfig
-# from evals.unlearning.main import run_eval as unlearning_run_eval, UnlearningEvalConfig
-
-
 import evals.absorption.main as absorption
 import evals.autointerp.main as autointerp
 import evals.core.main as core
@@ -652,7 +644,7 @@ def str_to_dtype(dtype_str: str) -> torch.dtype:
 if __name__ == "__main__":
     
     model_name = "pythia-70m-deduped"
-    model_name = "gemma-2-2b"
+    # model_name = "gemma-2-2b"
     d_model = MODEL_CONFIGS[model_name]["d_model"]
     llm_batch_size = MODEL_CONFIGS[model_name]["batch_size"]
     llm_dtype = MODEL_CONFIGS[model_name]["dtype"]
@@ -699,13 +691,13 @@ if __name__ == "__main__":
 
     # Select your eval types here.
     eval_types = [
-        "absorption",
-        "autointerp",
+        # "absorption",
+        # "autointerp",
         "core",
-        "scr",
-        "tpp",
-        "sparse_probing",
-        "unlearning",
+        # "scr",
+        # "tpp",
+        # "sparse_probing",
+        # "unlearning",
     ]
 
     if "autointerp" in eval_types:

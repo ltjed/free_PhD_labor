@@ -302,7 +302,8 @@ import os
 import glob
 
 # Get all PDF files in the example_papers folder
-pdf_files = glob.glob("example_papers2/*.pdf")
+# can change to other templates as well given they have a literature_context folder
+pdf_files = glob.glob("templates/sae_variants/literature_context/*.pdf")
 
 # Initialize idea_str_archive if it doesn't exist
 idea_str_archive = []
