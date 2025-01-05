@@ -1,0 +1,25 @@
+def run(out_dir: str):
+    import os
+    """
+    Run the SAE training experiment with the same directory structure as mech_interp.
+    
+    Args:
+        out_dir: str, the output directory where results will be saved
+    """
+    out_dir = os.path.abspath(out_dir)
+    
+    # Create run_i directory structure
+    i = 0
+    while os.path.exists(os.path.join(out_dir, f"run_{i}")):
+        i += 1
+    run_dir = os.path.join(out_dir, f"run_{i}")
+    os.makedirs(run_dir, exist_ok=True)
+
+    # Run the training with default parameters
+    run_sae_training(
+        layer=5,  # Using first layer from gemma-2b config
+        dict_size=512,  # Standard dictionary size
+        num_tokens=1_000_000,  # 1M tokens for training
+        out_dir=run_dir,
+        device="cuda" if torch.cuda.is_available() else "cpu",
+    ) 
