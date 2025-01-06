@@ -6,6 +6,8 @@ import os.path as osp
 import anthropic
 import backoff
 import openai
+from transformers import GPT2Tokenizer
+
 
 
 
@@ -143,6 +145,77 @@ def clean_text(text):
     # You can add more cleaning rules (e.g. extra whitespace)
     text = re.sub(r'\s+', ' ', text).strip()
     return text
+from transformers import GPT2TokenizerFast
+
+def two_stage_chunking(
+    text: str,
+    word_chunk_size: int = 256,
+    max_tokens: int = 1024,
+    tokenizer_name: str = "gpt2",
+    add_special_tokens: bool = False
+):
+    """
+    1. Splits `text` into chunks of `word_chunk_size` words each (e.g., 512).
+    2. For each word-based chunk, tokenize it and split further (if needed)
+       so that each final chunk has at most `max_tokens` tokens.
+    
+    Returns a list of string chunks, each of which encodes to <= `max_tokens`.
+    """
+    # 1. Split the text by words so we don't handle a massive string at once.
+    words = text.split()
+    
+    tokenizer = GPT2TokenizerFast.from_pretrained(tokenizer_name)
+    
+    final_chunks = []
+    
+    # 2. Loop over word-based chunks
+    for i in range(0, len(words), word_chunk_size):
+        word_chunk = words[i : i + word_chunk_size]
+        sub_text = " ".join(word_chunk)
+        
+        # -- Tokenize this sub-text
+        token_ids = tokenizer.encode(sub_text, add_special_tokens=add_special_tokens)
+        
+        # -- If it exceeds max_tokens, break it down further
+        start = 0
+        while start < len(token_ids):
+            end = start + max_tokens
+            # Grab a slice of tokens (bounded by max_tokens)
+            token_slice = token_ids[start:end]
+            # Decode back to text
+            chunk_str = tokenizer.decode(token_slice, skip_special_tokens=not add_special_tokens)
+            final_chunks.append(chunk_str)
+            start = end
+    
+    return final_chunks
+
+def chunk_text_by_tokens(text, max_tokens=512, tokenizer_name="gpt2"):
+    """
+    Splits 'text' into chunks of up to 'max_tokens' *model tokens* each
+    using a Hugging Face tokenizer (e.g., GPT2TokenizerFast).
+    
+    Args:
+        text (str): The input text to be tokenized and chunked.
+        max_tokens (int): The maximum number of tokens allowed in each chunk.
+        tokenizer_name (str): The model name of the tokenizer to use.
+
+    Returns:
+        List[str]: A list of text chunks, each at most 'max_tokens' tokens long.
+    """
+    # 1. Initialize a Hugging Face tokenizer (GPT2 is just an example).
+    tokenizer = GPT2TokenizerFast.from_pretrained(tokenizer_name)
+
+    # 2. Encode the text into a list of token IDs (disable special tokens for naive splitting).
+    inputs = tokenizer.encode(text, add_special_tokens=False)
+    # 3. Loop through the token list in steps of 'max_tokens'.
+    chunks = []
+    for i in range(0, len(inputs), max_tokens):
+        token_chunk = inputs[i : i + max_tokens]
+        # Decode the tokens back to a string
+        chunk_text = tokenizer.decode(token_chunk, skip_special_tokens=True)
+        chunks.append(chunk_text)
+
+    return chunks
 
 
 def chunk_text(text, max_tokens=512):
@@ -160,6 +233,7 @@ def chunk_text(text, max_tokens=512):
         current_length += 1
         if current_length >= max_tokens:
             # Join the current chunk into a string
+            
             chunks.append(" ".join(current_chunk))
             current_chunk = []
             current_length = 0
@@ -167,7 +241,7 @@ def chunk_text(text, max_tokens=512):
     # Add the remainder if there's anything left
     if current_chunk:
         chunks.append(" ".join(current_chunk))
-    
+
     return chunks
 
 def extract_json_between_markers(llm_output):
@@ -197,14 +271,14 @@ def extract_json_between_markers(llm_output):
 
     return None  # No valid JSON found
 
-def summarize_in_chunks(text, summarizer, max_tokens_per_chunk=512, max_length=200, min_length=50):
+def summarize_in_chunks(text, summarizer, max_tokens_per_chunk=1024, max_length=200, min_length=50):
     """
     1. Chunk the text into small pieces (by words).
     2. Use the summarization pipeline on each chunk.
     3. Combine all chunk summaries into a single string.
     """
     # Split into chunks
-    chunks = chunk_text(text, max_tokens=max_tokens_per_chunk)
+    chunks = two_stage_chunking(text, 256, max_tokens_per_chunk)
     all_summaries = []
     
     for chunk in chunks:
@@ -223,16 +297,14 @@ def summarize_in_chunks(text, summarizer, max_tokens_per_chunk=512, max_length=2
     combined_summary = " ".join(all_summaries)
     return combined_summary
     
-pdf_path = "example_paper.pdf"
 def summarize_idea(pdf_path):
     client, client_model = create_client("claude-3-5-sonnet-20240620")
     raw_text, title = extract_pdf_text(pdf_path)
 
     # Step 2: Clean text
     cleaned_text = clean_text(raw_text)
-
-    # Step 3: Create a summarization pipeline on GPU
-    #    device=0 => GPU; adjust if you have multiple GPUs (e.g., device=1 for second GPU).
+    # Print the length of the cleaned text in number of characters
+    print(f"Number of characters in cleaned text: {len(cleaned_text)}")
     summarizer = pipeline(
         "summarization",
         model="facebook/bart-large-cnn",
@@ -247,6 +319,8 @@ def summarize_idea(pdf_path):
         max_length=200,
         min_length=50
     )
+    
+    print(f"Length of short summary: {len(short_summary.split())} words")
     if title == None:
         prompt = """ You are given a summary of a paper: 
 

@@ -12,7 +12,10 @@ from einops import rearrange, repeat
 from torch import nn, Tensor
 from torch.utils.data import IterableDataset
 
-
+parser = argparse.ArgumentParser(description="Run experiment")
+parser.add_argument("--out_dir", type=str, default="run_0", help="Output directory")
+args = parser.parse_args()
+out_dir = args.out_dir
 class AbstractDataset(abc.ABC):
     def __init__(self, group_elements1: Set, group_elements2: Set, frac_train: float):
         self.frac_train = frac_train
@@ -374,7 +377,6 @@ def run(out_dir, dataset, seed_offset):
 parser = argparse.ArgumentParser(description="Run experiment")
 parser.add_argument("--out_dir", type=str, default="run_0", help="Output directory")
 args = parser.parse_args()
-
 if __name__ == "__main__":
     num_seeds = {
         "x_div_y": 3,

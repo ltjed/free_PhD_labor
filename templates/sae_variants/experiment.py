@@ -9,6 +9,11 @@ from datetime import datetime
 from nnsight import LanguageModel
 from dictionary_learning.utils import hf_dataset_to_generator
 from dictionary_learning.buffer import ActivationBuffer
+import argparse
+
+
+
+
 
 # Do not modify CustomSAEConfig class as this defines the right format for SAE to be evaluated!
 @dataclass
@@ -427,10 +432,15 @@ def run_sae_training(
     with open(os.path.join(out_dir, "all_results.npy"), "wb") as f:
         np.save(f, results)
 
-    # Save final info separately as JSON (similar to mech_interp) 
-    with open(os.path.join(out_dir, "final_info.json"), "w") as f:
-        json.dump(final_info, f, indent=2)
-
+    all_info_path = os.path.join(out_dir, "final_info.json")
+    if os.path.exists(all_info_path):
+        with open(all_info_path, 'r') as f:
+            existing_data = json.load(f)
+    else:
+        existing_data = {}
+    existing_data.update(final_info)
+    with open(all_info_path, "w") as f:
+        json.dump(existing_data, indent=2, fp=f)   
     return trainer.ae
 
 import os
@@ -463,15 +473,7 @@ MODEL_CONFIGS = {
     # "gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
 }
 
-output_folders = {
-    "absorption": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/absorption"),
-    "autointerp": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/autointerp"),
-    "core": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/core"),
-    "scr": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/scr"),
-    "tpp": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/tpp"),
-    "sparse_probing": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/sparse_probing"),
-    "unlearning": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "eval_results/unlearning"),
-}
+
 
 def evaluate_trained_sae(
     selected_saes: list[tuple[str, Any]],
@@ -483,6 +485,7 @@ def evaluate_trained_sae(
     api_key: Optional[str] = None,
     force_rerun: bool = False,
     save_activations: bool = False,
+    out_dir: str = "eval_results",
 ):
     """Run evaluations for the given model and SAE.
     
@@ -528,7 +531,7 @@ def evaluate_trained_sae(
                 ),
                 selected_saes,
                 device,
-                output_folders["absorption"],
+                out_dir,
                 force_rerun,
             )
         ),
@@ -543,7 +546,7 @@ def evaluate_trained_sae(
                 selected_saes,
                 device,
                 api_key,
-                output_folders["autointerp"],
+                out_dir,
                 force_rerun,
             )
         ),
@@ -558,7 +561,7 @@ def evaluate_trained_sae(
                 exclude_special_tokens_from_reconstruction=True,
                 dataset="Skylion007/openwebtext",
                 context_size=128,
-                output_folder=output_folders["core"],
+                output_folder=out_dir,
                 verbose=True,
                 dtype=llm_dtype,
             )
@@ -573,7 +576,7 @@ def evaluate_trained_sae(
                 ),
                 selected_saes,
                 device,
-                output_folders["scr"],
+                out_dir,
                 force_rerun,
             )
         ),
@@ -587,7 +590,7 @@ def evaluate_trained_sae(
                 ),
                 selected_saes,
                 device,
-                output_folders["tpp"],
+                out_dir,
                 force_rerun,
             )
         ),
@@ -601,7 +604,7 @@ def evaluate_trained_sae(
                 ),
                 selected_saes,
                 device,
-                output_folders["sparse_probing"],
+                out_dir,
                 force_rerun,
             )
         ),
@@ -615,15 +618,12 @@ def evaluate_trained_sae(
                 ),
                 selected_saes,
                 device,
-                output_folders["unlearning"],
+                out_dir,
                 force_rerun,
             )
         ),
     }
     
-    # Create output directories if they don't exist
-    for folder in output_folders.values():
-        os.makedirs(folder, exist_ok=True)
     
     # Run selected evaluations
     for eval_type in eval_types:
@@ -647,6 +647,11 @@ def str_to_dtype(dtype_str: str) -> torch.dtype:
     return dtype
 
 if __name__ == "__main__":
+        
+    parser = argparse.ArgumentParser(description="Run experiment")
+    parser.add_argument("--out_dir", type=str, default="run_0", help="Output directory")
+    args = parser.parse_args()
+    save_dir = args.out_dir
     
     model_name = "EleutherAI/pythia-70m-deduped"
     # model_name = "gemma-2-2b"
@@ -655,12 +660,8 @@ if __name__ == "__main__":
     llm_dtype = MODEL_CONFIGS[model_name]["dtype"]
     # Initialize variables that were previously args
     layers = MODEL_CONFIGS[model_name]["layers"]
-    save_dir = "output_dir"  # Set default save directory
     num_tokens = 1000 # Set default number of tokens
-    width_exponents = [8, 9, 10] # Set default width exponents
-    architectures = ["tied", "untied"] # Set default architectures
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dry_run = False # Set default dry run flag
     no_wandb_logging = False # Set default wandb logging flag
     
     saes = []
@@ -732,4 +733,5 @@ if __name__ == "__main__":
             api_key=api_key,
             force_rerun=False,
             save_activations=False,
+            out_dir=save_dir
         )
