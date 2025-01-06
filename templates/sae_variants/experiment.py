@@ -55,7 +55,7 @@ class CustomSAE(nn.Module):
         d_in: int,
         d_sae: int,
         hook_layer: int,
-        model_name: str = "pythia-70m",
+        model_name: str = "EleutherAI/pythia-70m-deduped",
         hook_name: Optional[str] = None,
     ):
         super().__init__()
@@ -346,7 +346,12 @@ def run_sae_training(
         torch_dtype=torch.bfloat16,
         cache_dir=None,
     )
-    submodule = model.model.layers[layer]
+    # added for pythia-70m
+    if model_name == "EleutherAI/pythia-70m-deduped":
+        # Access the transformer layers directly from the model
+        submodule = model.gpt_neox.layers[layer]
+    else:
+        submodule = model.model.layers[layer]
     submodule_name = f"resid_post_layer_{layer}"
     activation_dim = model.config.hidden_size
 
@@ -454,8 +459,8 @@ RANDOM_SEED = 42
 
 
 MODEL_CONFIGS = {
-    "pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3, 4], "d_model": 512},
-    "gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
+    "EleutherAI/pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3, 4], "d_model": 512},
+    # "gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
 }
 
 output_folders = {
@@ -643,7 +648,7 @@ def str_to_dtype(dtype_str: str) -> torch.dtype:
 
 if __name__ == "__main__":
     
-    model_name = "pythia-70m-deduped"
+    model_name = "EleutherAI/pythia-70m-deduped"
     # model_name = "gemma-2-2b"
     d_model = MODEL_CONFIGS[model_name]["d_model"]
     llm_batch_size = MODEL_CONFIGS[model_name]["batch_size"]
