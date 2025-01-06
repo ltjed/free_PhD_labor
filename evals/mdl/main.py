@@ -480,7 +480,15 @@ def run_eval(
             json.dump(sae_eval_result, f, indent=4)
 
         results_dict[f"{sae_release}_{sae_id}"] = eval_output
-
+        all_info_path = os.path.join(output_path, "final_info.json")
+        if os.path.exists(all_info_path):
+            with open(all_info_path, 'r') as f:
+                existing_data = json.load(f)
+        else:
+            existing_data = {}
+        existing_data.update(asdict(eval_output))
+        with open(all_info_path, "w") as f:
+            json.dump(existing_data, indent=2, fp=f)   
     results_dict["custom_eval_config"] = asdict(config)
 
     gc.collect()

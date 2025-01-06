@@ -2,6 +2,7 @@
 # flake8: noqa: E501
 # fmt: on
 import argparse
+import json
 import time
 from typing import Type, Tuple, Callable, Any, Union, Dict, List, Mapping, Optional
 from dataclasses import asdict
@@ -824,7 +825,7 @@ def save_single_eval_result(
         sae_lens_version=sae_lens_version,
         sae_cfg_dict=asdict(sae.cfg),
     )
-
+   
     eval_output.to_json_file(json_path)
 
     return json_path
@@ -985,6 +986,7 @@ def multiple_evals(
                 print(f"Saved evaluation results to: {saved_path}")
 
             eval_results.append(eval_metrics)
+            
         except Exception as e:
             logger.error(
                 f"Failed to evaluate SAE {sae_id} from {sae_release} "
@@ -994,7 +996,15 @@ def multiple_evals(
 
         gc.collect()
         torch.cuda.empty_cache()
-
+        all_info_path = os.path.join(output_path, "final_info.json")
+        if os.path.exists(all_info_path):
+            with open(all_info_path, 'r') as f:
+                existing_data = json.load(f)
+        else:
+            existing_data = {}
+        existing_data.update(asdict(eval_results[-1]))
+        with open(all_info_path, "w") as f:
+            json.dump(existing_data, indent=2, fp=f)   
     return eval_results
 
 
@@ -1031,7 +1041,7 @@ def run_evaluations(args: argparse.Namespace) -> List[Dict[str, Any]]:
         dtype=args.llm_dtype,
         force_rerun=args.force_rerun,
     )
-
+    
     return eval_results
 
 

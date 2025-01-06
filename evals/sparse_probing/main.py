@@ -1,4 +1,5 @@
 import gc
+import json
 import os
 import shutil
 import random
@@ -343,7 +344,9 @@ def run_eval(
             sae_lens_version=sae_lens_version,
             sae_cfg_dict=asdict(sae.cfg),
         )
-
+        all_info_path = os.path.join(output_path, "final_info.json")
+        with open(all_info_path, "w") as f:
+            json.dump(asdict(eval_output), indent=2, fp=f)
         results_dict[f"{sae_release}_{sae_id}"] = asdict(eval_output)
 
         eval_output.to_json_file(sae_result_path, indent=2)
