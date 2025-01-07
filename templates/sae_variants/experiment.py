@@ -1,6 +1,7 @@
 import torch
 import os
 import torch.nn as nn
+import numpy as np
 from collections import namedtuple
 from huggingface_hub import hf_hub_download
 from dataclasses import dataclass
@@ -54,7 +55,7 @@ class CustomSAEConfig:
 
 # modify the following subclass to implement the proposed SAE variant
 class CustomSAE(nn.Module):
-    """An implementation of a Custom Sparse Autoencoder."""
+    """Implementation of a Custom Sparse Autoencoder."""
     def __init__(
         self,
         d_in: int,
@@ -85,7 +86,6 @@ class CustomSAE(nn.Module):
             d_sae=d_sae,
             hook_name=hook_name,
             hook_layer=hook_layer,
-            # Set some reasonable defaults for CustomSAE
             architecture="Custom",
             activation_fn_str="relu",
             apply_b_dec_to_input=True,
@@ -188,7 +188,7 @@ class CustomTrainer(SAETrainer):
             torch.cuda.manual_seed_all(seed)
 
         # Initialize autoencoder
-        self.ae = CustomSAE(d_in=activation_dim, d_sae=dict_size)
+        self.ae = CustomSAE(d_in=activation_dim, d_sae=dict_size, hook_layer=layer, model_name=lm_name)
 
         self.lr = lr
         self.l1_penalty = l1_penalty
@@ -424,7 +424,7 @@ def run_sae_training(
     # Save all results and metrics
     results = {
         "training_log": training_log,
-        "config": trainer.config(),
+        "config": trainer.config,
         "final_info": final_info
     }
 
@@ -469,8 +469,8 @@ RANDOM_SEED = 42
 
 
 MODEL_CONFIGS = {
-    "EleutherAI/pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3, 4], "d_model": 512},
-    # "gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
+    # "EleutherAI/pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3, 4], "d_model": 512},
+    "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
 }
 
 
@@ -653,8 +653,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     save_dir = args.out_dir
     
-    model_name = "EleutherAI/pythia-70m-deduped"
-    # model_name = "gemma-2-2b"
+    # model_name = "EleutherAI/pythia-70m-deduped"
+    model_name = "google/gemma-2-2b"
     d_model = MODEL_CONFIGS[model_name]["d_model"]
     llm_batch_size = MODEL_CONFIGS[model_name]["batch_size"]
     llm_dtype = MODEL_CONFIGS[model_name]["dtype"]
@@ -717,19 +717,19 @@ if __name__ == "__main__":
 
     save_activations = False
 
-    for k in len(layers):
+    for k in range(len(layers)):
         selected_saes = [(f"{model_name}_layer_{layers[k]}_sae", saes[k])]
         for sae_name, sae in selected_saes:
             sae = sae.to(dtype=str_to_dtype(llm_dtype))
             sae.cfg.dtype = llm_dtype
 
         evaluate_trained_sae(
-            selected_saes,
-            model_name,
-            llm_batch_size,
-            llm_dtype,
-            device,
+            selected_saes=selected_saes,
+            model_name=model_name,
             eval_types=eval_types,
+            device=device,
+            llm_batch_size=llm_batch_size,
+            llm_dtype=llm_dtype,
             api_key=api_key,
             force_rerun=False,
             save_activations=False,
