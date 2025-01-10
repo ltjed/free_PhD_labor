@@ -194,7 +194,8 @@ def generate_next_idea(
         # seed the archive on the first run with pre-existing ideas
         with open(osp.join(base_dir, "seed_ideas.json"), "r") as f:
             seed_ideas = json.load(f)
-        for seed_idea in seed_ideas[:1]:
+        # changed to include all seed_ideas instead of just the first one
+        for seed_idea in seed_ideas:
             idea_archive.append(seed_idea)
     else:
         with open(osp.join(base_dir, "experiment.py"), "r") as f:
@@ -372,7 +373,17 @@ def check_idea_novelty(
         prompt = json.load(f)
         task_description = prompt["task_description"]
 
+    # retrieve the number of seed ideas
+    with open(osp.join(base_dir, "seed_ideas.json"), "r") as f:
+            seed_ideas = json.load(f)
+    num_seed_ideas = len(seed_ideas)
+
     for idx, idea in enumerate(ideas):
+        # Skip seed ideas
+        if idx < num_seed_ideas:
+            print(f"Skipping seed idea {idx}")
+            idea["novel"] = False
+            continue
         if "novel" in idea:
             print(f"Skipping idea {idx}, already checked.")
             continue
