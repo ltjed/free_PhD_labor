@@ -54,6 +54,7 @@ class CustomSAEConfig:
     neuronpedia_id: Optional[str] = None
 
 # modify the following subclass to implement the proposed SAE variant
+# change the name "CustomSAE" to a appropriate name such as "TemporalSAE" depending on experiment idea
 class CustomSAE(nn.Module):
     """Implementation of a Custom Sparse Autoencoder."""
     def __init__(
@@ -160,6 +161,7 @@ class SAETrainer:
         }
 
 # modify the following subclass to implement the proposed SAE variant training
+# change the name "CustomTrainer" to a appropriate name to match the SAE class name.
 class CustomTrainer(SAETrainer):
     """Trainer for Custom Sparse Autoencoder using L1 regularization."""
     def __init__(self,
