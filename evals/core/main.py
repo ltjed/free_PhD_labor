@@ -868,7 +868,6 @@ def multiple_evals(
     current_model_str = None
 
     llm_dtype = general_utils.str_to_dtype(dtype)
-
     for sae_release, sae_object_or_id in tqdm(
         selected_saes, desc="Running SAE evaluation on all selected SAEs"
     ):
@@ -1002,7 +1001,15 @@ def multiple_evals(
                 existing_data = json.load(f)
         else:
             existing_data = {}
-        existing_data.update(asdict(eval_results[-1]))
+        # eval_results already be a dictionary
+        # existing_data.update(asdict(eval_results[-1]))
+        existing_data.update(eval_results[-1])
+        # print("asdict clause runned.")
+        # print(f"eval_results[-1] = {eval_results[-1]}")
+        # print(f"eval_results[-1] = {type(eval_results[-1])}")
+        # Convert the eval_config to dict before saving
+        if isinstance(existing_data['eval_cfg'], CoreEvalConfig):
+            existing_data['eval_cfg'] = asdict(existing_data['eval_cfg'])
         with open(all_info_path, "w") as f:
             json.dump(existing_data, indent=2, fp=f)   
     return eval_results
