@@ -610,10 +610,11 @@ def evaluate_trained_sae(
                 force_rerun,
             )
         ),
+        # note that we automatically evaluate on the instruction tuned version of the model here
         "unlearning": (
             lambda: unlearning.run_eval(
                 unlearning.UnlearningEvalConfig(
-                    model_name=model_name,
+                    model_name=model_name+"-it",
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
                     llm_dtype=llm_dtype,
@@ -655,8 +656,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     save_dir = args.out_dir
     
-    # model_name = "EleutherAI/pythia-70m-deduped"
+    
+    # Do not modify this to gemma-2b models, gemma-2-2b is a different model and actually exists 
     model_name = "google/gemma-2-2b"
+    # model_name = "EleutherAI/pythia-70m-deduped"
     d_model = MODEL_CONFIGS[model_name]["d_model"]
     llm_batch_size = MODEL_CONFIGS[model_name]["batch_size"]
     llm_dtype = MODEL_CONFIGS[model_name]["dtype"]
@@ -705,7 +708,7 @@ if __name__ == "__main__":
         # "scr",
         # "tpp",
         # "sparse_probing",
-        "unlearning",
+        "unlearning"
     ]
 
     if "autointerp" in eval_types:
