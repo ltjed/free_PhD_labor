@@ -704,9 +704,9 @@ if __name__ == "__main__":
     eval_types = [
         # "absorption",
         # "autointerp",
-        "core",
-        # "scr",
-        # "tpp",
+        # "core",
+        "scr",
+        "tpp",
         # "sparse_probing",
         # "unlearning"
     ]
