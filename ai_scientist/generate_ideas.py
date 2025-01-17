@@ -44,17 +44,23 @@ In <JSON>, provide the new idea in JSON format with the following fields:
 - "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
 - "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms.
 - "Research_Impact": Identify a specific challenge in latest mechanistic interpretability literature. Then, explain how the proposed research address that challenge, citing specific issues and resolutions.
-- "Interestingness": A rating from 1 to 10 (lowest to highest).
-- "Feasibility": A rating from 1 to 10 (lowest to highest).
+- "Implementation_Plan": A plan of steps to implement the experiment described above by modifying the code template in experiment.py.
+- "Interestingness_Evaluation": Give a one-sentence evaluation of the interestingness of the idea to justify the rating below.  
+- "Interestingness": A rating from 1 to 10 (lowest to highest). 
+- "Feasibility_Evaluation": Carefully evaluate the feasibility to justify the rating below. BE STRICT. Consider the following three factors. 1. Refer to the "Experiment" and "Technical_Details" fields you wrote above, and consider the complexity of the idea in comparison to typical ML conference papers. 2. Refer to the "Implementation_Plan" you wrote and consider the implementation difficulties. Note the coding work to implement the experiments is to be completed by a junior CS PhD student within 1 month. 3. Refer to the "Experiment", "Technical_Details", and "Implementation_Plan" and consider the time cost of running the experiment. Note each run of the experiment has to be conducted on a single NVIDIA H100 GPU WITHIN 30 MINS.
+- "Feasibility": A rating from 1 to 10 (lowest to highest). 
+- "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
 - "Novelty": A rating from 1 to 10 (lowest to highest).
+- "Overall_Score": 0.2 * Interestingness + 0.5 * Feasibility + 0.3 * Novelty.
 
 Be cautious and critical on your ratings.
+
 This JSON will be automatically parsed, so ensure the format is precise.
 You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
 """
 
 idea_reflection_prompt = """Round {current_round}/{num_reflections}.
-In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created.
+In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, especially the "Overall_Score" which should be above 9.
 Include any other factors that you think are important in evaluating the idea.
 Ensure the idea is clear and concise, and the JSON is the correct format.
 In the next attempt, try and refine and improve your idea.
