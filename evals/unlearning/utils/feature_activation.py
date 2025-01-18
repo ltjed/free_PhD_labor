@@ -39,7 +39,14 @@ def get_forget_retain_data(
         raise Exception("Unknown retain corpora")
 
     forget_dataset = []
-    for line in open(f"./evals/unlearning/data/{forget_corpora}.jsonl", "r"):
+
+
+    # Print current working directory
+    print("current working directory is:")
+    print(os.getcwd())
+
+    # @todo use a better way to locate the file.
+    for line in open(f"../../../evals/unlearning/data/{forget_corpora}.jsonl", "r"):
         if "bio-forget-corpus" in forget_corpora:
             raw_text = json.loads(line)["text"]
         else:

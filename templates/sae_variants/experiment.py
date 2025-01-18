@@ -705,10 +705,10 @@ if __name__ == "__main__":
         # "absorption",
         # "autointerp",
         # "core",
-        "scr",
-        "tpp",
+        # "scr",
+        # "tpp",
         # "sparse_probing",
-        # "unlearning"
+        "unlearning"
     ]
 
     if "autointerp" in eval_types:

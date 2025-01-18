@@ -57,10 +57,10 @@ if __name__ == "__main__":
         # "absorption",
         # "autointerp",
         # "core",
-        "scr",
-        "tpp",
+        # "scr",
+        # "tpp",
         # "sparse_probing",
-        # "unlearning",
+        "unlearning",
     ]
     prompt_content = generate_prompt_json(benchmarks=eval_types, include_example=True)
     print(prompt_content)
