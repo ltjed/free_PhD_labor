@@ -1,0 +1,176 @@
+# Title: Temporal Contrastive Learning for Sparse Autoencoders
+
+# Generated Plots Description
+
+## training_metrics.png
+This figure contains three subplots showing the training progression over time:
+
+1. Reconstruction Loss (Left subplot):
+   - Y-axis: L2 loss between input and reconstructed activations
+   - X-axis: Training steps
+   - Shows how well the autoencoder learns to reconstruct the original activations
+   - Lower values indicate better reconstruction quality
+   - Different colors represent different model variants
+
+2. Sparsity (Middle subplot):
+   - Y-axis: L1 loss measuring activation sparsity
+   - X-axis: Training steps
+   - Demonstrates how sparse the learned features become
+   - Higher values indicate sparser representations
+   - Allows comparison of sparsification across model variants
+
+3. Temporal Consistency (Right subplot):
+   - Y-axis: Temporal contrastive loss
+   - X-axis: Training steps
+   - Measures how well features maintain consistency over time
+   - Lower values suggest better temporal stability
+   - Shows the effect of temporal contrastive learning
+
+## final_metrics.png
+This figure presents the final evaluation metrics as bar plots:
+
+1. Explained Variance (Left subplot):
+   - Y-axis: Explained variance ratio (-1 to 1)
+   - X-axis: Model variants
+   - Higher values indicate better reconstruction quality
+   - Measures how much of the input variance is captured
+   - Allows direct comparison of model effectiveness
+
+2. Mean Squared Error (Middle subplot):
+   - Y-axis: MSE value
+   - X-axis: Model variants
+   - Lower values indicate better reconstruction accuracy
+   - Provides absolute measure of reconstruction quality
+   - Complements explained variance metric
+
+3. KL Divergence (Right subplot):
+   - Y-axis: KL divergence value
+   - X-axis: Model variants
+   - Measures distribution shift from original activations
+   - Lower values indicate better preservation of activation statistics
+   - Important for maintaining model behavior
+
+# Experiment description: 1. Implement temporal contrastive loss with specified window sizes (8, 16, 32)
+2. Create efficient negative sampling using circular buffer (size 16384)
+3. Add temporal feature consistency metrics (auto-correlation and mutual information)
+4. Train TC-SAEs on Pythia-70m activations with ablation studies
+5. Compare against baseline SAEs on unlearning benchmark using standard metrics
+6. Analyze temporal consistency vs sparsity trade-off
+7. Evaluate feature interpretability via automated metrics and human studies
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25}, 'sparsity': {'l0': 0.0, 'l1': 0.0}}}
+
+## Run 1: TC-SAE Base Implementation with Pythia-70m
+Description: Initial implementation of Temporal Contrastive SAE with:
+- Temporal contrastive loss (window size 16)
+- Circular buffer for negative sampling (size 16384)
+- Base configuration using Pythia-70m model
+
+Results Analysis:
+1. Model Performance:
+- CE Loss Score: 0.041 (relatively low impact on model performance)
+- MSE: 0.183 (reasonable reconstruction error)
+- Explained Variance: -0.891 (needs improvement)
+
+2. Sparsity:
+- L0 and L1 sparsity both 0.0 (indicating insufficient feature sparsity)
+- L2 norm ratio 0.0 (suggesting potential training issues)
+
+3. Key Issues:
+- No sparsity achieved
+- Poor explained variance
+- Training may not have converged properly
+
+Next Steps (Run 2):
+Will adjust hyperparameters to address sparsity and training stability:
+- Increase sparsity penalty from 0.04 to 0.2
+- Increase learning rate from 3e-4 to 1e-3
+- Add gradient clipping to improve stability
+
+## Run 2: Adjusted Hyperparameters
+Description: Modified hyperparameters to improve sparsity and training stability:
+- Increased sparsity penalty to 0.2
+- Increased learning rate to 1e-3
+- Added gradient clipping at 1.0
+
+Results Analysis:
+1. Model Performance:
+- CE Loss Score: 0.041 (unchanged from Run 1)
+- MSE: 0.183 (similar to Run 1)
+- Explained Variance: -0.89 (slightly worse than Run 1)
+
+2. Sparsity:
+- L0 and L1 sparsity still 0.0 (no improvement)
+- L2 norm ratio 0.0 (training issues persist)
+
+3. Key Issues:
+- Sparsity remains a critical problem
+- Training stability issues continue
+- No improvement in reconstruction quality
+
+Next Steps (Run 3):
+Will implement more aggressive training regime:
+- Add L2 regularization to prevent weight collapse
+- Implement dead neuron resampling
+- Increase number of training tokens
+- Add learning rate warmup
+
+## Run 3: Training Stability Improvements
+Description: Implemented comprehensive training stability improvements:
+- Added L2 regularization (l2_penalty=1e-5)
+- Implemented dead neuron resampling (every 1000 steps)
+- Increased training tokens to 100k
+- Added learning rate warmup (2000 steps)
+- Improved activation buffer handling
+
+Results Analysis:
+1. Model Performance:
+- CE Loss Score: 0.0411 (consistent with previous runs)
+- MSE: 0.183 (no significant change)
+- Explained Variance: -0.891 (slightly decreased)
+
+2. Sparsity:
+- L0 and L1 sparsity still 0.0 (persistent issue)
+- L2 norm ratio 0.0 (indicating potential initialization or scaling issues)
+
+3. Key Issues:
+- Training appears to terminate early (only 48 steps completed)
+- Sparsity metrics show no improvement
+- L2 norm ratio suggests potential gradient flow problems
+
+Next Steps (Run 4):
+Will focus on addressing premature training termination and gradient flow:
+- Add gradient norm logging
+- Implement proper weight initialization
+- Add batch normalization to improve gradient flow
+- Increase buffer size for more stable training
+
+## Run 4: Gradient Flow and Training Stability
+Description: Implemented changes targeting gradient flow and training stability:
+- Added Xavier/Glorot initialization for encoder/decoder weights
+- Implemented batch normalization in both encoder and decoder paths
+- Increased buffer size to 4096 for more stable training
+- Added gradient norm monitoring and clipping
+
+Results Analysis:
+1. Training Progress:
+- Training still terminated early at 48 steps
+- Suggests deeper issues with data pipeline or resource management
+
+2. Model Architecture:
+- Successfully added batch normalization layers
+- Proper weight initialization implemented
+- Buffer size increase did not resolve early termination
+
+3. Key Issues:
+- Critical early termination problem persists
+- Unable to evaluate effectiveness of gradient flow improvements
+- Potential memory management or data pipeline problems
+
+Next Steps (Run 5):
+Will focus on resolving early termination:
+- Add robust error handling in data pipeline
+- Implement checkpointing to diagnose termination point
+- Add detailed logging of memory usage and batch statistics
+- Reduce batch size to test resource constraints

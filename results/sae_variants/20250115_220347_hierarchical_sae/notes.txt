@@ -1,0 +1,35 @@
+# Title: Automated Hierarchical Feature Groups for Improved SAE Unlearning
+# Experiment description: 1. Train standard SAE on Pythia-70m activations
+2. Implement automated feature grouping using activation similarity
+3. Add hierarchical consistency loss between groups
+4. Evaluate unlearning performance on WMDP-bio
+5. Compare against baseline using detailed metrics
+6. Analyze feature group interpretability
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core'...} # Previous baseline results
+
+## Run 1: Basic Hierarchical Feature Groups
+Implementation:
+- Added clustering-based feature grouping using k-means
+- Implemented 3-level hierarchy with group sizes [32, 128, 512]
+- Added hierarchical consistency loss between group levels (weight=0.1)
+- Maintained other hyperparameters from baseline
+
+Results: Training failed to produce meaningful results with:
+- Training steps: 0 (training loop issue)
+- Sparsity metrics all 0 (no neuron activation)
+- Poor reconstruction (explained variance -0.89)
+- Multiple NaN values in metrics
+
+Analysis:
+- Initial implementation revealed issues with training stability
+- Likely causes: improper weight initialization, loss scaling issues
+- Need to address: proper weight initialization, balanced loss terms, training loop verification
+
+## Run 2: Improved Hierarchical Feature Groups
+Implementation plan:
+- Add proper weight initialization for encoder/decoder
+- Adjust hierarchical loss weight dynamically during warmup
+- Add gradient clipping to improve training stability
+- Increase number of training tokens for better convergence

@@ -1,0 +1,153 @@
+# Title: Learning Position-Invariant Features with Temporal Consistency Sparse Autoencoders
+
+# Generated Figures Analysis
+
+## metrics_comparison.png
+This figure contains three subplots showing key performance metrics across all experimental runs:
+
+1. Reconstruction Quality Plot (Top)
+   - Shows explained_variance and cosine_similarity metrics
+   - Explained variance measures how well the SAE reconstructs the original activations
+   - Cosine similarity indicates alignment between original and reconstructed vectors
+   - Key observations:
+     * Baseline (Run 0) showed moderate performance
+     * Layer Norm (Run 4) caused significant degradation
+     * GELU activation (Run 5) aimed to improve reconstruction
+
+2. Sparsity Metrics Plot (Middle)
+   - Displays L0 and L1 sparsity measures
+   - L0 sparsity shows average number of active features
+   - L1 sparsity indicates magnitude of activations
+   - Key observations:
+     * Consistent sparsity levels across Runs 2-4 (~248-249 L0)
+     * L1 values increased with Layer Norm implementation
+     * Initial runs (0-1) showed minimal sparsity
+
+3. Model Preservation Plot (Bottom)
+   - Shows ce_loss_score (cross-entropy loss)
+   - Measures how well SAE preserves model behavior
+   - Key observations:
+     * Negative scores indicate degraded model behavior
+     * Layer Norm (Run 4) showed worst preservation
+     * Earlier runs maintained better behavior preservation
+
+## training_curves.png
+This figure shows training progression over time with two subplots:
+
+1. Reconstruction Loss Plot (Top)
+   - Y-axis: L2 loss between original and reconstructed activations
+   - X-axis: Training steps
+   - Key observations:
+     * Initial high loss periods
+     * Convergence patterns across different runs
+     * Impact of learning rate scheduling (Run 3)
+     * Layer Norm's effect on stability (Run 4)
+
+2. Sparsity Loss Plot (Bottom)
+   - Y-axis: L1 regularization loss
+   - X-axis: Training steps
+   - Key observations:
+     * Gradual increase in sparsity over training
+     * Different equilibrium points for each architecture
+     * Effect of temporal consistency on sparsity
+     * Trade-off between reconstruction and sparsity
+
+# Experiment description: 1. Implement temporal consistency loss using sliding windows over sequences
+2. Create feature correlation matrix across positions to identify redundant features
+3. Train on GPT-2 and Gemma activations using fixed-length contexts of 128 tokens
+4. Measure feature consistency using auto-correlation of feature activations across positions
+5. Compare against baseline SAE using reconstruction error, sparsity, and new consistency metrics
+6. Analyze feature specialization through activation pattern clustering
+7. Conduct ablation studies on window size and loss coefficient
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_config': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'eval_id': '816e6ded-4a67-43a7-bc3f-01b636f67965', 'datetime_epoch_millis': 1736553167253, 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': -1.0}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': -1.0}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}, 'eval_result_details': [], 'sae_bench_commit_hash': '972f2ecd7e88c6f60890726de69da2de706a5568', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_19_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 2304, 'hook_layer': 19, 'hook_name': 'blocks.19.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': {}}
+Description: Baseline results.
+
+## Run 1: Initial Temporal SAE Implementation
+Model: Pythia-70m
+Layer: 4
+Results: Training failed to complete (0 steps), showing no sparsity (l0=0.0, l1=0.0) and poor reconstruction (explained_variance=-0.89)
+Analysis: The implementation appears to have issues with the training loop or loss computation. Key problems:
+1. Training did not progress (0 steps completed)
+2. No feature activation detected (sparsity metrics at 0)
+3. Poor reconstruction quality suggests initialization or optimization issues
+Description: First attempt at implementing temporal consistency SAE failed due to technical issues. Need to fix training loop and loss computation for Run 2.
+
+## Run 2: Fixed Training Loop with Xavier Initialization
+Model: Pythia-70m
+Layer: 4
+Changes:
+1. Added Xavier initialization for neural network weights
+2. Implemented gradient clipping
+3. Removed step limit to allow full training
+4. Enhanced loss logging mechanisms
+
+Results: Training completed but showed suboptimal performance
+- Reconstruction quality still poor (explained_variance: -1.76, cosine similarity: 0.003)
+- Moderate sparsity achieved (l0: 249.06, l1: 143.48)
+- Model preservation metrics show degradation (ce_loss_score: -0.18)
+- Significant shrinkage observed (l2_ratio: 0.68)
+
+Analysis:
+1. While training now progresses (unlike Run 1), the reconstruction quality remains problematic
+2. The model achieves some level of sparsity, indicating feature activation is working
+3. The high shrinkage ratio suggests potential issues with the temporal consistency implementation
+4. Cross-entropy loss indicates the model's behavior has diverged from the original
+
+Next Steps:
+1. Adjust temporal consistency loss coefficient (currently may be too aggressive)
+2. Implement learning rate scheduling for better optimization
+3. Add layer normalization to stabilize training
+
+## Run 3: Learning Rate Schedule and Reduced Temporal Consistency
+Model: Pythia-70m
+Layer: 4
+Changes:
+1. Implemented cosine learning rate schedule with warmup period
+2. Reduced temporal consistency coefficient by 10x to prevent domination
+3. Added math module import for cosine calculations
+
+Results: Similar performance to Run 2
+- Reconstruction quality remains poor (explained_variance: -1.76, cosine similarity: 0.003)
+- Sparsity metrics unchanged (l0: 249.06, l1: 143.48)
+- Model preservation still shows issues (ce_loss_score: -0.18)
+- Shrinkage ratio consistent with previous run (l2_ratio: 0.68)
+
+Analysis:
+1. Learning rate schedule and reduced temporal consistency coefficient did not significantly improve performance
+2. The persistent poor reconstruction quality suggests deeper architectural issues
+3. Consistent sparsity metrics indicate stable feature activation despite poor reconstruction
+4. The unchanged shrinkage ratio suggests the issue may lie in the basic architecture rather than optimization
+
+Next Steps:
+1. Add layer normalization to stabilize training and improve gradient flow
+2. Consider alternative activation functions (e.g., GELU) to match the base model
+3. Investigate potential issues with the sliding window implementation
+
+## Run 4: Layer Normalization Implementation
+Model: Pythia-70m
+Layer: 4
+Changes:
+1. Added layer normalization before encoding step
+2. Maintained Xavier initialization and gradient clipping
+3. Kept reduced temporal consistency coefficient
+4. Retained cosine learning rate schedule with warmup
+
+Results: Performance degraded further
+- Reconstruction quality worsened (explained_variance: -2.74, cosine similarity: 0.002)
+- Sparsity metrics similar (l0: 248.90, l1: 195.00)
+- Model preservation issues persist (ce_loss_score: -0.21)
+- High shrinkage ratio (l2_ratio: 0.99)
+- High reconstruction bias (92.64)
+
+Analysis:
+1. Layer normalization appears to have destabilized training rather than helped
+2. The extremely high reconstruction bias suggests the model is producing heavily skewed outputs
+3. Sparsity metrics remain stable, indicating the core feature detection is working
+4. The increased explained variance suggests the normalized representations may be too constrained
+
+Next Steps:
+1. Remove layer normalization and try GELU activation to better match base model
+2. Investigate potential numerical stability issues in the temporal consistency implementation
+3. Consider adding skip connections to help with gradient flow
