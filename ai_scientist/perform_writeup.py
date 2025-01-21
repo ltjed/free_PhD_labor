@@ -10,10 +10,10 @@ from typing import Optional, Tuple
 from ai_scientist.generate_ideas import search_for_papers
 from ai_scientist.llm import get_response_from_llm, extract_json_between_markers, create_client, AVAILABLE_LLMS
 
-# num_error_corrections and num_cite_rounds are originally 5, 20 by default, set to 1 for faster debugging.
+# num_error_corrections and num_cite_rounds are originally 5, 20 by default
 
 # GENERATE LATEX
-def generate_latex(coder, folder_name, pdf_file, timeout=30, num_error_corrections=1):
+def generate_latex(coder, folder_name, pdf_file, timeout=30, num_error_corrections=5):
     folder = osp.abspath(folder_name)
     cwd = osp.join(folder, "latex")  # Fixed potential issue with path
     writeup_file = osp.join(cwd, "template.tex")
@@ -400,7 +400,7 @@ Ensure the citation is well-integrated into the text.'''
 
 # PERFORM WRITEUP
 def perform_writeup(
-        idea, folder_name, coder, cite_client, cite_model, num_cite_rounds=1
+        idea, folder_name, coder, cite_client, cite_model, num_cite_rounds=20
 ):
     # CURRENTLY ASSUMES LATEX
     abstract_prompt = f"""We've provided the `latex/template.tex` file to the project. We will be filling it in section by section.

@@ -5,8 +5,8 @@ import subprocess
 import sys
 from subprocess import TimeoutExpired
 
-MAX_ITERS = 10
-MAX_RUNS = 5
+MAX_ITERS = 15 # originally 10
+MAX_RUNS = 10 # originally 5
 MAX_STDERR_OUTPUT = 1500
 
 coder_prompt = """Your goal is to implement the following idea: {title}.
@@ -25,9 +25,9 @@ After you complete each change, we will run the command `python experiment.py --
 YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
 You can then implement the next thing on your list."""
 
-
+# timeout was originally set to 7200
 # RUN EXPERIMENT
-def run_experiment(folder_name, run_num, timeout=7200):
+def run_experiment(folder_name, run_num, timeout=10800):
     cwd = osp.abspath(folder_name)
     # COPY CODE SO WE CAN SEE IT.
     shutil.copy(
