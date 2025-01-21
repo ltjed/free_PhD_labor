@@ -1,0 +1,97 @@
+# Title: Hierarchical Sparse Autoencoders: Learning Compositional Features for Interpretable Language Models
+# Experiment description: 1. Implement adaptive multi-tier SAE architecture
+2. Develop flexible composition loss with learned importance weights
+3. Train on Gemma-2B activations using curriculum learning
+4. Implement automatic tier structure optimization:
+   - Dynamic feature allocation
+   - Tier boundary adjustment
+   - Composition pattern discovery
+5. Evaluate using enhanced metrics:
+   - Normalized Mutual Information between tiers
+   - Composition coverage ratio
+   - Residual analysis for non-compositional features
+6. Compare unlearning performance on WMDP-bio benchmark
+7. Analyze feature interpretability through causal tracing
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_config': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'eval_id': '816e6ded-4a67-43a7-bc3f-01b636f67965', 'datetime_epoch_millis': 1736553167253, 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': -1.0}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': -1.0}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}, 'eval_result_details': [], 'sae_bench_commit_hash': '972f2ecd7e88c6f60890726de69da2de706a5568', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_19_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 2304, 'hook_layer': 19, 'hook_name': 'blocks.19.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': {}}
+Description: Baseline results.
+
+## Run 1: Initial Hierarchical SAE Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Initial implementation of hierarchical SAE architecture with 3-tier structure (768, 1536, 2304 dimensions). The training failed to complete any steps, indicating potential issues with the initialization or training loop. Key observations:
+1. The hierarchical structure with fixed tier sizes may be too rigid for effective feature learning
+2. The composition loss with equal weights across tiers may not be optimal
+3. The training process needs better initialization and warmup scheduling
+4. The resampling mechanism for dead neurons needs improvement
+
+## Run 2: Flexible Composition Loss with Learned Weights
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented flexible composition loss with learned importance weights for each tier. Added gradient clipping and tier activity tracking. Despite these improvements, training still failed to complete any steps. Key findings:
+1. The initialization of tier weights and encoder/decoder parameters needs refinement
+2. The gradient clipping value (1.0) may be too restrictive
+3. The learning rate warmup schedule may need adjustment
+4. The tier activity tracking shows all tiers remain inactive, suggesting initialization issues
+
+## Run 3: Improved Initialization and Warmup Schedule
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Modified initialization and warmup schedule to address issues from Run 2:
+1. Implemented Xavier initialization for encoder/decoder weights
+2. Increased gradient clipping threshold to 5.0
+3. Added cubic warmup schedule for smoother learning rate progression
+4. Doubled warmup steps to 2000
+5. Initialized tier weights with more variance (0.1, 0.3, 0.6)
+
+Despite these changes, training still failed to complete any steps. Key observations:
+1. The tier activity tracking still shows all tiers remain inactive
+2. The loss remains NaN throughout training
+3. The gradient norms are extremely high despite increased clipping
+4. The model appears to be stuck in a bad initialization state
+
+## Run 4: Gradient Scaling and Weight Decay
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Added gradient scaling and weight decay to address stability issues:
+1. Implemented gradient scaling based on loss magnitude
+2. Added weight decay regularization (1e-4)
+3. Added gradient norm logging for diagnostics
+4. Maintained previous improvements from Run 3
+
+Key observations:
+1. Gradient norms remain extremely high despite scaling
+2. The loss still becomes NaN immediately
+3. Tier activity tracking shows no improvement
+4. The model appears fundamentally unstable
+
+Proposed next steps:
+1. Add layer normalization between tiers to stabilize activations
+2. Implement gradient clipping per-tier instead of globally
+3. Add gradient norm constraints to prevent explosion
+4. Consider reducing model capacity by decreasing tier sizes
+
+## Plot Descriptions
+
+1. training_metrics.png
+This figure contains six subplots showing key training metrics across all runs:
+- Top row (left to right):
+  * L2 Loss: Reconstruction error showing how well the SAE can reproduce input activations
+  * Sparsity Loss: Measures how sparse the learned features are
+  * Total Loss: Combined reconstruction and sparsity loss
+- Bottom row (left to right):
+  * Tier 1 Activity: Percentage of active features in the first tier
+  * Tier 2 Activity: Percentage of active features in the second tier  
+  * Tier 3 Activity: Percentage of active features in the final tier
+
+Each metric is plotted against training steps, with different colors representing different runs. The plots show how the hierarchical structure and training modifications affect feature learning and model stability.
+
+2. tier_activity_comparison.png
+This bar chart compares the final activity levels across all tiers for each run:
+- X-axis shows the different experimental runs
+- Y-axis shows the final activity percentage
+- Three colored bars per run represent the three tiers
+- Allows comparison of how different architectures and training approaches affect feature activation patterns
+
+Key insights:
+- Higher tiers should generally show lower activity due to hierarchical composition
+- Balanced activity across tiers suggests effective feature composition
+- Very low activity may indicate dead features or training instability
+- Very high activity may suggest insufficient sparsity pressure

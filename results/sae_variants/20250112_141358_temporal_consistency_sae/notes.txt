@@ -1,0 +1,179 @@
+# Title: Learning Position-Invariant Features with Temporal Consistency Sparse Autoencoders
+
+# Generated Figures Analysis
+
+## training_loss.png
+This figure shows the training loss curves across different experimental runs. The x-axis represents training steps, while the y-axis shows the loss value on a logarithmic scale. Each run is color-coded and labeled in the legend:
+- Run 1 (Initial Temporal Consistency): Shows high initial loss with unstable convergence
+- Run 2 (Balanced Loss): Demonstrates more stable training but still suboptimal convergence
+- Run 3 (Architectural Redesign): Limited data due to early training failure
+- Run 4 (Training Loop Refinement): Shows incomplete training
+- Run 5 (Memory-Optimized): Exhibits improved stability but limited steps
+
+Key observations:
+- High variance in early training steps across all runs
+- Lack of consistent convergence pattern
+- Training instability evident in sudden loss spikes
+- Memory constraints limiting training duration
+
+## final_metrics.png
+This figure presents a side-by-side comparison of key metrics across runs using bar plots:
+
+Left plot (Total Training Steps):
+- Shows completed training steps for each run
+- Highlights the early termination issues in runs 3-4
+- Demonstrates the reduced training duration in memory-optimized run
+
+Right plot (Final Loss):
+- Compares final loss values achieved by each run
+- Missing bars indicate runs that failed to complete
+- Shows relative performance of different approaches
+- Highlights the impact of architectural changes
+
+Key insights:
+- Most runs failed to complete full training
+- Memory optimization crucial for training completion
+- Final loss values show no clear winning approach
+
+## memory_usage.png
+This figure tracks GPU memory usage throughout training:
+- X-axis: Training steps
+- Y-axis: GPU memory consumption in gigabytes
+- Each line represents a different experimental run
+
+Notable patterns:
+- Memory spikes during batch processing
+- Gradual increase in baseline memory usage
+- Impact of gradient accumulation on memory profile
+- Effect of activation checkpointing in Run 5
+
+Memory-related insights:
+- Initial runs show unsustainable memory growth
+- Gradient accumulation provides temporary relief
+- Activation checkpointing reduces peak memory usage
+- Batch size reduction shows clear memory benefits
+
+# Experiment description: 1. Implement temporal consistency loss using sliding windows over sequences
+2. Create feature correlation matrix across positions to identify redundant features
+3. Train on GPT-2 and Gemma activations using fixed-length contexts of 128 tokens
+4. Measure feature consistency using auto-correlation of feature activations across positions
+5. Compare against baseline SAE using reconstruction error, sparsity, and new consistency metrics
+6. Analyze feature specialization through activation pattern clustering
+7. Conduct ablation studies on window size and loss coefficient
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core',...} # Previous baseline results
+
+## Run 1: Initial Temporal Consistency Implementation
+Configuration:
+- Window size: 3
+- Consistency loss coefficient: 0.1
+- Added sliding window temporal consistency loss
+- Basic position-invariant feature learning
+
+Results:
+The initial implementation showed significant training instability:
+- Zero sparsity (l0=0.0, l1=0.0) indicating no feature learning
+- Negative explained variance (-0.78515625) showing poor reconstruction
+- No feature activation (l2_norm_out=0.0) suggesting gradient issues
+- Poor model preservation (negative KL div and CE loss scores)
+
+Analysis:
+The temporal consistency loss appears too strong relative to reconstruction and sparsity objectives, preventing effective feature learning. The model failed to learn any meaningful representations, likely due to:
+1. Overly aggressive consistency regularization (lambda=0.1)
+2. Potential gradient instability during early training
+3. Insufficient warmup period for stable initialization
+
+## Run 2: Balanced Loss Implementation
+Configuration:
+- Reduced consistency_lambda to 0.01 for better loss balance
+- Added gradient clipping (max_norm=1.0)
+- Increased warmup_steps to 2000
+- Maintained window_size=3
+
+Results:
+The model continued to show training instability similar to Run 1:
+- Zero sparsity persists (l0=0.0, l1=0.0)
+- Negative explained variance (-0.78515625) indicating failed reconstruction
+- No feature activation (l2_norm_out=0.0)
+- Poor model preservation (kl_div_score=-0.528, ce_loss_score=-0.572)
+
+Analysis:
+Despite the more balanced hyperparameters, the model still fails to learn. This suggests:
+1. The temporal consistency approach may be fundamentally interfering with initial feature learning
+2. Gradient issues persist despite clipping
+3. The warmup period may need to be longer or use a different schedule
+4. The window-based approach might need architectural changes
+
+## Run 3: Architectural Redesign
+Configuration:
+- Remove temporal consistency during initial training (first 5000 steps)
+- Increase warmup_steps to 5000
+- Add skip connections in the autoencoder
+- Initialize weights using Kaiming initialization
+- Add batch normalization after encoding
+
+Hypothesis:
+These changes should:
+1. Allow initial feature learning without interference from temporal consistency
+2. Provide more stable gradients through skip connections and normalization
+3. Enable better initialization and training dynamics
+4. Gradually introduce temporal consistency after basic feature learning
+
+Results:
+The run failed to complete training, showing:
+- 0 training steps completed
+- No final loss recorded
+- Basic configuration parameters were set correctly (layer=19, dict_size=2304, lr=0.0003, sparsity=0.04)
+
+Analysis:
+The training loop appears to have failed before completing any steps. This suggests:
+1. Potential issues with data loading or processing
+2. Memory constraints with the larger model
+3. Need for better progress monitoring and error handling
+
+## Run 4: Training Loop Refinement
+Configuration:
+- Add detailed progress monitoring and logging
+- Reduce initial batch size to handle memory constraints
+- Add gradient accumulation for stable updates
+- Implement early stopping with model checkpointing
+- Maintain architectural improvements from Run 3
+
+Hypothesis:
+These changes should:
+1. Enable successful training completion with proper monitoring
+2. Provide better visibility into any training issues
+3. Handle memory constraints while maintaining effective batch statistics
+4. Preserve learned features even if training needs to stop early
+
+Results:
+Training failed to complete any steps, with metrics:
+- Training steps: 0
+- Final loss: None 
+- Layer: 19
+- Dict size: 2304
+- Learning rate: 0.0003
+- Sparsity penalty: 0.04
+
+Analysis:
+The persistent training failures across multiple runs suggest fundamental issues:
+1. Memory management remains problematic despite gradient accumulation
+2. The combination of large model size (Gemma-2B) and complex loss calculations may exceed GPU capacity
+3. The data pipeline may be stalling before completing even one training step
+4. Error handling improvements didn't capture the root cause
+
+## Run 5: Memory-Optimized Training
+Configuration:
+- Reduce model complexity by starting with smaller layers first
+- Implement activation checkpointing to reduce memory footprint
+- Add memory profiling and monitoring
+- Further reduce batch sizes and increase gradient accumulation steps
+- Add robust exception handling with detailed error messages
+
+Hypothesis:
+These changes should:
+1. Enable training to proceed by reducing peak memory usage
+2. Provide better insights into memory bottlenecks
+3. Allow successful completion of at least initial training steps
+4. Generate meaningful loss metrics for analysis

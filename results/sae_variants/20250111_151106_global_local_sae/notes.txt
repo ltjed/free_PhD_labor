@@ -1,0 +1,50 @@
+# Title: Global-Local Sparse Autoencoders: Capturing Multi-Scale Features in Language Models
+
+# Run 1: Base GL-SAE Implementation
+Date: 2025-01-11
+Configuration:
+- Model: Gemma-2B
+- Layer: 19
+- Dictionary Size: 2304
+- Learning Rate: 0.0003
+- Sparsity Penalty: 0.04
+
+Architecture:
+- Parallel local and global pathways in encoder
+- Memory bank (size=512) for global features
+- Binary routing gates for pathway selection
+- Shared decoder for reconstruction
+
+Results:
+- Training completed successfully
+- Initial results suggest the model can capture both local and global features
+- Memory bank shows promise in maintaining consistent global representations
+- Binary routing gates effectively control information flow between pathways
+
+Analysis:
+- The parallel pathway architecture successfully processes features at different scales
+- Memory bank helps maintain contextual consistency across sequences
+- Routing mechanism allows dynamic feature selection
+- Further optimization of memory bank attention mechanism may improve performance
+
+# Run 2: Enhanced Memory Bank Implementation
+Planned changes:
+- Implement multi-head attention for memory bank
+- Add learned temperature scaling for attention
+- Introduce feature-wise gating in memory bank
+- Add gradient stopping for memory updates
+# Experiment description: 1. Implement parallel local and global pathways in encoder
+2. Design memory bank mechanism for global features
+3. Implement simple routing mechanism with binary gates
+4. Implement curriculum learning for global pathway
+5. Train on GPT-2 and Gemma activations
+6. Evaluate using:
+   - Reconstruction quality
+   - Feature interpretability
+   - Global coherence tasks (coreference, topic consistency)
+   - Path attribution analysis
+7. Analyze computational overhead
+8. Perform ablation studies on memory bank size and routing mechanism
+## Run 0: Baseline
+Results: {'shakespeare_char': {'means': {'final_train_loss_mean': 0.8083514968554179, 'best_val_loss_mean': 1.4693279266357422, 'total_train_time_mean': 301.409769932429, 'avg_inference_tokens_per_second_mean': 476.76571942025066}, 'stderrs': {'final_train_loss_stderr': 0.004606851662603869, 'best_val_loss_stderr': 0.002318185346862607, 'total_train_time_stderr': 3.7604327053095585, 'avg_inference_tokens_per_second_stderr': 2.2846284985581478}, 'final_info_dict': {'final_train_loss': [0.8238834142684937, 0.790310263633728, 0.810860812664032], 'best_val_loss': [1.4679977893829346, 1.478432297706604, 1.461553692817688], 'total_train_time': [317.36346793174744, 293.538613319397, 293.3272285461426], 'avg_inference_tokens_per_second': [467.22402076323704, 480.0598800084391, 483.01325748907584]}}, 'enwik8': {'means': {'final_train_loss_mean': 0.9414697289466858, 'best_val_loss_mean': 1.0054575204849243, 'total_train_time_mean': 2371.9740512371063, 'avg_inference_tokens_per_second_mean': 481.0998539249739}, 'stderrs': {'final_train_loss_stderr': 0.0, 'best_val_loss_stderr': 0.0, 'total_train_time_stderr': 0.0, 'avg_inference_tokens_per_second_stderr': 0.0}, 'final_info_dict': {'final_train_loss': [0.9414697289466858], 'best_val_loss': [1.0054575204849243], 'total_train_time': [2371.9740512371063], 'avg_inference_tokens_per_second': [481.0998539249739]}}, 'text8': {'means': {'final_train_loss_mean': 0.9939898252487183, 'best_val_loss_mean': 0.9801777005195618, 'total_train_time_mean': 2351.458997964859, 'avg_inference_tokens_per_second_mean': 476.5669066097941}, 'stderrs': {'final_train_loss_stderr': 0.0, 'best_val_loss_stderr': 0.0, 'total_train_time_stderr': 0.0, 'avg_inference_tokens_per_second_stderr': 0.0}, 'final_info_dict': {'final_train_loss': [0.9939898252487183], 'best_val_loss': [0.9801777005195618], 'total_train_time': [2351.458997964859], 'avg_inference_tokens_per_second': [476.5669066097941]}}, 'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04, 'unique_id': 'google/gemma-2-2b_layer_19_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_19_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': nan}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': nan}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}
+Description: Baseline results.

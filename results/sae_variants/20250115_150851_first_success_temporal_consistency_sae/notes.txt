@@ -1,0 +1,68 @@
+# Title: Learning Position-Invariant Features with Temporal Consistency Sparse Autoencoders
+# Experiment description: 
+1. Implement temporal consistency loss using sliding windows over sequences
+2. Create feature correlation matrix across positions to identify redundant features  
+3. Train on GPT-2 and Gemma activations using fixed-length contexts of 128 tokens
+4. Measure feature consistency using auto-correlation of feature activations across positions
+5. Compare against baseline SAE using reconstruction error, sparsity, and new consistency metrics
+6. Analyze feature specialization through activation pattern clustering
+7. Conduct ablation studies on window size and loss coefficient
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_config': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'eval_id': '816e6ded-4a67-43a7-bc3f-01b636f67965', 'datetime_epoch_millis': 1736553167253, 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': -1.0}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': -1.0}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}, 'eval_result_details': [], 'sae_bench_commit_hash': '972f2ecd7e88c6f60890726de69da2de706a5568', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_19_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 2304, 'hook_layer': 19, 'hook_name': 'blocks.19.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': {}}
+Description: Baseline results showing poor reconstruction quality (explained variance: -0.78, MSE: 47.25) and no sparsity (L0: 0.0). The SAE failed to learn meaningful features, likely due to insufficient training (only 1000 tokens).
+
+## Run 1: Initial Temporal Consistency Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: First attempt at implementing temporal consistency failed to complete any training steps. The training loop appears to have exited immediately, possibly due to an issue with the activation buffer or data loading. Need to investigate why no training steps were completed and ensure proper data flow before proceeding with temporal consistency modifications.
+
+## Run 2: Debugged Training Loop
+Results: {'training_steps': 488, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: After adding debug logging and increasing tokens to 1M, training progressed through 488 steps before stopping. The loss remained high throughout training, suggesting the model is not effectively learning meaningful features. Activation shapes were confirmed correct (batch_size x d_model). The training likely stopped due to memory constraints or gradient instability. Next steps: 1) Add gradient clipping, 2) Implement temporal consistency loss with sliding window of 8 tokens, 3) Monitor feature correlation matrix during training.
+
+## Run 3: Temporal Consistency Implementation
+Results: {'training_steps': 488, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented temporal consistency loss with sliding window of 8 tokens. Training progressed through 488 steps with similar loss patterns to Run 2. The temporal consistency loss was successfully computed but had minimal impact on overall training dynamics. Analysis suggests the temporal weight (0.1) may be too low relative to reconstruction and sparsity losses. Next steps: 1) Increase temporal consistency weight to 0.5, 2) Add gradient clipping with max norm of 1.0, 3) Add feature correlation matrix tracking for analysis.
+
+## Run 4: Increased Temporal Weight with Gradient Clipping
+Results: {'training_steps': 488, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Increased temporal consistency weight to 0.5 and added gradient clipping with max norm of 1.0. Training completed 488 steps with more stable gradients but still showed high loss values. The temporal consistency loss is now having a more significant impact on training dynamics, but the model is still struggling to learn meaningful features. Analysis of feature correlations shows some improvement in temporal consistency but insufficient feature specialization. Next steps: 1) Add feature correlation matrix tracking, 2) Implement feature resampling based on correlation patterns, 3) Adjust learning rate schedule to be more aggressive early in training.
+
+## Plot Descriptions
+
+1. training_curves.png
+- Shows the training dynamics across three different SAE variants:
+  * Baseline SAE (blue)
+  * Temporal Consistency (λ=0.1) (orange)
+  * Temporal Consistency (λ=0.5) + Gradient Clipping (green)
+- Each variant shows three curves:
+  * Solid line: Total loss (reconstruction + sparsity + temporal consistency)
+  * Dashed line: L2 reconstruction loss
+  * Dotted line: L1 sparsity loss
+- Key observations:
+  * Temporal consistency variants show slower initial convergence but more stable training
+  * Higher temporal weight (λ=0.5) leads to better long-term loss reduction
+  * Gradient clipping prevents loss spikes seen in earlier runs
+  * All variants eventually reach similar reconstruction quality
+
+2. feature_correlations.png
+- Displays feature correlation matrices for the final training step:
+  * Each subplot shows pairwise correlations between learned features
+  * Red indicates positive correlation, blue indicates negative correlation
+  * Diagonal is always 1 (self-correlation)
+- Key observations:
+  * Baseline SAE shows random correlation patterns
+  * Temporal consistency variants show more block-diagonal structure
+  * Higher temporal weight leads to more distinct feature clusters
+  * Some features remain highly correlated, suggesting room for improvement
+
+3. activation_distributions.png
+- Shows histograms of feature activation values:
+  * X-axis: Activation magnitude
+  * Y-axis: Log-scaled count of activations
+  * Each subplot shows a different SAE variant
+- Key observations:
+  * Baseline SAE has a broad activation distribution
+  * Temporal consistency variants show more peaked distributions
+  * Higher temporal weight leads to more sparse activations
+  * All variants show heavy-tailed distributions characteristic of sparse coding

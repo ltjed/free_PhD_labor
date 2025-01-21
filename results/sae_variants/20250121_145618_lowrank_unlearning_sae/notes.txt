@@ -1,0 +1,214 @@
+# Title: Low-Rank Transformations for Efficient Knowledge Unlearning in Sparse Autoencoders
+
+# Generated Plots Description
+
+## unlearning_scores.png
+This plot displays a bar chart comparing the unlearning performance across different runs (Run 1-5). The y-axis shows the unlearning score (0-1 scale), where higher values indicate better selective knowledge removal. Each bar represents a different approach:
+- Run 1: Low-Rank SAE baseline
+- Run 2: Alternating optimization with orthogonality constraints
+- Run 3: WMDP integration approach
+- Run 4: Gradient-guided feature isolation
+- Run 5: Dynamic clustering method
+Current results show all approaches achieving 0.0 unlearning scores, suggesting challenges in selective knowledge removal.
+
+## training_loss.png
+This figure shows the training loss curves over time for all runs, plotted on a logarithmic scale. The x-axis represents training steps, while the y-axis shows the loss value. Key observations:
+- All runs show initial rapid descent in loss
+- Loss curves are colored according to the run labels
+- Logarithmic scale helps visualize both early and late training dynamics
+- Includes both reconstruction loss and regularization terms
+
+## feature_sparsity.png
+This visualization compares feature activation sparsity across different runs through a bar chart. The y-axis represents the sparsity penalty term, with:
+- Lower values indicating more sparse representations
+- Each bar corresponding to a different approach
+- Sparsity measured as L1 penalty on feature activations
+This metric helps understand how different architectures affect representation efficiency.
+
+# Experiment description: 1. Implement streaming low-rank transformation
+2. Add numerically stable loss computation
+3. Modify SAE training with alternating optimization
+4. Train on Gemma-2B using WMDP-bio dataset
+5. Compare unlearning performance vs baselines
+6. Analyze transformation orthogonality
+7. Measure memory efficiency gains
+
+## Run 0: Baseline
+Results: [Previous baseline results...]
+Description: Baseline results using standard SAE implementation.
+
+## Run 1: Low-Rank SAE with Streaming Updates
+Implementation:
+- Modified CustomSAE to LowRankSAE with factorized weights (W = UV^T)
+- Added streaming SVD updates using incremental algorithm
+- Implemented numerically stable loss computation using log-sum-exp trick
+- Target rank: 128 (approximately 5% of full rank 2304)
+- Added memory tracking for efficiency analysis
+
+Technical Details:
+- Weight matrices factorized as: W_enc = U_enc @ V_enc^T, W_dec = U_dec @ V_dec^T
+- U_enc: (2304, 128), V_enc: (2304, 128)
+- U_dec: (2304, 128), V_dec: (2304, 128)
+- Memory reduction: ~90% compared to full-rank matrices
+- Streaming SVD update frequency: Every 100 steps
+
+Results:
+Unlearning evaluation metrics:
+- Unlearning score: 0.0 (baseline performance)
+- Target datasets: wmdp-bio, high_school_us_history, college_computer_science, high_school_geography, human_aging
+- Intervention method: clamp_feature_activation
+- Retain thresholds tested: [0.001, 0.01]
+- Features tested: [10, 20]
+- Multipliers tested: [25, 50, 100, 200]
+
+Analysis:
+The initial implementation shows the basic infrastructure is working, but the unlearning performance needs improvement. The low unlearning score (0.0) suggests that the current low-rank transformation may not be sufficient for selective knowledge removal. This motivates the next run's focus on alternating optimization and orthogonality constraints to improve the model's ability to isolate and modify specific knowledge components.
+
+## Run 2: Alternating Optimization and Orthogonality Constraints
+Implementation:
+- Transformed CustomSAE to LowRankSAE with factorized weights
+- Implemented alternating optimization strategy
+- Added explicit orthogonality constraints
+- Increased low-rank approximation rank from 128 to 256
+- Enhanced loss function with orthogonality penalty
+
+Technical Details:
+- Weight matrices factorized as: W = U @ V^T
+- Rank increased to 256 (approximately 10% of full rank 2304)
+- Alternating optimization between U and V matrices
+- Orthogonality penalty added to loss function
+- Periodic SVD-based orthogonality enforcement
+
+Key Modifications:
+- Introduced LowRankSAE class replacing CustomSAE
+- Modified encode() and decode() methods for low-rank computation
+- Added enforce_orthogonality() method
+- Implemented alternating optimization in trainer
+- Added orthogonality regularization term to loss function
+
+Experimental Parameters:
+- Orthogonality penalty: 0.1
+- Optimization strategy: Alternating updates of U and V matrices
+- Orthogonality enforcement: Every 100 training steps
+
+Results:
+- Unlearning score: 0.0 (no improvement over baseline)
+- Evaluation performed on multiple datasets:
+  * wmdp-bio
+  * high_school_us_history
+  * college_computer_science
+  * high_school_geography
+  * human_aging
+- Testing parameters:
+  * Retain thresholds: [0.001, 0.01]
+  * Feature counts: [10, 20]
+  * Multipliers: [25, 50, 100, 200]
+
+Analysis:
+The alternating optimization and orthogonality constraints did not improve the unlearning capabilities as expected. The zero unlearning score suggests that either:
+1. The factorized representation is not sufficiently capturing knowledge structure
+2. The orthogonality constraints may be too rigid
+3. We need more direct integration with the unlearning objective
+
+Next Steps:
+Proceed with Run 3 focusing on:
+1. Direct WMDP integration during training
+2. Explicit unlearning mechanism in loss function
+3. Adaptive feature isolation based on knowledge domains
+
+## Run 3: WMDP Integration and Explicit Unlearning
+Implementation:
+- Added WMDP-guided training with domain-specific loss terms
+- Implemented explicit unlearning mechanism in loss function
+- Introduced adaptive feature isolation based on knowledge domains
+- Enhanced orthogonality constraints with domain awareness
+- Added domain classification head for feature attribution
+
+Technical Details:
+- Modified loss function to include WMDP-specific terms
+- Added domain classification layer: (256, num_domains)
+- Implemented feature attribution tracking
+- Enhanced alternating optimization with domain-specific updates
+- Added adaptive sparsity based on domain importance
+
+Key Modifications:
+- Extended LowRankSAE with domain classification capability
+- Added WMDP-guided loss components
+- Implemented domain-aware feature isolation
+- Enhanced orthogonality constraints with domain knowledge
+- Added feature attribution tracking mechanism
+
+Experimental Parameters:
+- WMDP weight in loss function: 0.2
+- Domain classification weight: 0.1
+- Adaptive sparsity range: [0.01, 0.1]
+- Feature attribution threshold: 0.05
+- Domain-specific learning rates: [0.0001, 0.001]
+
+Results:
+- Unlearning score: 0.0 (no improvement)
+- Evaluated on multiple target datasets:
+  * wmdp-bio
+  * high_school_us_history
+  * college_computer_science
+  * high_school_geography
+  * human_aging
+- Test parameters:
+  * Retain thresholds: [0.001, 0.01]
+  * Features tested: [10, 20]
+  * Multipliers: [25, 50, 100, 200]
+- Model configuration:
+  * Layer: 19
+  * Dictionary size: 2304
+  * Learning rate: 0.0003
+  * Sparsity penalty: 0.04
+
+Analysis:
+The WMDP integration and explicit unlearning mechanisms did not improve the unlearning performance. The persistent zero unlearning score suggests fundamental limitations in our approach:
+1. The domain classification may not be effectively guiding feature separation
+2. The low-rank structure might be too constrained for selective knowledge removal
+3. The alternating optimization might need better coordination with domain-specific updates
+
+## Run 4: Gradient-Guided Feature Isolation
+Implementation:
+- Implemented block-diagonal constraint structure with 32 feature clusters
+- Added gradient-guided feature attribution tracking
+- Introduced dynamic feature importance weighting
+- Enhanced low-rank structure with block-wise orthogonality
+- Added adaptive feature weighting mechanisms
+
+Technical Details:
+- Modified LowRankSAE with block-structured parameters:
+  * U_enc/V_enc split into 32 blocks for feature isolation
+  * Block size: 72 features per cluster (2304/32)
+  * Rank per block: 8 (256/32)
+- Added feature importance tracking buffer (100 batch history)
+- Implemented block-wise orthogonality constraints
+- Added adaptive feature weighting based on activation patterns
+
+Results:
+- Unlearning score: 0.0 (no improvement)
+- Evaluated on standard datasets:
+  * wmdp-bio
+  * high_school_us_history
+  * college_computer_science
+  * high_school_geography
+  * human_aging
+- Test parameters maintained:
+  * Retain thresholds: [0.001, 0.01]
+  * Features tested: [10, 20]
+  * Multipliers: [25, 50, 100, 200]
+
+Analysis:
+Despite the sophisticated feature isolation mechanisms and block-diagonal structure, the unlearning performance remains at baseline levels. This suggests:
+1. The block structure may be too rigid, preventing effective knowledge separation
+2. The gradient-guided feature attribution might not be capturing the right patterns
+3. The feature clusters may need to be more dynamically determined
+
+## Run 5: Dynamic Feature Clustering
+Implementation plan:
+- Replace fixed blocks with dynamic clustering
+- Add similarity-based feature grouping
+- Implement soft assignment to clusters
+- Add learnable cluster centroids
+- Include cross-cluster attention mechanism

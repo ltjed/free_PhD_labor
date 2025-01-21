@@ -1,0 +1,113 @@
+# Title: Temporal Sparse Autoencoders: Learning Consistent Features Across Sequential Contexts
+# Experiment description: 1. Implement multi-scale temporal consistency loss:
+   - Short-range (1-4 tokens)
+   - Medium-range (5-16 tokens)
+   - Long-range (17-128 tokens)
+2. Add position-aware feature gating mechanism
+3. Train on Gemma-2B activations with:
+   - Progressive sequence length scaling
+   - Adaptive loss weighting
+   - Feature pruning schedule
+4. Evaluate using:
+   - Temporal consistency score (TCS)
+   - Feature stability metric (FSM)
+   - WMDP-bio unlearning benchmark
+5. Analyze feature transition patterns
+6. Compare against baseline SAE on targeted knowledge removal
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_config': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'eval_id': '816e6ded-4a67-43a7-bc3f-01b636f67965', 'datetime_epoch_millis': 1736553167253, 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': -1.0}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': -1.0}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}, 'eval_result_details': [], 'sae_bench_commit_hash': '972f2ecd7e88c6f60890726de69da2de706a5568', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_19_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 2304, 'hook_layer': 19, 'hook_name': 'blocks.19.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': {}}
+Description: Baseline results showing poor reconstruction quality (explained variance: -0.78) and high CE loss with SAE (18.0), indicating the need for architectural improvements.
+
+## Run 1: Initial Temporal SAE Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Initial implementation of temporal SAE with multi-scale consistency losses failed to train properly (0 steps completed). Analysis suggests the temporal loss weights may be too aggressive, causing instability. The adaptive weighting mechanism needs adjustment to better balance reconstruction and temporal consistency objectives.
+
+## Run 2: Conservative Temporal Weighting
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented more conservative temporal loss weighting (0.01, 0.005, 0.001) and gradient clipping. Training still failed to start (0 steps completed). Analysis suggests the temporal consistency buffers may be causing initialization issues. The temporal tracking buffers need to be initialized with proper scaling and warmup period.
+
+## Run 3: Temporal Buffer Warmup
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented temporal buffer warmup with:
+1. 1000-step warmup period for temporal consistency tracking
+2. Buffers initialized with scaled random values (0.1 std dev)
+3. Gradual increase of temporal loss weights over first 1000 steps
+4. Buffer reset mechanism for stability
+
+Despite these improvements, training still failed to start (0 steps completed). Analysis suggests:
+- The temporal consistency objectives may be conflicting too strongly with reconstruction
+- The buffer mixing during warmup may be too aggressive
+- The gradient clipping threshold (1.0) may be too restrictive
+
+## Run 4: Progressive Temporal Training
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented progressive temporal training with:
+1. No temporal losses during first 500 steps
+2. Buffer mixing ratio reduced to 0.5 during warmup
+3. Gradient clipping threshold increased to 2.0
+4. Exponential decay of temporal loss weights after warmup
+5. Feature-wise temporal loss scaling based on activation variance
+
+Training still failed to start (0 steps completed). Analysis suggests:
+- The temporal consistency objectives may still be too strong even after warmup
+- The feature-wise scaling may be amplifying noise in early training
+- The reconstruction loss may need higher relative weighting initially
+
+## Run 5: Reconstruction-Focused Warmup
+Proposed Changes:
+1. Extend warmup period to 2000 steps with no temporal losses
+2. Add reconstruction loss boosting during warmup (2x weight)
+3. Implement feature activation variance thresholding
+4. Add gradient noise injection for stability
+5. Reduce initial temporal buffer mixing ratio to 0.25
+
+## Plot Analysis
+
+### training_metrics.png
+This figure contains four subplots showing key training metrics across all runs:
+
+1. Training Loss (Top Left):
+- Shows the overall training loss over time for each run
+- Allows comparison of convergence rates and final loss values
+- Highlights differences between baseline and temporal SAE variants
+- X-axis: Training steps
+- Y-axis: Total loss value
+
+2. Temporal Consistency Loss (Top Right):
+- Tracks the temporal consistency component of the loss
+- Shows how temporal losses evolve during training
+- Reveals when temporal objectives are introduced
+- X-axis: Training steps
+- Y-axis: Temporal loss value
+
+3. Feature Activation Variance (Bottom Left):
+- Measures the variance of feature activations over time
+- Indicates feature diversity and specialization
+- Helps identify dead or oversaturated features
+- X-axis: Training steps
+- Y-axis: Activation variance
+
+4. Final Reconstruction Quality (Bottom Right):
+- Bar plot comparing final reconstruction performance
+- Uses explained variance as the metric
+- Shows relative performance of different approaches
+- X-axis: Run name
+- Y-axis: Explained variance
+
+### feature_analysis.png
+This figure contains two subplots analyzing feature activation patterns:
+
+1. Feature Lifetime (Left):
+- Tracks the average lifetime of features over training
+- Measures how long features remain active
+- Indicates temporal stability of learned features
+- X-axis: Training steps
+- Y-axis: Average lifetime in tokens
+
+2. Feature Sparsity (Right):
+- Shows the L0 norm of feature activations over time
+- Measures how many features are active per token
+- Tracks the evolution of sparsity during training
+- X-axis: Training steps
+- Y-axis: L0 norm (number of active features)

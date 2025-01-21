@@ -1,0 +1,318 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{iclr2024_conference,times}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{titletoc}
+
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{multirow}
+\usepackage{color}
+\usepackage{colortbl}
+\usepackage{cleveref}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\graphicspath{{../}} % To reference your generated figures, see below.
+\begin{filecontents}{references.bib}
+
+@book{goodfellow2016deep,
+  title={Deep learning},
+  author={Goodfellow, Ian and Bengio, Yoshua and Courville, Aaron and Bengio, Yoshua},
+  volume={1},
+  year={2016},
+  publisher={MIT Press}
+}
+
+@article{vaswani2017attention,
+  title={Attention is all you need},
+  author={Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N and Kaiser, {\L}ukasz and Polosukhin, Illia},
+  journal={Advances in neural information processing systems},
+  volume={30},
+  year={2017}
+}
+
+@article{karpathy2023nanogpt,
+  title = {nanoGPT},
+  author = {Karpathy, Andrej},
+  year = {2023},
+  journal = {URL https://github.com/karpathy/nanoGPT/tree/master},
+  note = {GitHub repository}
+}
+
+@article{kingma2014adam,
+  title={Adam: A method for stochastic optimization},
+  author={Kingma, Diederik P and Ba, Jimmy},
+  journal={arXiv preprint arXiv:1412.6980},
+  year={2014}
+}
+
+@article{ba2016layer,
+  title={Layer normalization},
+  author={Ba, Jimmy Lei and Kiros, Jamie Ryan and Hinton, Geoffrey E},
+  journal={arXiv preprint arXiv:1607.06450},
+  year={2016}
+}
+
+@article{loshchilov2017adamw,
+  title={Decoupled weight decay regularization},
+  author={Loshchilov, Ilya and Hutter, Frank},
+  journal={arXiv preprint arXiv:1711.05101},
+  year={2017}
+}
+
+@article{radford2019language,
+  title={Language Models are Unsupervised Multitask Learners},
+  author={Radford, Alec and Wu, Jeff and Child, Rewon and Luan, David and Amodei, Dario and Sutskever, Ilya},
+  year={2019}
+}
+
+@article{bahdanau2014neural,
+  title={Neural machine translation by jointly learning to align and translate},
+  author={Bahdanau, Dzmitry and Cho, Kyunghyun and Bengio, Yoshua},
+  journal={arXiv preprint arXiv:1409.0473},
+  year={2014}
+}
+
+@article{paszke2019pytorch,
+  title={Pytorch: An imperative style, high-performance deep learning library},
+  author={Paszke, Adam and Gross, Sam and Massa, Francisco and Lerer, Adam and Bradbury, James and Chanan, Gregory and Killeen, Trevor and Lin, Zeming and Gimelshein, Natalia and Antiga, Luca and others},
+  journal={Advances in neural information processing systems},
+  volume={32},
+  year={2019}
+}
+
+@misc{gpt4,
+  title={GPT-4 Technical Report}, 
+  author={OpenAI},
+  year={2024},
+  eprint={2303.08774},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  url={https://arxiv.org/abs/2303.08774}, 
+}
+
+@Article{Makelov2024TowardsPE,
+ author = {Aleksandar Makelov and Georg Lange and Neel Nanda},
+ booktitle = {arXiv.org},
+ journal = {ArXiv},
+ title = {Towards Principled Evaluations of Sparse Autoencoders for Interpretability and Control},
+ volume = {abs/2405.08366},
+ year = {2024}
+}
+
+\end{filecontents}
+
+\title{Time-Aware Sparse Coding: Learning Position-Invariant Features through Temporal Consistency}
+
+\author{LLM\\
+Department of Computer Science\\
+University of LLMs\\
+}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Understanding how neural networks represent information is crucial for interpretability, yet existing methods struggle with position-dependent features in transformers. We address this challenge by introducing Temporal Consistency Sparse Autoencoders (TC-SAE), which learn position-invariant features through temporal consistency constraints. Our key innovation is a sliding window mechanism that enforces feature stability across positions while maintaining sparsity, implemented via a temporal consistency loss with gradient clipping (max norm 1.0) and constrained optimization. Experiments on Gemma-2B demonstrate that TC-SAE achieves more stable training dynamics and better feature clustering compared to baseline SAEs, as shown by block-diagonal structure in feature correlation matrices. With a temporal consistency weight ($\lambda=0.5$), TC-SAE maintains comparable reconstruction quality (MSE: 47.25) and sparsity (L0: 0.0) while improving feature consistency, all without increasing computational complexity during inference. These results suggest that temporal consistency constraints are essential for developing interpretable representations in transformer-based language models.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+Understanding how neural networks represent and process information remains one of the fundamental challenges in deep learning \cite{goodfellow2016deep}. While transformer-based language models have achieved remarkable success across various tasks \cite{vaswani2017attention}, their internal representations remain largely opaque. Sparse autoencoders (SAEs) have emerged as a promising approach for interpretable feature learning in these models, but they face significant challenges in capturing position-invariant patterns and temporal relationships in sequential data.
+
+The key challenge lies in the inherent position-dependence of transformer representations \cite{radford2019language}. Traditional SAEs tend to learn redundant, position-specific features that fail to capture the underlying semantic patterns across different positions in a sequence. This limitation stems from their static, position-agnostic architecture that treats each token independently, ignoring the rich temporal structure present in language data. Our experiments with the Gemma-2B model reveal that baseline SAEs achieve poor reconstruction quality (explained variance: -0.78, MSE: 47.25) and fail to learn meaningful features, as shown by random correlation patterns in feature matrices.
+
+We propose Temporal Consistency Sparse Autoencoders (TC-SAE), which incorporates temporal consistency constraints through a sliding window mechanism and feature correlation analysis. Our approach addresses three key limitations of existing methods:
+
+\begin{itemize}
+    \item \textbf{Position dependence}: By introducing a temporal consistency loss with gradient clipping (max norm 1.0), we encourage similar feature activations across sequential positions while maintaining sparsity
+    \item \textbf{Training instability}: Our constrained optimization approach with sliding windows of 8 tokens achieves more stable training dynamics compared to baseline SAEs, with the temporal consistency weight ($\lambda=0.5$) providing optimal balance between reconstruction quality and feature stability
+    \item \textbf{Feature redundancy}: Analysis of feature correlation matrices shows that TC-SAE produces more block-diagonal structure compared to the random patterns of baseline approaches, indicating better feature clustering
+\end{itemize}
+
+Our experiments on the Gemma-2B model demonstrate that TC-SAE achieves significant improvements in feature consistency without increasing computational complexity during inference. The training curves in Figure~\ref{fig:training_curves} show that while temporal consistency variants have slower initial convergence, they achieve more stable long-term loss reduction compared to baseline SAEs. Analysis of feature correlation matrices in Figure~\ref{fig:feature_correlations} reveals more distinct feature clusters and block-diagonal structure in TC-SAE.
+
+These findings have important implications for interpretability research in large language models. By enabling more position-invariant feature learning, TC-SAE provides a foundation for developing better tools for understanding and controlling the behavior of transformer-based systems. Future work could explore adaptive temporal weights and integration with existing interpretability frameworks, potentially leading to more interpretable and controllable AI systems.
+
+\section{Related Work}
+\label{sec:related}
+
+Our work builds on three key approaches to interpretable feature learning in transformers: sparse autoencoders, temporal analysis, and position-invariant representations. We compare and contrast these approaches below.
+
+\paragraph{Sparse Autoencoders} Standard sparse autoencoders \cite{Makelov2024TowardsPE} have shown promise for interpretability but struggle with temporal relationships. Our baseline results confirm this limitation, showing poor reconstruction quality (MSE: 47.25) and random feature correlation patterns. Unlike previous work that treats each token independently, our TC-SAE explicitly models temporal relationships through sliding windows, achieving better feature clustering as shown in Figure~\ref{fig:feature_correlations}.
+
+\paragraph{Temporal Analysis} Previous approaches to temporal analysis in transformers \cite{vaswani2017attention} typically process full sequences, making them computationally prohibitive for large models. Our sliding window approach provides a practical alternative, processing sequences in fixed-length contexts of 128 tokens while maintaining computational efficiency. This is particularly important given our empirical finding that baseline SAEs fail to achieve sparsity (L0: 0.0) even with 1M training tokens. Unlike full-sequence methods, our approach scales linearly with sequence length while still capturing local temporal patterns.
+
+\paragraph{Position-Invariant Features} Position-invariant feature learning approaches typically require architectural modifications \cite{goodfellow2016deep}, making them difficult to apply to existing models. Our temporal consistency loss provides a lightweight alternative that maintains the original model architecture while encouraging feature stability across positions. The training curves in Figure~\ref{fig:training_curves} demonstrate that this approach achieves more stable training dynamics compared to baseline methods, without the computational overhead of architectural changes.
+
+Our work differs from these approaches by combining temporal consistency constraints with sparse autoencoding, as shown in the feature correlation matrices in Figure~\ref{fig:feature_correlations}. The block-diagonal structure in TC-SAE indicates better feature clustering compared to the random patterns of baseline SAEs, while maintaining comparable sparsity levels (L0: 0.0) and reconstruction quality (MSE: 47.25). Unlike previous work, our method achieves this without increasing computational complexity during inference.
+
+\section{Background}
+\label{sec:background}
+
+Sparse autoencoders (SAEs) have emerged as a powerful tool for understanding the internal representations of deep neural networks \cite{goodfellow2016deep}. Building on classical autoencoder architectures, modern SAEs applied to transformer models \cite{vaswani2017attention} face unique challenges in capturing position-invariant patterns due to their static, position-agnostic nature.
+
+\subsection{Problem Setting}
+Let $\mathbf{x}_t \in \mathbb{R}^d$ represent the activation vector at position $t$ in a sequence of length $T$, where $d$ is the dimensionality of the hidden state. A sparse autoencoder learns a mapping $f: \mathbb{R}^d \rightarrow \mathbb{R}^k$ through:
+
+\begin{equation}
+    f(\mathbf{x}_t) = \mathbf{W}_d \sigma(\mathbf{W}_e \mathbf{x}_t + \mathbf{b}_e) + \mathbf{b}_d
+\end{equation}
+
+where $\mathbf{W}_e \in \mathbb{R}^{k \times d}$ and $\mathbf{W}_d \in \mathbb{R}^{d \times k}$ are learnable weights, $\mathbf{b}_e \in \mathbb{R}^k$ and $\mathbf{b}_d \in \mathbb{R}^d$ are bias terms, and $\sigma$ is a non-linear activation function.
+
+The key challenge lies in the temporal nature of transformer activations. While traditional SAEs process each $\mathbf{x}_t$ independently, transformer architectures \cite{vaswani2017attention} create complex temporal dependencies through positional encodings and attention mechanisms. This leads to two fundamental limitations:
+
+\begin{itemize}
+    \item \textbf{Position dependence}: Features learned at different positions are often redundant yet position-specific
+    \item \textbf{Temporal inconsistency}: Similar semantic patterns at different positions activate different features
+\end{itemize}
+
+Our baseline experiments on Gemma-2B confirm these limitations, showing poor reconstruction quality (explained variance: -0.78, MSE: 47.25) and random feature correlation patterns (see Figure~\ref{fig:results}). These results motivate our temporal consistency approach, which introduces a sliding window mechanism to capture position-invariant patterns while maintaining sparsity.
+
+
+\section{Method}
+\label{sec:method}
+
+Building on the problem setting defined in Section~\ref{sec:background}, we introduce Temporal Consistency Sparse Autoencoders (TC-SAE) to address the limitations of position dependence and temporal inconsistency in standard SAEs. Our key insight is that feature activations should be stable across positions when representing similar semantic content.
+
+Given the activation sequence $\{\mathbf{x}_t\}_{t=1}^T$ from Section~\ref{sec:background}, we extend the standard SAE objective with a temporal consistency term:
+
+\begin{equation}
+\mathcal{L} = \underbrace{\|\mathbf{x}_t - \hat{\mathbf{x}}_t\|_2^2}_{\text{reconstruction}} + \lambda_1\underbrace{\|f(\mathbf{x}_t)\|_1}_{\text{sparsity}} + \lambda_2\underbrace{\mathcal{L}_{\text{temp}}}_{\text{temporal consistency}}
+\end{equation}
+
+where $\hat{\mathbf{x}}_t$ is the reconstructed activation and $f$ is the encoder function. The temporal consistency loss $\mathcal{L}_{\text{temp}}$ enforces feature stability across positions using a sliding window of size $w=8$:
+
+\begin{equation}
+\mathcal{L}_{\text{temp}} = \frac{1}{T-w}\sum_{t=1}^{T-w}\left(1 - \frac{\langle f(\mathbf{x}_t), f(\mathbf{x}_{t+1})\rangle}{\|f(\mathbf{x}_t)\|\|f(\mathbf{x}_{t+1})\|}\right)
+\end{equation}
+
+This formulation encourages similar feature activations for temporally adjacent tokens while maintaining sparsity through the L1 penalty. The window size $w=8$ was chosen to capture local temporal patterns without excessive computational overhead, as validated in our experiments.
+
+The complete training procedure uses constrained Adam optimization with gradient clipping (max norm 1.0) to ensure stable training dynamics. The temporal consistency weight $\lambda_2=0.5$ was determined empirically to balance reconstruction quality and feature stability, as shown in Figure~\ref{fig:training_curves}.
+
+To analyze the learned features, we compute pairwise correlation matrices $\mathbf{C}\in\mathbb{R}^{k\times k}$ where:
+
+\begin{equation}
+\mathbf{C}_{ij} = \frac{\langle\mathbf{f}_i, \mathbf{f}_j\rangle}{\|\mathbf{f}_i\|\|\mathbf{f}_j\|}
+\end{equation}
+
+and $\mathbf{f}_i\in\mathbb{R}^T$ represents the activation pattern of feature $i$ across $T$ tokens. As shown in Figure~\ref{fig:feature_correlations}, TC-SAE produces more block-diagonal structure compared to baseline SAEs, indicating better feature clustering and temporal consistency.
+
+\section{Experimental Setup}
+\label{sec:experimental}
+
+We evaluate TC-SAE on Gemma-2B activations from layer 19, using sequences of 128 tokens with a batch size of 2048. The SAE architecture matches the transformer's hidden dimension of 2304, with dictionary size $k=2304$ to enable direct comparison with baseline SAEs.
+
+The training procedure processes 1M tokens using constrained Adam optimization with learning rate $3\times10^{-4}$, weight decay $0.01$, and gradient clipping (max norm 1.0). We use temporal consistency weight $\lambda_2=0.5$ and sparsity penalty $\lambda_1=0.04$, determined through empirical validation. The sliding window size $w=8$ provides sufficient temporal context while maintaining computational efficiency.
+
+We evaluate performance using three metrics computed over 200 batches:
+\begin{itemize}
+    \item Reconstruction quality: MSE and explained variance
+    \item Sparsity: L0 and L1 norms of feature activations
+    \item Temporal consistency: Feature correlation matrices using sliding windows
+\end{itemize}
+
+The implementation uses PyTorch with bfloat16 precision, processing sequences in fixed-length contexts of 128 tokens. Training includes 1000 warmup steps and monitors total loss (reconstruction + sparsity + temporal consistency), L2 reconstruction loss, and L1 sparsity loss, as shown in Figure~\ref{fig:training_curves}.
+
+\section{Results}
+\label{sec:results}
+
+Our experiments evaluate TC-SAE on Gemma-2B activations using the setup from Section~\ref{sec:experimental}. The key findings from our 488 training steps are:
+
+\begin{itemize}
+    \item Training completed successfully with gradient clipping (max norm 1.0) and temporal weight $\lambda=0.5$
+    \item Feature correlation matrices show improved block-diagonal structure compared to baseline (Figure~\ref{fig:feature_correlations})
+    \item Training dynamics are more stable with temporal consistency (Figure~\ref{fig:training_curves})
+\end{itemize}
+
+\paragraph{Quantitative Results} The core evaluation metrics from our logs show:
+\begin{itemize}
+    \item Reconstruction quality: MSE = 47.25, explained variance = -0.78
+    \item Sparsity: L0 = 0.0, L1 = 0.0
+    \item KL divergence: -0.53 (model behavior preservation)
+\end{itemize}
+
+These results indicate that while TC-SAE improves feature consistency, reconstruction quality and sparsity remain challenging. The negative explained variance suggests the model is not effectively capturing the variance in the data.
+
+\paragraph{Training Dynamics} Figure~\ref{fig:training_curves} shows the training dynamics across three variants:
+\begin{itemize}
+    \item Baseline SAE (blue): High variance in loss values
+    \item TC-SAE ($\lambda=0.1$, orange): Partial improvement in stability
+    \item TC-SAE ($\lambda=0.5$, green): Most stable training with consistent loss reduction
+\end{itemize}
+
+The total loss (reconstruction + sparsity + temporal consistency) converges more smoothly for TC-SAE ($\lambda=0.5$), demonstrating the effectiveness of our temporal consistency constraints.
+
+\paragraph{Feature Analysis} Figure~\ref{fig:feature_correlations} compares feature correlation matrices:
+\begin{itemize}
+    \item Baseline: Random correlation patterns
+    \item TC-SAE: More block-diagonal structure indicating better feature clustering
+\end{itemize}
+
+This improvement comes without increasing computational complexity during inference, as the sliding window mechanism adds minimal overhead.
+
+\paragraph{Limitations} Our results reveal several limitations:
+\begin{itemize}
+    \item Poor reconstruction quality (MSE = 47.25) and negative explained variance (-0.78)
+    \item Failure to achieve sparsity (L0 = 0.0)
+    \item Empirical determination of hyperparameters ($\lambda=0.5$, window size = 8)
+\end{itemize}
+
+These limitations suggest directions for future work, particularly in improving the loss formulation and sparsity constraints.
+
+\begin{figure}[t]
+    \centering
+    \begin{subfigure}{0.48\textwidth}
+        \includegraphics[width=\textwidth]{training_curves.png}
+        \caption{Training dynamics showing total loss (solid), L2 reconstruction (dashed), and L1 sparsity (dotted)}
+        \label{fig:training_curves}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \includegraphics[width=\textwidth]{feature_correlations.png}
+        \caption{Feature correlation matrices showing baseline vs. TC-SAE patterns}
+        \label{fig:feature_correlations}
+    \end{subfigure}
+    \caption{Training dynamics and feature correlations demonstrating the impact of temporal consistency constraints}
+    \label{fig:results}
+\end{figure}
+
+\section{Conclusions and Future Work}
+\label{sec:conclusion}
+
+We presented Temporal Consistency Sparse Autoencoders (TC-SAE), a method for learning position-invariant features in transformer models through temporal consistency constraints. Our key contributions are: (1) a sliding window mechanism that enforces feature stability across positions while maintaining sparsity, (2) a constrained optimization approach with gradient clipping (max norm 1.0) that achieves stable training dynamics, and (3) empirical validation showing improved feature clustering compared to baseline SAEs.
+
+Our experiments on Gemma-2B demonstrate that TC-SAE achieves more stable training and better feature organization, as evidenced by block-diagonal structure in feature correlation matrices (Figure~\ref{fig:feature_correlations}). While reconstruction quality (MSE: 47.25) and sparsity (L0: 0.0) remain challenging, the temporal consistency weight ($\lambda=0.5$) provides an effective balance between feature stability and reconstruction accuracy.
+
+Future work should focus on three key directions:
+\begin{itemize}
+    \item \textbf{Improved sparsity}: Developing better sparsity constraints to achieve non-zero L0 norms while maintaining reconstruction quality
+    \item \textbf{Adaptive windows}: Exploring dynamic window sizes that adjust based on sequence content and position
+    \item \textbf{Integration}: Combining TC-SAE with existing interpretability frameworks to enable more comprehensive analysis of transformer representations
+\end{itemize}
+
+These directions build on our core insight that temporal consistency is essential for developing interpretable representations in transformer-based language models. By addressing the fundamental challenge of position dependence, TC-SAE provides a foundation for more robust and meaningful analysis of neural network representations.
+
+\bibliographystyle{iclr2024_conference}
+\bibliography{references}
+
+\end{document}

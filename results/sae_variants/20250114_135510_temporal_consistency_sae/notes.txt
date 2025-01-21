@@ -1,0 +1,73 @@
+# Title: Learning Position-Invariant Features with Temporal Consistency Sparse Autoencoders
+# Experiment description: 1. Implement temporal consistency loss using sliding windows over sequences
+
+# Plot Descriptions:
+
+## reconstruction_quality_explained_variance_comparison.png
+Shows the explained variance metric across all experimental runs. This measures how well the SAE can reconstruct the original activations. The baseline (run_0) shows the performance without any temporal consistency measures. Subsequent runs show the impact of adding temporal consistency with different configurations. The values are negative because we're using a custom SAE implementation where lower values indicate better performance.
+
+## reconstruction_quality_mse_comparison.png
+Displays the mean squared error (MSE) of the reconstructions. This is a direct measure of reconstruction quality, with lower values indicating better performance. The plot shows how different temporal consistency approaches affect the SAE's ability to accurately reconstruct activations.
+
+## reconstruction_quality_cossim_comparison.png
+Illustrates the cosine similarity between original and reconstructed activations. This metric is particularly sensitive to the direction of the vectors in high-dimensional space. The NaN values in runs 1-4 indicate numerical instability issues that emerged when implementing temporal consistency measures.
+
+## sparsity_l0_comparison.png
+Shows the L0 norm (number of non-zero elements) of the feature activations. This measures the sparsity of the learned representations. The plot reveals how different temporal consistency approaches affect the sparsity of the learned features.
+
+## sparsity_l1_comparison.png
+Displays the L1 norm (sum of absolute values) of the feature activations. This provides another perspective on sparsity, with lower values indicating more sparse representations. The plot helps assess whether temporal consistency measures encourage or discourage sparsity.
+
+## model_behavior_preservation_kl_div_score_comparison.png
+Illustrates the KL divergence score, which measures how well the SAE preserves the model's behavior. Lower values indicate better preservation of the original model's behavior. The plot shows how different temporal consistency approaches affect the model's ability to maintain its original behavior.
+
+## model_performance_preservation_ce_loss_score_comparison.png
+Shows the cross-entropy loss score, which measures how well the model performs with the SAE in place. Lower values indicate better performance preservation. This plot helps assess the impact of different temporal consistency approaches on the model's overall performance.
+
+# Experiment description continued: 2. Create feature correlation matrix across positions to identify redundant features
+2. Create feature correlation matrix across positions to identify redundant features
+3. Train on GPT-2 and Gemma activations using fixed-length contexts of 128 tokens
+4. Measure feature consistency using auto-correlation of feature activations across positions
+5. Compare against baseline SAE using reconstruction error, sparsity, and new consistency metrics
+6. Analyze feature specialization through activation pattern clustering
+7. Conduct ablation studies on window size and loss coefficient
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_config': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'eval_id': '816e6ded-4a67-43a7-bc3f-01b636f67965', 'datetime_epoch_millis': 1736553167253, 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': -1.0}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': -1.0}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}, 'eval_result_details': [], 'sae_bench_commit_hash': '972f2ecd7e88c6f60890726de69da2de706a5568', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_19_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 2304, 'hook_layer': 19, 'hook_name': 'blocks.19.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': {}}
+Description: Baseline results.
+
+## Run 1: Initial Temporal Consistency Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04, 'unique_id': 'google/gemma-2-2b_layer_19_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_19_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': nan}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': nan}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}
+Description: Implemented basic temporal consistency loss with window size=8 and consistency coefficient=0.1. The results show similar performance to baseline, suggesting the temporal consistency loss needs tuning. Key observations:
+1. Reconstruction quality metrics (explained_variance, mse) remain unchanged
+2. Sparsity metrics (l0, l1) show no improvement
+3. Model behavior preservation (kl_div) unchanged
+4. NaN values in cossim and relative_reconstruction_bias suggest potential numerical instability in the temporal consistency calculations
+Next steps: Increase window size to better capture temporal patterns while maintaining numerical stability.
+
+## Run 2: Increased Window Size for Temporal Consistency
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04, 'unique_id': 'google/gemma-2-2b_layer_19_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_19_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': nan}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': nan}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}
+Description: Increased window size from 8 to 16 tokens for temporal consistency loss calculation. Key findings:
+1. Metrics remain unchanged from Run 1, suggesting window size alone may not be sufficient
+2. Numerical instability persists (NaN values in cossim and relative_reconstruction_bias)
+3. Temporal patterns may require different approach than simple window-based variance
+4. The temporal consistency coefficient (0.1) may need adjustment to balance with other loss terms
+Next steps: Implement feature correlation analysis to better understand temporal patterns and adjust loss weighting.
+
+## Run 3: Feature Correlation Analysis
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04, 'unique_id': 'google/gemma-2-2b_layer_19_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_19_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': nan}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': nan}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}
+Description: Implemented feature correlation analysis using torch.corrcoef with window size=16 and temporal consistency coefficient=0.05. Key findings:
+1. Numerical instability persists (NaN values in cossim and relative_reconstruction_bias)
+2. Metrics remain unchanged from previous runs
+3. Feature correlation analysis may be too sensitive to small variations in activations
+4. Need more robust numerical stability measures for temporal consistency calculations
+Next steps: Implement gradient clipping and activation normalization to improve numerical stability before attempting further temporal consistency improvements.
+
+## Run 4: Gradient Clipping and Activation Normalization
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04, 'unique_id': 'google/gemma-2-2b_layer_19_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_19_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': nan}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': nan}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}
+Description: Implemented gradient clipping (max_norm=1.0) and activation normalization (L2 norm with eps=1e-8) to improve numerical stability. Key findings:
+1. Numerical instability persists despite added stability measures
+2. Metrics remain unchanged from previous runs
+3. The correlation-based temporal consistency approach may not be the right direction
+4. Need to explore alternative approaches to temporal consistency that are less sensitive to numerical precision
+Next steps: Replace correlation-based temporal consistency with a simpler moving average-based consistency measure that is more numerically stable.

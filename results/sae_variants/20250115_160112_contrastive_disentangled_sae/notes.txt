@@ -1,0 +1,101 @@
+# Title: Contrastive Learning for Disentangled Feature Discovery in Sparse Autoencoders
+# Experiment description: 1. Implement feature-wise contrastive loss comparing activation patterns
+2. Create positive pairs using same-sequence positions and semantically equivalent prompts
+3. Generate negative pairs through targeted feature mixing
+4. Modify SAE training with dynamic loss weighting
+5. Train on Gemma-2B activations with curriculum learning
+6. Evaluate using MIG score, Factor VAE metric, and correlation analysis
+7. Compare unlearning performance on WMDP-bio benchmark
+8. Analyze feature interpretability through systematic probing
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_config': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'eval_id': '816e6ded-4a67-43a7-bc3f-01b636f67965', 'datetime_epoch_millis': 1736553167253, 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': -1.0}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': -1.0}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}, 'eval_result_details': [], 'sae_bench_commit_hash': '972f2ecd7e88c6f60890726de69da2de706a5568', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_19_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 2304, 'hook_layer': 19, 'hook_name': 'blocks.19.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': {}}
+Description: Baseline results showing poor reconstruction quality (explained variance: -0.78, MSE: 47.25) and high CE loss with SAE (18.0 vs 2.93 without SAE). The model struggles with feature preservation and reconstruction.
+
+## Run 1: Initial Contrastive Learning Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Initial implementation of contrastive learning failed to complete training (0 steps completed). The training process appears to have crashed immediately, likely due to memory issues with the large dictionary size (2304) and contrastive learning overhead. The learning rate (3e-4) and sparsity penalty (0.04) were carried over from baseline but may need adjustment for the contrastive approach.
+
+## Run 2: Reduced Dictionary Size and Gradient Clipping
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 1024, 'learning_rate': 0.0001, 'sparsity_penalty': 0.04}
+Description: Implemented memory optimizations including:
+1. Reduced dictionary size from 2304 to 1024 to handle memory constraints
+2. Added gradient clipping with max_norm=1.0 to prevent exploding gradients
+3. Lowered learning rate from 3e-4 to 1e-4 for better stability
+4. Improved error handling around contrastive loss computation
+
+Despite these changes, training still failed to complete. Analysis suggests the contrastive loss computation may be introducing instability through the projection head and temperature scaling. The next run will focus on:
+1. Removing the projection head to simplify the contrastive learning
+2. Using a fixed temperature of 1.0
+3. Adding gradient checking to identify numerical instability sources
+
+## Run 3: Simplified Contrastive Loss Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented simplified contrastive learning approach:
+1. Removed projection head to reduce complexity
+2. Fixed temperature at 1.0 for numerical stability
+3. Added gradient anomaly detection
+4. Improved numerical stability in log-sum-exp computation
+
+Training still failed to complete. Analysis of the gradient checking output suggests the issue may be in the interaction between the contrastive loss and the L1 sparsity penalty. The next run will:
+1. Remove contrastive loss entirely to isolate the issue
+2. Focus on getting basic SAE training working
+3. Use a smaller dictionary size (512) to reduce memory pressure
+4. Lower learning rate further to 5e-5
+
+## Run 4: Baseline SAE Without Contrastive Loss
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Removed all contrastive learning components to establish a stable baseline:
+1. Completely removed contrastive loss implementation
+2. Simplified loss function to only include reconstruction and L1 penalty
+3. Maintained gradient clipping and warmup scheduling
+4. Kept dictionary size at 2304 and learning rate at 3e-4 for direct comparison
+
+Training still failed to complete, indicating the issue is more fundamental than the contrastive learning components. Analysis suggests:
+1. The model may be too large for available GPU memory
+2. The activation buffer size (2048) may be too large
+3. The batch size (2048) may need reduction
+
+For Run 5, we will:
+1. Reduce activation buffer size to 1024
+2. Reduce SAE batch size to 1024
+3. Add memory usage monitoring
+4. Add better error handling for out-of-memory conditions
+
+## Experiment Results Visualization
+The plot 'experiment_results.png' contains four subplots showing key metrics across all runs:
+
+1. Training Steps Completed (Top Left):
+- Shows the number of training steps successfully completed for each run
+- Uses skyblue bars for visual clarity
+- X-axis shows run labels (Baseline, Initial Contrastive, etc.)
+- Y-axis shows number of steps
+- Highlights that most runs failed to complete any training steps
+
+2. Final Loss (Top Right):
+- Displays the final loss value achieved by each run
+- Uses lightgreen bars
+- X-axis shows run labels
+- Y-axis shows loss value
+- Note that most runs show 0 loss due to training failures
+
+3. Dictionary Size (Bottom Left):
+- Illustrates the dictionary size used in each run
+- Uses salmon-colored bars
+- X-axis shows run labels
+- Y-axis shows dictionary size
+- Shows reduction from 2304 to 1024 in later runs
+
+4. Hyperparameters (Bottom Right):
+- Line plot comparing learning rate and sparsity penalty across runs
+- Uses markers for each run
+- X-axis shows run labels
+- Y-axis shows parameter values
+- Demonstrates the evolution of hyperparameter choices
+
+Key Observations:
+- The plots clearly show the progression of experimental changes
+- Training failures are evident from the 0 values in steps and loss
+- Hyperparameter adjustments are visible in the bottom plots
+- The color coding helps distinguish different metric types
+- The plot serves as a quick visual summary of the experimental history

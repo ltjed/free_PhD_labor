@@ -1,0 +1,139 @@
+# Title: Temporal Sparse Autoencoders: Learning Time-Aware Features in Language Model Activations
+
+# Generated Figures
+
+## training_metrics.png
+This figure contains two side-by-side bar plots that visualize key training metrics across different experimental runs:
+
+1. Left Plot - Training Steps Completed:
+   - Shows the number of training steps each variant completed
+   - Y-axis represents the total number of steps
+   - X-axis shows different TSA variants
+   - Early termination (0 steps) indicates potential stability issues
+   - Useful for identifying which variants were able to train at all
+
+2. Right Plot - Final Training Loss:
+   - Displays the final loss value achieved by each variant
+   - Y-axis represents the loss value (lower is better)
+   - X-axis shows different TSA variants
+   - Zero/missing values indicate training failure
+   - Helps compare the convergence quality of successful runs
+
+## architecture_comparison.png
+This figure presents three bar plots comparing architectural choices across variants:
+
+1. Left Plot - Dictionary Size:
+   - Shows the number of learned features (d_sae) for each variant
+   - Y-axis represents the dictionary size
+   - Constant value of 2304 across runs matches model's hidden size
+   - Important for understanding model capacity
+
+2. Middle Plot - Learning Rate:
+   - Displays the learning rate used for each variant
+   - Y-axis shows learning rate values
+   - Demonstrates the progression from aggressive (3e-4) to conservative (5e-5) learning
+   - Critical for understanding training stability
+
+3. Right Plot - Sparsity Penalty:
+   - Shows the L1 penalty coefficient used to encourage sparsity
+   - Y-axis represents the penalty strength
+   - Constant value of 0.04 maintained across runs
+   - Key hyperparameter for controlling feature sparsity
+
+Key Insights from Plots:
+- All variants struggled with training stability (0 steps completed)
+- Consistent architecture choices (dict_size, sparsity) didn't prevent issues
+- Progressive reduction in learning rate didn't resolve stability
+- Suggests fundamental issues with temporal components rather than hyperparameters
+
+# Run 1: Core TSA Implementation with Base Parameters
+Description: Initial implementation of Temporal Sparse Autoencoder with basic temporal features
+Changes:
+- Added position embeddings (dim=64)
+- Added temporal attention mechanism (4 heads)
+- Added temporal coherence loss (weight=0.1)
+- Added learned TopK activation (initial threshold=0.1)
+Results:
+- Training steps completed: 0 (early termination)
+- Layer: 19
+- Dict size: 2304
+- Learning rate: 0.0003
+- Sparsity penalty: 0.04
+Analysis:
+The early termination suggests potential initialization or stability issues with the temporal components.
+Next steps should focus on:
+1. Reducing temporal coherence weight
+2. Adjusting position embedding initialization
+3. Implementing gradient clipping
+4. Adding layer normalization to attention mechanism
+
+# Run 2: Stability Improvements
+Description: Implemented stability improvements to address training issues from Run 1
+Changes:
+- Added gradient clipping (max_norm=1.0)
+- Added layer normalization to temporal attention
+- Reduced temporal coherence weight from 0.1 to 0.01
+- Initialized position embeddings with smaller std (0.01)
+- Added skip connection around temporal attention
+Results:
+- Training steps completed: 0 (early termination)
+- Layer: 19
+- Dict size: 2304
+- Learning rate: 0.0003
+- Sparsity penalty: 0.04
+Analysis:
+Despite stability improvements, training still terminated early. This suggests deeper issues:
+1. The model may be too sensitive to initialization
+2. The learning rate may be too high for the temporal components
+3. The architecture may need simplification
+
+# Run 3: Simplified Architecture with Conservative Learning
+Description: Attempted to isolate issues by simplifying architecture and using more conservative training parameters
+Changes:
+- Removed temporal attention mechanism completely
+- Reduced position embedding dimension from 64 to 32
+- Reduced learning rate from 3e-4 to 1e-4
+- Increased warmup steps from 1000 to 2000
+Results:
+- Training steps completed: 0 (early termination)
+- Layer: 19
+- Dict size: 2304
+- Learning rate: 0.0003
+- Sparsity penalty: 0.04
+Analysis:
+The continued early termination despite significant simplification suggests:
+1. There may be fundamental issues with the base SAE implementation
+2. The position embeddings might still be causing instability
+3. We should try an even simpler version without any temporal components
+
+# Run 4: Minimal Working Base
+Description: Attempted to establish a minimal working base by removing all temporal components and focusing on core SAE stability
+Changes:
+- Removed position embeddings completely
+- Returned to standard SAE architecture
+- Kept conservative learning rate (1e-4)
+- Added batch normalization to encoder
+- Initialized weights using Kaiming initialization
+Results:
+- Training steps completed: 0 (early termination)
+- Layer: 19
+- Dict size: 2304
+- Learning rate: 0.0003
+- Sparsity penalty: 0.04
+Analysis:
+The continued early termination despite removing all temporal components and adding stability measures suggests:
+1. There may be fundamental issues with the optimizer configuration
+2. The batch size might need adjustment
+3. The learning rate schedule might need revision
+4. There could be numerical stability issues in the core implementation
+
+# Run 5: Optimizer and Stability Focus
+Planned changes:
+- Switch to AdamW optimizer with weight decay
+- Reduce initial learning rate to 5e-5
+- Increase batch size to 4096
+- Add gradient value clipping (±1.0)
+- Add learning rate warmup over 5000 steps
+## Run 0: Baseline
+Results: {'shakespeare_char': {'means': {'final_train_loss_mean': 0.8083514968554179, 'best_val_loss_mean': 1.4693279266357422, 'total_train_time_mean': 301.409769932429, 'avg_inference_tokens_per_second_mean': 476.76571942025066}, 'stderrs': {'final_train_loss_stderr': 0.004606851662603869, 'best_val_loss_stderr': 0.002318185346862607, 'total_train_time_stderr': 3.7604327053095585, 'avg_inference_tokens_per_second_stderr': 2.2846284985581478}, 'final_info_dict': {'final_train_loss': [0.8238834142684937, 0.790310263633728, 0.810860812664032], 'best_val_loss': [1.4679977893829346, 1.478432297706604, 1.461553692817688], 'total_train_time': [317.36346793174744, 293.538613319397, 293.3272285461426], 'avg_inference_tokens_per_second': [467.22402076323704, 480.0598800084391, 483.01325748907584]}}, 'enwik8': {'means': {'final_train_loss_mean': 0.9414697289466858, 'best_val_loss_mean': 1.0054575204849243, 'total_train_time_mean': 2371.9740512371063, 'avg_inference_tokens_per_second_mean': 481.0998539249739}, 'stderrs': {'final_train_loss_stderr': 0.0, 'best_val_loss_stderr': 0.0, 'total_train_time_stderr': 0.0, 'avg_inference_tokens_per_second_stderr': 0.0}, 'final_info_dict': {'final_train_loss': [0.9414697289466858], 'best_val_loss': [1.0054575204849243], 'total_train_time': [2371.9740512371063], 'avg_inference_tokens_per_second': [481.0998539249739]}}, 'text8': {'means': {'final_train_loss_mean': 0.9939898252487183, 'best_val_loss_mean': 0.9801777005195618, 'total_train_time_mean': 2351.458997964859, 'avg_inference_tokens_per_second_mean': 476.5669066097941}, 'stderrs': {'final_train_loss_stderr': 0.0, 'best_val_loss_stderr': 0.0, 'total_train_time_stderr': 0.0, 'avg_inference_tokens_per_second_stderr': 0.0}, 'final_info_dict': {'final_train_loss': [0.9939898252487183], 'best_val_loss': [0.9801777005195618], 'total_train_time': [2351.458997964859], 'avg_inference_tokens_per_second': [476.5669066097941]}}, 'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04, 'unique_id': 'google/gemma-2-2b_layer_19_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_19_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': nan}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': nan}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}
+Description: Baseline results.

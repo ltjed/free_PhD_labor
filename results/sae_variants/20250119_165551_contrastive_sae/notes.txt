@@ -1,0 +1,96 @@
+# Title: Contrastive Sparse Autoencoders for Improved Feature Disentanglement
+
+# Generated Plots
+
+## training_metrics.png
+This figure contains two side-by-side plots showing key training metrics across different experimental runs:
+
+1. Left plot - "Training Steps per Run":
+   - Bar chart showing the number of training steps completed for each experimental configuration
+   - X-axis: Different experimental runs with varying parameters
+   - Y-axis: Number of training steps completed
+   - Color-coded bars with value labels for easy comparison
+   - Shows training progression and convergence patterns
+   - Particularly notable is Run 4 (Extended Training) with 195 steps vs Run 3's single step
+
+2. Right plot - "Final Loss per Run":
+   - Bar chart displaying the final loss value achieved by each experimental configuration
+   - X-axis: Different experimental runs with varying parameters
+   - Y-axis: Final loss value (lower is better)
+   - Color-coded bars with precise numerical labels
+   - Helps compare the convergence quality across different approaches
+   - Note: Some runs show None/0.0 values due to early termination or logging issues
+
+## unlearning_scores.png
+This figure shows a single bar plot of unlearning performance:
+   - Displays unlearning scores across all experimental configurations
+   - X-axis: Different experimental runs (Initial Contrastive through Feature Diversity)
+   - Y-axis: Unlearning score (higher indicates better unlearning capability)
+   - Color-coded bars with precise numerical labels
+   - Currently showing zero scores across all runs, indicating:
+     a) Potential issues with the unlearning metric calculation
+     b) Need for further optimization of the contrastive learning approach
+     c) Possible limitations in the current feature disentanglement strategy
+
+# Experiment description: 1. Implement single-layer contrastive head
+2. Pre-compute positive/negative pairs from WMDP-bio
+3. Add simplified contrastive loss with fixed pairs
+4. Train on Gemma activations with batch size 128
+5. Evaluate using normalized mutual information (NMI)
+6. Compare unlearning performance on WMDP-bio
+7. Measure feature separation using silhouette scores
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': 'e823bbbb-62c9-41ec-840b-cacb8ca4230d', 'datetime_epoch_millis': 1737147895673, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.939325, 'llm_top_1_test_accuracy': 0.6842749999999999, 'llm_top_2_test_accuracy': 0.7260625, 'llm_top_5_test_accuracy': 0.7746249999999999, 'llm_top_10_test_accuracy': 0.82099375, 'llm_top_20_test_accuracy': 0.8589374999999999, 'llm_top_50_test_accuracy': 0.90028125, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.5, 'sae_top_1_test_accuracy': 0.5, 'sae_top_2_test_accuracy': 0.5, 'sae_top_5_test_accuracy': 0.5, 'sae_top_10_test_accuracy': 0.5, 'sae_top_20_test_accuracy': 0.5, 'sae_top_50_test_accuracy': 0.5, 'sae_top_100_test_accuracy': None}}}
+Description: Baseline results using sparse probing evaluation on various datasets.
+
+## Run 1: Initial Contrastive SAE Implementation
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Initial implementation of Contrastive SAE with contrastive head (dim=128) and contrastive loss weight=0.1. Results show zero unlearning score, suggesting the need for adjustments. Key observations:
+1. Contrastive loss may need stronger weight
+2. Current adjacent-sample positive pairs strategy may be insufficient
+3. Need to verify if contrastive features are being properly utilized
+
+## Run 2: Enhanced Contrastive Learning
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Enhanced implementation with increased contrastive loss weight (0.5) and improved positive pair selection using feature similarity. Changes included:
+1. Increased contrastive loss weight from 0.1 to 0.5
+2. Implemented feature similarity-based positive pair selection
+3. Added temperature parameter (0.1) for similarity scaling
+4. Selected top-5 most similar samples as positive pairs
+Results still show zero unlearning score, suggesting:
+1. Need to verify if contrastive features are being learned properly
+2. May need to adjust the feature similarity threshold
+3. Consider adding gradient clipping to stabilize training
+4. Investigate if batch size is sufficient for meaningful contrastive learning
+
+## Run 3: Gradient Stabilization and Batch Size Optimization
+Results: {'training_steps': 1, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04, 'eval_type_id': 'unlearning', 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Implemented changes to stabilize training and improve batch processing:
+1. Added gradient clipping with max_grad_norm=1.0 to prevent gradient explosions
+2. Reduced batch sizes (llm_batch_size=16, sae_batch_size=256) for more frequent updates
+3. Added error handling for activation buffer processing
+4. Implemented batch size validation checks
+Results still show zero unlearning score, suggesting:
+1. Training may be terminating too early (only 1 training step completed)
+2. Need to investigate potential issues with activation buffer initialization
+3. Consider increasing number of training steps
+4. May need to adjust learning rate schedule for smaller batch sizes
+
+## Run 4: Extended Training with Improved Stability
+Results: {'training_steps': 195, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0001, 'sparsity_penalty': 0.04, 'eval_type_id': 'unlearning', 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Modified training configuration to allow for longer, more stable training:
+1. Successfully completed 195 training steps (up from 1 in previous run)
+2. Reduced learning rate to 0.0001 for better stability
+3. Maintained gradient clipping and error handling from Run 3
+4. Used sae_batch_size=512 for better gradient estimates
+Results show:
+1. Training now runs for significantly more steps
+2. Still achieving zero unlearning score despite longer training
+3. Successful activation buffer processing with larger batch size
+4. Model appears to be training stably but not learning useful features for unlearning
+Next steps:
+1. Consider increasing contrastive loss weight to encourage stronger feature separation
+2. Investigate feature activation patterns during training
+3. May need to adjust positive pair selection strategy
+4. Consider adding feature diversity regularization

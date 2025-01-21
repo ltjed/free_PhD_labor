@@ -1,0 +1,100 @@
+# Title: Hierarchical Sparse Autoencoders: Learning Compositional Features for Interpretable Language Models
+
+# Generated Figures:
+
+## training_metrics.png
+This figure contains four subplots showing the progression of different loss metrics during training:
+1. Total Loss (top-left): Shows the combined loss including reconstruction, sparsity, and composition penalties across training steps. Lower values indicate better overall model performance.
+2. L2 Loss (top-right): Displays the reconstruction quality over time. Lower values suggest better feature preservation.
+3. Sparsity Loss (bottom-left): Shows the L1 penalty term, indicating how well the model achieves sparse representations. Higher values suggest more active features.
+4. MSE Loss (bottom-right): Mean squared error between input and reconstructed activations, providing a direct measure of reconstruction accuracy.
+
+## final_metrics.png
+This figure compares key metrics across different runs in four bar plots:
+1. Training Steps Completed (top-left): Shows how many steps each run completed before convergence or termination.
+2. Final Loss (top-right): Compares the final achieved loss values across runs.
+3. Learning Rate (bottom-left): Shows the final learning rate for each run after warmup/scheduling.
+4. Sparsity Penalty (bottom-right): Displays the sparsity penalty coefficient used in each run.
+
+## core_eval_metrics.png
+This figure presents core evaluation metrics in four bar plots:
+1. Reconstruction Quality (top-left): Shows explained variance ratio (-1 to 1), with higher values indicating better reconstruction.
+2. Sparsity (top-right): Displays L0 sparsity measure, showing percentage of active features.
+3. Model Behavior Preservation (bottom-left): KL divergence score between original and SAE-processed outputs.
+4. Model Performance (bottom-right): Cross-entropy loss comparison, indicating preservation of model behavior.
+
+# Experiment description: 1. Implement adaptive multi-tier SAE architecture
+2. Develop flexible composition loss with learned importance weights
+3. Train on Gemma-2B activations using curriculum learning
+4. Implement automatic tier structure optimization:
+   - Dynamic feature allocation
+   - Tier boundary adjustment
+   - Composition pattern discovery
+5. Evaluate using enhanced metrics:
+   - Normalized Mutual Information between tiers
+   - Composition coverage ratio
+   - Residual analysis for non-compositional features
+6. Compare unlearning performance on WMDP-bio benchmark
+7. Analyze feature interpretability through causal tracing
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_config': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'eval_id': '816e6ded-4a67-43a7-bc3f-01b636f67965', 'datetime_epoch_millis': 1736553167253, 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': -1.0}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': -1.0}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}, 'eval_result_details': [], 'sae_bench_commit_hash': '972f2ecd7e88c6f60890726de69da2de706a5568', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_19_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 2304, 'hook_layer': 19, 'hook_name': 'blocks.19.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': {}}
+Description: Baseline results.
+
+## Run 1: Initial Hierarchical SAE Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: First attempt at implementing hierarchical SAE failed with training_steps=0, indicating an early termination. The implementation included:
+- Multi-tier architecture with 3 tiers
+- Inter-tier composition weights
+- Curriculum learning starting from lower tiers
+- Dynamic feature allocation
+The failure suggests potential issues with:
+1. Buffer initialization or data loading
+2. Memory constraints with the large model
+3. Possible numerical instability in the hierarchical structure
+
+## Run 2: Simplified Hierarchical Architecture
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Second attempt with simplified architecture still failed at initialization. Changes included:
+- Reduced tiers from 3 to 2
+- Added gradient clipping (max_grad_norm=1.0)
+- Increased batch size to 4096
+- Reduced composition penalty to 0.05
+- Extended curriculum learning steps to 10000
+
+Analysis: Persistent initialization failure suggests deeper issues:
+1. Potential initialization problems in the hierarchical structure
+2. Memory management during forward/backward passes
+3. Possible race conditions in curriculum learning
+
+## Run 3: Enhanced Initialization and Memory Management
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Third attempt focused on proper initialization and memory efficiency. Changes included:
+- Kaiming initialization for encoder/decoder weights
+- Identity matrix initialization for tier weights
+- Gradient checkpointing implementation
+- Maintained 2-tier architecture
+
+Analysis: Continued initialization failure despite proper weight initialization suggests:
+1. Potential issues with the forward pass computation graph
+2. Memory allocation problems during model construction
+3. Possible incompatibility between gradient checkpointing and hierarchical structure
+
+## Run 4: Simplified Forward Pass with Debug Logging
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Fourth attempt focused on simplifying computation and adding debugging. Changes included:
+- Simplified forward pass with explicit device checks
+- Added progressive tier activation during training
+- Implemented debug logging for initialization phase
+- Maintained 2-tier architecture with Kaiming initialization
+
+Analysis: Despite improved logging and simplified computation, initialization still fails. Debug logs reveal:
+1. Device placement is correct but model fails before first training step
+2. Progressive tier activation system is not reached
+3. Forward pass computation appears sound but execution halts early
+
+Next steps (Run 5):
+- Add batch normalization layers between tiers
+- Implement gradient scaling for stability
+- Add pre-initialization validation checks
+- Implement safe fallback initialization
