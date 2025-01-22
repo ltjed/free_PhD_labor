@@ -878,9 +878,9 @@ def multiple_evals(
 
         sae_result_path = general_utils.get_results_filepath(output_folder, sae_release, sae_id)
 
-        if os.path.exists(sae_result_path) and not force_rerun:
-            print(f"Skipping {sae_release}_{sae_id} as results already exist")
-            continue
+        # if os.path.exists(sae_result_path) and not force_rerun:
+        #     print(f"Skipping {sae_release}_{sae_id} as results already exist")
+        #     continue
 
         if current_model_str != sae.cfg.model_name:
             # Wrap model loading with retry

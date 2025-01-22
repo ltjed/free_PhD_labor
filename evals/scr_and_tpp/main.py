@@ -741,9 +741,9 @@ def run_eval(
 
         sae_result_path = general_utils.get_results_filepath(output_path, sae_release, sae_id)
 
-        if os.path.exists(sae_result_path) and not force_rerun:
-            print(f"Skipping {sae_release}_{sae_id} as results already exist")
-            continue
+        # if os.path.exists(sae_result_path) and not force_rerun:
+        #     print(f"Skipping {sae_release}_{sae_id} as results already exist")
+        #     continue
 
         artifacts_folder = os.path.join(
             artifacts_base_folder, eval_type, config.model_name, sae.cfg.hook_name
