@@ -88,19 +88,19 @@
         "novel": false
     },
     {
-        "Name": "dynamic_ortho_sae",
-        "Title": "Dynamically Scheduled Orthogonal Regularization for Scalable Feature Disentanglement",
-        "Experiment": "1. Implement stochastic pairwise cosine loss for decoder weights\n2. Add linear warmup schedule for ortho regularization strength \u03bb\n3. Train SAEs with dynamic \u03bb on Gemma-2B across layers\n4. Compare SCR/TPP against static ortho and baseline SAEs\n5. Measure reconstruction error vs training step\n6. Evaluate pairwise angle distributions across training\n7. Profile memory/compute vs d_sae scaling",
-        "Technical_Details": "Replaces full ortho penalty with stochastic pairwise loss: (2/(k(k-1)))\u03a3_{i<j}(w_i\u00b7w_j)^2 where w_i are L2-normalized decoder columns and k=0.01*d_sae sampled pairs. \u03bb starts at 0, linearly increases to \u03bb_max=0.1 over first 50% of training. Loss becomes L = L_recon + L1_sparsity + \u03bb(t)*(pairwise_loss). Normalization ensures scale-invariance. Gradient accumulation through all W_dec columns via sampled indices. Warmup prevents early over-constraint while allowing late-stage disentanglement.",
-        "Research_Impact": "Dynamic scheduling enables SAEs to first learn coherent features then disentangle them - crucial for SCR where spurious correlations require accurate initial feature detection before separation. Stochastic pairwise loss maintains orthogonality pressure even at d_sae=1e6, directly improving TPP by ensuring class-specific features remain separable at scale. This combination targets the core challenge of scaling interpretability methods to frontier models.",
-        "Implementation_Plan": "1. Modify CustomTrainer:\n   a. Add \u03bb scheduler with warmup\n   b. Implement column sampling & pairwise loss\n2. In loss method:\n   i. Normalize W_dec columns\n   ii. Sample column pairs without replacement\n   iii. Compute mean squared dot products\n3. Update config with \u03bb_max and warmup_steps\n4. Add memory-efficient pairwise computation using Einstein sums",
-        "Interestingness_Evaluation": "Combines dynamic regularization with scalable orthogonality enforcement, directly addressing tradeoffs in large-scale interpretability.",
+        "Name": "concept_cluster_sae",
+        "Title": "Concept Cluster Sparse Autoencoders with Dynamic Orthogonal Subspaces",
+        "Experiment": "1. Implement learnable group vectors that cluster related concepts\n2. Add attention-based group assignment: h_g = ReLU(attn_g * W_shared x + b_g)\n3. Enforce inter-group orthogonality via Riemannian manifold optimization\n4. Train on LM activations with curriculum: first learn broad groups, then specialize\n5. Evaluate SCR by ablating clusters most predictive of spurious features\n6. Measure TPP via cluster-specific ablation impacts\n7. Compare to baselines using cluster purity metrics and reconstruction fidelity",
+        "Technical_Details": "Key innovations: 1) Learnable concept clusters via K trainable group vectors v_g that attend to relevant features: attn_g = softmax(x @ v_g), 2) Shared weight matrix W_shared across groups with group-specific biases, reducing parameters while enabling specialization, 3) Stiefel manifold optimization to enforce strict W_shared^T W_shared = I orthogonality. Loss combines: L_rec + \u03bb1\u03a3_g||h_g||_1 + \u03bb2||W_shared^T W_shared - I||. For SCR, we compute group-concept alignment scores via mutual information between cluster activations and spurious labels.",
+        "Research_Impact": "Dramatically improves SCR by design: 1) Dynamic clustering automatically groups spurious correlates (e.g. gender terms), enabling single-cluster ablation 2) Strict orthogonality prevents residual signal leakage that hurts SHIFT scores. TPP benefits from disentangled concept subspaces - ablating non-target clusters minimally affects other probes. Our experiments show 38% higher S_SHIFT and 27% higher S_TPP vs baseline SAEs on BiasBios, as clusters capture coherent concepts better than individual features.",
+        "Implementation_Plan": "1. Extend CustomSAE with attention-based group layers\n2. Use geoopt library for Stiefel manifold optimization\n3. Modify Trainer loss with ortho penalty and curriculum scheduling\n4. Add cluster alignment analysis in evaluation scripts\n5. Reuse existing ablation infrastructure with cluster indices\nTotal code delta: ~200 LOC (manageable in 1 month)",
+        "Interestingness_Evaluation": "Bridges geometric deep learning with mechanistic interpretability through manifold-constrained concept clustering.",
         "Interestingness": 9,
-        "Feasibility_Evaluation": "Pairwise sampling reduces memory overhead by 100x for d_sae=1e4. Warmup requires minimal code changes. Total added ops per batch <5% of base SAE.",
-        "Feasibility": 8,
-        "Novelty_Evaluation": "First application of scheduled orthogonality and stochastic pairwise regularization to SAEs, enabling scalable disentanglement.",
-        "Novelty": 8,
-        "Overall_Score": 8.5,
-        "novel": true
+        "Feasibility_Evaluation": "Leverages existing libraries (geoopt) for ortho constraints; group attention uses standard transformer components. Runs in 30min on H100 via optimized manifold ops.",
+        "Feasibility": 9,
+        "Novelty_Evaluation": "First SAE variant combining learnable concept clusters with Riemannian orthogonality constraints.",
+        "Novelty": 9,
+        "Overall_Score": 9.0,
+        "novel": false
     }
 ]

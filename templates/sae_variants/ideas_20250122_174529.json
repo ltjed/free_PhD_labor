@@ -88,19 +88,19 @@
         "novel": false
     },
     {
-        "Name": "dynamic_ortho_sae",
-        "Title": "Dynamically Scheduled Orthogonal Regularization for Scalable Feature Disentanglement",
-        "Experiment": "1. Implement stochastic pairwise cosine loss for decoder weights\n2. Add linear warmup schedule for ortho regularization strength \u03bb\n3. Train SAEs with dynamic \u03bb on Gemma-2B across layers\n4. Compare SCR/TPP against static ortho and baseline SAEs\n5. Measure reconstruction error vs training step\n6. Evaluate pairwise angle distributions across training\n7. Profile memory/compute vs d_sae scaling",
-        "Technical_Details": "Replaces full ortho penalty with stochastic pairwise loss: (2/(k(k-1)))\u03a3_{i<j}(w_i\u00b7w_j)^2 where w_i are L2-normalized decoder columns and k=0.01*d_sae sampled pairs. \u03bb starts at 0, linearly increases to \u03bb_max=0.1 over first 50% of training. Loss becomes L = L_recon + L1_sparsity + \u03bb(t)*(pairwise_loss). Normalization ensures scale-invariance. Gradient accumulation through all W_dec columns via sampled indices. Warmup prevents early over-constraint while allowing late-stage disentanglement.",
-        "Research_Impact": "Dynamic scheduling enables SAEs to first learn coherent features then disentangle them - crucial for SCR where spurious correlations require accurate initial feature detection before separation. Stochastic pairwise loss maintains orthogonality pressure even at d_sae=1e6, directly improving TPP by ensuring class-specific features remain separable at scale. This combination targets the core challenge of scaling interpretability methods to frontier models.",
-        "Implementation_Plan": "1. Modify CustomTrainer:\n   a. Add \u03bb scheduler with warmup\n   b. Implement column sampling & pairwise loss\n2. In loss method:\n   i. Normalize W_dec columns\n   ii. Sample column pairs without replacement\n   iii. Compute mean squared dot products\n3. Update config with \u03bb_max and warmup_steps\n4. Add memory-efficient pairwise computation using Einstein sums",
-        "Interestingness_Evaluation": "Combines dynamic regularization with scalable orthogonality enforcement, directly addressing tradeoffs in large-scale interpretability.",
-        "Interestingness": 9,
-        "Feasibility_Evaluation": "Pairwise sampling reduces memory overhead by 100x for d_sae=1e4. Warmup requires minimal code changes. Total added ops per batch <5% of base SAE.",
-        "Feasibility": 8,
-        "Novelty_Evaluation": "First application of scheduled orthogonality and stochastic pairwise regularization to SAEs, enabling scalable disentanglement.",
-        "Novelty": 8,
-        "Overall_Score": 8.5,
+        "Name": "orthogonal_sparse_autoencoder",
+        "Title": "Orthogonal Sparse Autoencoders for Disentangled Concept Ablation",
+        "Experiment": "1. Implement orthogonality regularization on decoder weights via ||W_dec^T W_dec - I||_F^2\n2. Add dynamic weighting of ortho loss term relative to reconstruction\n3. Train on Pythia-70M and Gemma-2B residual streams\n4. Evaluate SCR via SHIFT score on BiasBios gender/profession task\n5. Measure TPP scores on multiclass Amazon Reviews\n6. Compare ortho penalty coefficients (0.1, 0.01, 0.001)\n7. Ablate effect on feature similarity matrices",
+        "Technical_Details": "OSAEs introduce a decoder orthogonality penalty \u03bb||W_dec^T W_dec - I||_F^2 where \u03bb controls tradeoff between reconstruction and disentanglement. This forces the SAE to learn approximately orthogonal basis vectors in the decoder weight matrix. Combined with standard L1 sparsity on encoder activations, this creates features that are both sparse and geometrically separable. The Frobenius norm on Gram matrix deviation ensures features don't interfere through cosine similarity in downstream probes. Implementation uses a modified loss function: L = L_recon + \u03b1L_sparsity + \u03b2L_ortho where \u03b2 is tuned via grid search. Decoder weights are normalized during initialization but not explicitly constrained during training beyond the penalty term.",
+        "Research_Impact": "Orthogonality directly targets the SCR/TPP benchmarks by ensuring ablated features don't overlap in semantic directions. For SCR, gender features will be orthogonal to profession features, allowing clean removal of spurious correlations. In TPP, class-specific features form independent bases, so ablating one class doesn't affect others' probe accuracy. This addresses the core challenge of polysemanticity better than sparsity alone by adding geometric constraints matching the linear probing assumptions in SHIFT/TPP methodologies.",
+        "Implementation_Plan": "1. Modify CustomSAE's loss function to include ortho penalty\n2. Add beta hyperparameter to CustomTrainer config\n3. Adjust SAETrainer's loss() method to compute Gram matrix\n4. Update experiment.py's run_sae_training to sweep beta values\n5. Reuse existing SCR/TPP evaluation pipelines\n6. Add cosine similarity histograms between decoder weights as diagnostic",
+        "Interestingness_Evaluation": "Combining sparsity with explicit geometric constraints offers a principled approach to feature disentanglement beyond existing heuristic methods.",
+        "Interestingness": 8,
+        "Feasibility_Evaluation": "Requires only modifying the loss function (20 LoC change) and hyperparameter sweeps, feasible within 1 week of coding. Training overhead is minimal as Gram matrix computation is O(d^2) for d=hidden_size (~1ms on H100).",
+        "Feasibility": 9,
+        "Novelty_Evaluation": "First application of decoder orthogonality constraints specifically for mechanistic interpretability benchmarks, differing from prior work focused solely on reconstruction/sparsity.",
+        "Novelty": 7,
+        "Overall_Score": 8.2,
         "novel": true
     }
 ]

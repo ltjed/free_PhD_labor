@@ -51,7 +51,7 @@ In <JSON>, provide the new idea in JSON format with the following fields:
 - "Feasibility": A rating from 1 to 10 (lowest to highest). 
 - "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
 - "Novelty": A rating from 1 to 10 (lowest to highest).
-- "Overall_Score": 0.2 * Interestingness + 0.5 * Feasibility + 0.3 * Novelty.
+- "Overall_Score": A single number rating computed by 0.2 * Interestingness + 0.5 * Feasibility + 0.3 * Novelty. DO NOT INCLUDE THE COMPUTATION.
 
 Be cautious and critical on your ratings.
 
@@ -359,11 +359,15 @@ RESPONSE:
 In <THOUGHT>, first briefly reason over the idea and identify any query that could help you make your decision.
 If you have made your decision, add "Decision made: novel." or "Decision made: not novel." to your thoughts.
 
-In <JSON>, respond in JSON format with ONLY the following field:
+In <JSON>, respond in JSON format with the following fields:
 - "Query": An optional search query to search the literature (e.g. attention is all you need). You must make a query if you have not decided this round.
+- "Decision": A decision on the novelty of the idea. Either "decision made: novel", "decision made: not novel", or "undecided".
 
 A query will work best if you are able to recall the exact name of the paper you are looking for, or the authors.
-This JSON will be automatically parsed, so ensure the format is precise.'''
+This JSON will be automatically parsed, so ensure the format is precise.
+
+
+'''
 
 
 def check_idea_novelty(

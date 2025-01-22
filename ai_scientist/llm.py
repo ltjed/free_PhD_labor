@@ -247,9 +247,9 @@ def get_response_from_llm(
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     elif model == "deepseek-reasoner":
-        print(f"msg_history at the start of iteration is {msg_history}")
+        # print(f"msg_history at the start of iteration is {msg_history}")
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
-        print(f"new_msg_history after appending msg is {new_msg_history}")
+        # print(f"new_msg_history after appending msg is {new_msg_history}")
         response = client.chat.completions.create(
             model="deepseek-reasoner",
             messages=[
@@ -263,11 +263,11 @@ def get_response_from_llm(
             # stop=None,
         )
         reasoning_content = response.choices[0].message.reasoning_content
-        print(f"reasoning_content is {reasoning_content}")
+        print(f"@@@\n @@@\n @@@\n @@@\n @@@\n reasoning_content is {reasoning_content}")
         content = response.choices[0].message.content
-        print(f"content is {content}")
+        print(f"@@@\n @@@\n @@@\n @@@\n @@@\n content is {content}")
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
-        print(f"new_msg_history after appending content is {new_msg_history}")
+        # print(f"new_msg_history after appending content is {new_msg_history}")
     elif model in ["meta-llama/llama-3.1-405b-instruct", "llama-3-1-405b-instruct"]:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         response = client.chat.completions.create(
@@ -300,6 +300,11 @@ def get_response_from_llm(
 
 def extract_json_between_markers(llm_output):
     # Regular expression pattern to find JSON content between ```json and ```
+    for _ in range(10):
+        print("!!!\n")
+    print(llm_output)
+    for _ in range(10):
+        print("@@@\n")
     json_pattern = r"```json(.*?)```"
     matches = re.findall(json_pattern, llm_output, re.DOTALL)
 
@@ -322,7 +327,6 @@ def extract_json_between_markers(llm_output):
                 return parsed_json
             except json.JSONDecodeError:
                 continue  # Try next match
-
     return None  # No valid JSON found
 
 

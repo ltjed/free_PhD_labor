@@ -88,19 +88,19 @@
         "novel": false
     },
     {
-        "Name": "dynamic_ortho_sae",
-        "Title": "Dynamically Scheduled Orthogonal Regularization for Scalable Feature Disentanglement",
-        "Experiment": "1. Implement stochastic pairwise cosine loss for decoder weights\n2. Add linear warmup schedule for ortho regularization strength \u03bb\n3. Train SAEs with dynamic \u03bb on Gemma-2B across layers\n4. Compare SCR/TPP against static ortho and baseline SAEs\n5. Measure reconstruction error vs training step\n6. Evaluate pairwise angle distributions across training\n7. Profile memory/compute vs d_sae scaling",
-        "Technical_Details": "Replaces full ortho penalty with stochastic pairwise loss: (2/(k(k-1)))\u03a3_{i<j}(w_i\u00b7w_j)^2 where w_i are L2-normalized decoder columns and k=0.01*d_sae sampled pairs. \u03bb starts at 0, linearly increases to \u03bb_max=0.1 over first 50% of training. Loss becomes L = L_recon + L1_sparsity + \u03bb(t)*(pairwise_loss). Normalization ensures scale-invariance. Gradient accumulation through all W_dec columns via sampled indices. Warmup prevents early over-constraint while allowing late-stage disentanglement.",
-        "Research_Impact": "Dynamic scheduling enables SAEs to first learn coherent features then disentangle them - crucial for SCR where spurious correlations require accurate initial feature detection before separation. Stochastic pairwise loss maintains orthogonality pressure even at d_sae=1e6, directly improving TPP by ensuring class-specific features remain separable at scale. This combination targets the core challenge of scaling interpretability methods to frontier models.",
-        "Implementation_Plan": "1. Modify CustomTrainer:\n   a. Add \u03bb scheduler with warmup\n   b. Implement column sampling & pairwise loss\n2. In loss method:\n   i. Normalize W_dec columns\n   ii. Sample column pairs without replacement\n   iii. Compute mean squared dot products\n3. Update config with \u03bb_max and warmup_steps\n4. Add memory-efficient pairwise computation using Einstein sums",
-        "Interestingness_Evaluation": "Combines dynamic regularization with scalable orthogonality enforcement, directly addressing tradeoffs in large-scale interpretability.",
+        "Name": "adaptive_decorrelated_sae",
+        "Title": "Dynamically Weighted Covariance Penalization for Disentangled Sparse Autoencoders",
+        "Experiment": "1. Implement covariance penalty excluding diagonal terms\n2. Add linear schedule for covariance weight \u03bb2 (0\u21920.1 over training)\n3. Initialize decoder weights with orthogonal initialization\n4. Train on Gemma-2B with varying \u03bb2 schedules\n5. Evaluate SCR/TPP against baselines\n6. Analyze covariance matrices and ablation sensitivity\n7. Compare with fixed-weight & full covariance penalties",
+        "Technical_Details": "Enhanced SAE loss: L = L_recon + \u03bb1*L1 + \u03bb2(t)*||Cov(h)_off_diag||\u00b2. Cov(h) computed over batch activations, diagonal excluded. \u03bb2(t) = min(0.1, 0.001*t/1000) ramps up linearly. Decoder weights initialized via torch.nn.init.orthogonal_. Encoder uses ReLU with standard L1 sparsity. Training employs constrained Adam with gradient clipping (max norm=1.0). Covariance computed via torch.cov() with Bessel's correction.",
+        "Research_Impact": "Dynamic scheduling prevents early optimization collapse, allowing gradual feature disentanglement. Orthogonal initialization seeds diverse features while off-diagonal focus avoids artificial variance constraints. For SCR, this enables cleaner gender/profession separation - ablating gender features minimally affects profession classification. In TPP, reduced cross-class covariance ensures ablations only impact target probes, maximizing S_TPP.",
+        "Implementation_Plan": "1. Modify loss calculation to mask diagonal in covariance\n2. Add \u03bb2 scheduling in Trainer's update step\n3. Implement orthogonal init for W_dec\n4. Extend config with schedule parameters\nCode changes: ~30 lines in loss, ~15 lines in init/scheduling",
+        "Interestingness_Evaluation": "Combines dynamic regularization with structured covariance penalties for targeted polysemanticity reduction.",
         "Interestingness": 9,
-        "Feasibility_Evaluation": "Pairwise sampling reduces memory overhead by 100x for d_sae=1e4. Warmup requires minimal code changes. Total added ops per batch <5% of base SAE.",
-        "Feasibility": 8,
-        "Novelty_Evaluation": "First application of scheduled orthogonality and stochastic pairwise regularization to SAEs, enabling scalable disentanglement.",
-        "Novelty": 8,
-        "Overall_Score": 8.5,
+        "Feasibility_Evaluation": "All components use existing PyTorch ops (cov, orthogonal init). Training overhead remains negligible (covariance on 2304x2304 matrix takes ~1ms on H100). Total runtime stays under 25 mins.",
+        "Feasibility": 9,
+        "Novelty_Evaluation": "First application of scheduled off-diagonal covariance penalties with orthogonal init in SAEs for interpretability.",
+        "Novelty": 9,
+        "Overall_Score": 9.0,
         "novel": true
     }
 ]

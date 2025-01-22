@@ -86,21 +86,5 @@
         "Feasibility": 7,
         "Novelty": 7,
         "novel": false
-    },
-    {
-        "Name": "dynamic_ortho_sae",
-        "Title": "Dynamically Scheduled Orthogonal Regularization for Scalable Feature Disentanglement",
-        "Experiment": "1. Implement stochastic pairwise cosine loss for decoder weights\n2. Add linear warmup schedule for ortho regularization strength \u03bb\n3. Train SAEs with dynamic \u03bb on Gemma-2B across layers\n4. Compare SCR/TPP against static ortho and baseline SAEs\n5. Measure reconstruction error vs training step\n6. Evaluate pairwise angle distributions across training\n7. Profile memory/compute vs d_sae scaling",
-        "Technical_Details": "Replaces full ortho penalty with stochastic pairwise loss: (2/(k(k-1)))\u03a3_{i<j}(w_i\u00b7w_j)^2 where w_i are L2-normalized decoder columns and k=0.01*d_sae sampled pairs. \u03bb starts at 0, linearly increases to \u03bb_max=0.1 over first 50% of training. Loss becomes L = L_recon + L1_sparsity + \u03bb(t)*(pairwise_loss). Normalization ensures scale-invariance. Gradient accumulation through all W_dec columns via sampled indices. Warmup prevents early over-constraint while allowing late-stage disentanglement.",
-        "Research_Impact": "Dynamic scheduling enables SAEs to first learn coherent features then disentangle them - crucial for SCR where spurious correlations require accurate initial feature detection before separation. Stochastic pairwise loss maintains orthogonality pressure even at d_sae=1e6, directly improving TPP by ensuring class-specific features remain separable at scale. This combination targets the core challenge of scaling interpretability methods to frontier models.",
-        "Implementation_Plan": "1. Modify CustomTrainer:\n   a. Add \u03bb scheduler with warmup\n   b. Implement column sampling & pairwise loss\n2. In loss method:\n   i. Normalize W_dec columns\n   ii. Sample column pairs without replacement\n   iii. Compute mean squared dot products\n3. Update config with \u03bb_max and warmup_steps\n4. Add memory-efficient pairwise computation using Einstein sums",
-        "Interestingness_Evaluation": "Combines dynamic regularization with scalable orthogonality enforcement, directly addressing tradeoffs in large-scale interpretability.",
-        "Interestingness": 9,
-        "Feasibility_Evaluation": "Pairwise sampling reduces memory overhead by 100x for d_sae=1e4. Warmup requires minimal code changes. Total added ops per batch <5% of base SAE.",
-        "Feasibility": 8,
-        "Novelty_Evaluation": "First application of scheduled orthogonality and stochastic pairwise regularization to SAEs, enabling scalable disentanglement.",
-        "Novelty": 8,
-        "Overall_Score": 8.5,
-        "novel": true
     }
 ]

@@ -88,19 +88,19 @@
         "novel": false
     },
     {
-        "Name": "dynamic_ortho_sae",
-        "Title": "Dynamically Scheduled Orthogonal Regularization for Scalable Feature Disentanglement",
-        "Experiment": "1. Implement stochastic pairwise cosine loss for decoder weights\n2. Add linear warmup schedule for ortho regularization strength \u03bb\n3. Train SAEs with dynamic \u03bb on Gemma-2B across layers\n4. Compare SCR/TPP against static ortho and baseline SAEs\n5. Measure reconstruction error vs training step\n6. Evaluate pairwise angle distributions across training\n7. Profile memory/compute vs d_sae scaling",
-        "Technical_Details": "Replaces full ortho penalty with stochastic pairwise loss: (2/(k(k-1)))\u03a3_{i<j}(w_i\u00b7w_j)^2 where w_i are L2-normalized decoder columns and k=0.01*d_sae sampled pairs. \u03bb starts at 0, linearly increases to \u03bb_max=0.1 over first 50% of training. Loss becomes L = L_recon + L1_sparsity + \u03bb(t)*(pairwise_loss). Normalization ensures scale-invariance. Gradient accumulation through all W_dec columns via sampled indices. Warmup prevents early over-constraint while allowing late-stage disentanglement.",
-        "Research_Impact": "Dynamic scheduling enables SAEs to first learn coherent features then disentangle them - crucial for SCR where spurious correlations require accurate initial feature detection before separation. Stochastic pairwise loss maintains orthogonality pressure even at d_sae=1e6, directly improving TPP by ensuring class-specific features remain separable at scale. This combination targets the core challenge of scaling interpretability methods to frontier models.",
-        "Implementation_Plan": "1. Modify CustomTrainer:\n   a. Add \u03bb scheduler with warmup\n   b. Implement column sampling & pairwise loss\n2. In loss method:\n   i. Normalize W_dec columns\n   ii. Sample column pairs without replacement\n   iii. Compute mean squared dot products\n3. Update config with \u03bb_max and warmup_steps\n4. Add memory-efficient pairwise computation using Einstein sums",
-        "Interestingness_Evaluation": "Combines dynamic regularization with scalable orthogonality enforcement, directly addressing tradeoffs in large-scale interpretability.",
+        "Name": "conditional_covariance_sae",
+        "Title": "Class-Conditional Covariance Regularization for Interpretable Feature Disentanglement",
+        "Experiment": "1. Compute class-conditional covariance matrices using dataset labels\n2. Add regularization penalty on off-diagonal elements within each class\n3. Train SAEs with label-informed covariance minimization\n4. Compare SCR/TPP performance against global covariance baseline\n5. Analyze feature-class alignment via probing classifiers\n6. Ablate regularization strength impact on benchmark metrics",
+        "Technical_Details": "Conditional Covariance SAE (CC-SAE) extends covariance regularization by incorporating label information. For each class c in batch samples, compute Cov(f|c) = E[f^T f|c] - \u03bc_c \u03bc_c^T. Regularization term becomes \u03b2\u03a3_c||Cov(f|c)\u2299(1-I)||_F\u00b2. This enforces feature independence within classes while allowing cross-class correlations. Implementation uses efficient grouped covariance computation via torch.group_apply. Loss function: L = ||x-x\u0302||\u00b2 + \u03b1||f||\u2081 + \u03b2\u03a3_c||off_diag(Cov(f|c))||\u00b2. Requires label access during SAE training but preserves unsupervised reconstruction.",
+        "Research_Impact": "SCR benefits from class-conditional decorrelation by ensuring gender/profession features remain separable within each category (e.g. male nurses vs female professors). TPP gains from reduced intra-class feature entanglement - ablating class i's features leaves other classes' covariance structures intact. This directly maximizes S_TPP's (A_ii - A_j\u2260i) differential. Benchmarks' label correlations become explicit regularization targets rather than statistical artifacts.",
+        "Implementation_Plan": "1. Modify loss to accept class labels\n2. Implement grouped covariance computation\n3. Add class-aware batching in ActivationBuffer\n4. Expose class-conditional beta parameters\n5. Leverage existing dataset splits from SCR/TPP\n6. Reuse evaluation protocols with enhanced logging",
+        "Interestingness_Evaluation": "Innovates beyond standard decorrelation by using benchmark labels as regularization guides.",
         "Interestingness": 9,
-        "Feasibility_Evaluation": "Pairwise sampling reduces memory overhead by 100x for d_sae=1e4. Warmup requires minimal code changes. Total added ops per batch <5% of base SAE.",
+        "Feasibility_Evaluation": "Builds on previous covariance approach with ~100 additional LoC. Class labels already available in SCR/TPP datasets. PyTorch's grouped ops minimize compute overhead.",
         "Feasibility": 8,
-        "Novelty_Evaluation": "First application of scheduled orthogonality and stochastic pairwise regularization to SAEs, enabling scalable disentanglement.",
+        "Novelty_Evaluation": "First integration of label-informed covariance constraints in unsupervised feature learning.",
         "Novelty": 8,
-        "Overall_Score": 8.5,
-        "novel": true
+        "Overall_Score": 8.2,
+        "novel": false
     }
 ]
