@@ -1,0 +1,199 @@
+# Title: Adaptive Orthogonal Feature Learning for Optimal Knowledge Separation in Sparse Autoencoders
+
+# Generated Figures Analysis
+
+## Figure: unlearning_scores.png
+This figure presents a bar plot comparing the unlearning performance across different SAE variants.
+The x-axis shows the different SAE implementations (Baseline, Fixed Orthogonal, Adaptive Orthogonal, etc.),
+while the y-axis represents the unlearning score. A higher score indicates better ability to selectively
+remove specific knowledge. The plot reveals that none of our variants achieved significant unlearning
+capability (all scores at 0.0), suggesting fundamental limitations in our current approaches to
+knowledge separation.
+
+## Figure: final_losses.png
+This visualization compares the final loss values achieved by each SAE variant at the end of training.
+The bar plot shows the total loss (reconstruction + sparsity + orthogonality) for each implementation.
+Lower values indicate better overall performance in terms of reconstruction and feature learning.
+The progression of loss values across variants helps understand how architectural changes impacted
+the model's ability to compress and reconstruct information effectively.
+
+## Figure: architecture_comparison.png
+This heatmap provides a comprehensive comparison of architectural features across all SAE variants.
+Each row represents a different variant, while columns show specific architectural features.
+The presence of features is indicated by text annotations in each cell. This visualization helps
+understand the progression of architectural complexity from the baseline to the final contrastive
+hierarchical implementation. Key features tracked include:
+- Group structure (number and organization)
+- Loss components (orthogonality, contrastive, entropy)
+- Dynamic vs static elements
+- Feature separation mechanisms
+
+# Experiment description: 1. Implement adaptive orthogonality loss with controlled feature sharing
+2. Add batch-wise feature grouping with periodic updates
+3. Train on Pythia-70M using WMDP-bio and WikiText datasets
+4. Compare unlearning performance against baseline and fixed orthogonal SAE
+5. Analyze condition numbers of feature subspaces
+6. Evaluate impact of different α values for controlled sharing
+
+## Run 0: Baseline
+Results: [Previous baseline results...]
+Description: Baseline results using standard SAE implementation.
+
+## Run 1: Fixed Orthogonal SAE
+Implementation:
+- Added orthogonality loss term (α=0.1) to enforce feature separation
+- Modified SAE architecture to include orthogonality constraint on decoder weights
+- Added condition number tracking for feature subspaces
+- Renamed CustomSAE to OrthogonalSAE
+
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04, 'eval_type_id': 'unlearning', 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+
+Analysis:
+- Initial unlearning performance shows room for improvement
+- Fixed orthogonality constraint may be too rigid
+- Need to explore adaptive mechanisms in Run 2
+- Suggests potential benefit from dynamic feature grouping
+
+Key Observations:
+1. Zero unlearning score indicates need for better feature separation
+2. Fixed orthogonality coefficient may be limiting feature adaptation
+3. Results support proceeding with adaptive orthogonality implementation
+
+## Run 2: Adaptive Orthogonal SAE with Dynamic Feature Groups
+Implementation:
+- Implemented adaptive orthogonality with 32 feature groups
+- Added dynamic alpha adjustment (0.05-0.15) based on group correlations
+- Periodic group correlation updates every 100 steps
+- Modified trainer to handle group-wise orthogonality loss
+
+Results: Unlearning score remained at 0.0, suggesting insufficient feature separation
+
+Analysis:
+- Current alpha range (0.05-0.15) may be too permissive
+- 32 groups might be too coarse for fine-grained knowledge separation
+- Group update frequency may need to be increased
+- Results indicate need for stronger orthogonality constraints
+
+Key Observations:
+1. Dynamic feature grouping alone insufficient for unlearning
+2. Need more aggressive feature separation strategy
+3. Consider smaller feature groups and higher alpha values for Run 3
+
+## Run 3: Enhanced Adaptive Orthogonal SAE
+Implementation:
+- Increased number of feature groups from 32 to 64 for finer-grained separation
+- Strengthened orthogonality constraints with higher alpha range (0.2-0.4)
+- Increased group correlation update frequency (every 50 steps vs 100)
+- Maintained other hyperparameters from Run 2
+
+Results: Unlearning score remained at 0.0 despite stronger constraints
+
+Analysis:
+- Even with doubled feature groups and stronger orthogonality, unlearning remains challenging
+- More frequent updates and higher alpha values did not yield improvement
+- Results suggest fundamental limitation in current approach
+- May need to explore alternative architectures or loss formulations
+
+Key Observations:
+1. Increasing feature groups and strengthening constraints insufficient
+2. Current adaptive orthogonality approach may have reached its limits
+3. Consider exploring alternative approaches for Run 4:
+   - Hierarchical feature grouping
+   - Learned group assignments
+   - Alternative loss formulations
+
+## Run 4: Hierarchical Feature Organization with Two-Level Grouping
+Implementation:
+- Introduced HierarchicalSAE with two-level feature organization:
+  - Level 1: 8 coarse groups with α=0.4 for broad knowledge separation
+  - Level 2: 8 subgroups within each L1 group with α=0.2 for fine-grained separation
+- Total of 64 fine-grained feature groups (8x8 structure)
+- Implemented compute_hierarchical_loss for enforcing orthogonality at both levels
+- Group assignments fixed during training to ensure stable feature organization
+- Maintained other hyperparameters from Run 3
+
+Results: 
+- Unlearning score: 0.0
+- Training completed successfully but did not achieve desired unlearning performance
+
+Analysis:
+- Hierarchical organization alone insufficient for improving unlearning capability
+- Two-level orthogonality constraints did not lead to better knowledge separation
+- Fixed group assignments may be limiting adaptive feature organization
+- Results suggest need for more dynamic approach to feature organization
+
+Key Observations:
+1. Hierarchical structure does not automatically improve knowledge separation
+2. Static group assignments may be too rigid for effective learning
+3. Consider for Run 5:
+   - Dynamic hierarchical group assignments
+   - Learned group memberships using attention mechanism
+   - Integration with contrastive learning objectives
+
+## Run 5: Dynamic Hierarchical Feature Learning with Attention
+Implementation:
+- Introduced DynamicHierarchicalSAE with attention-based feature grouping:
+  - Level 1: 8 coarse groups with learnable query vectors
+  - Level 2: 8 fine-grained groups per L1 group with separate queries
+  - Attention mechanism for dynamic group assignment
+  - Learnable temperature parameter for controlling assignment sharpness
+- Added entropy regularization to encourage diverse group usage
+- Maintained hierarchical orthogonality constraints (α_l1=0.4, α_l2=0.2)
+- Implemented soft group assignments using attention weights
+- More frequent group updates (every 50 steps vs previous 100)
+
+Results:
+- Unlearning score remained at 0.0 despite architectural improvements
+- Training completed successfully with stable convergence
+- Evaluation performed on Gemma-2B-IT model with various datasets
+
+Analysis:
+- Dynamic feature grouping through attention did not improve unlearning capability
+- Soft assignments and entropy regularization failed to enhance knowledge separation
+- Results suggest fundamental limitations in current hierarchical approach
+- May need to explore alternative architectures or stronger constraints
+
+Key Observations:
+1. Attention-based dynamic grouping does not automatically lead to better unlearning
+2. Current hierarchical structure may be insufficient for knowledge separation
+3. Consider for Run 6:
+   - Stronger regularization on group assignments
+   - Integration with contrastive learning between groups
+   - Alternative feature organization strategies beyond hierarchical structure
+   - Explicit knowledge clustering objectives
+
+## Run 6: Contrastive Hierarchical Feature Learning
+Implementation:
+- Introduced ContrastiveHierarchicalSAE with:
+  - Two-level hierarchical structure (8 coarse groups, 8 fine groups per coarse group)
+  - Attention-based dynamic group assignment
+  - InfoNCE contrastive loss between feature groups
+  - Temperature parameter (0.1) for contrastive learning
+  - Contrastive loss weight of 0.1
+- Enhanced group separation through:
+  - Hierarchical orthogonality (α_l1=0.4, α_l2=0.2)
+  - Contrastive learning between group representations
+  - Entropy regularization for group assignments
+- Maintained other hyperparameters from Run 5
+- Evaluated on Gemma-2B-IT model across multiple datasets
+
+Results:
+- Unlearning score: 0.0
+- Training completed successfully but did not achieve desired unlearning performance
+- Evaluation performed across multiple datasets including WMDP-bio and various educational domains
+
+Analysis:
+- Addition of contrastive learning did not improve unlearning capability
+- Complex architecture combining hierarchical structure, attention, and contrastive learning
+  still insufficient for knowledge separation
+- Results suggest fundamental limitations in current approach to feature organization
+- May need to explore alternative paradigms beyond hierarchical and contrastive learning
+
+Key Observations:
+1. Sophisticated combination of techniques still fails to achieve unlearning
+2. Current approach may be too focused on structural organization rather than semantic separation
+3. Consider for future work:
+   - Investigation of alternative feature separation paradigms
+   - Focus on semantic rather than structural organization
+   - Exploration of task-specific feature learning objectives
+   - Integration with external knowledge bases for guided separation

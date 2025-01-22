@@ -168,8 +168,10 @@ def do_idea(
         io = InputOutput(
             yes=True, chat_history_file=f"{folder_name}/{idea_name}_aider.txt"
         )
-        if model == "deepseek-coder-v2-0724":
+        if model == "deepseek-coder":
             main_model = Model("deepseek/deepseek-coder")
+        elif model == "deepseek-reasoner":
+            main_model = Model("deepseek/deepseek-reasoner")
         elif model == "llama3.1-405b":
             main_model = Model("openrouter/meta-llama/llama-3.1-405b-instruct")
         else:
