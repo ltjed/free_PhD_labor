@@ -5,7 +5,7 @@ import subprocess
 import sys
 from subprocess import TimeoutExpired
 
-MAX_ITERS = 15 # originally 10
+MAX_ITERS = 10 # originally 10
 MAX_RUNS = 10 # originally 5
 MAX_STDERR_OUTPUT = 1500
 
