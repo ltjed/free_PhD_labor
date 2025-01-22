@@ -43,7 +43,7 @@ In <JSON>, provide the new idea in JSON format with the following fields:
 - "Title": A title for the idea, will be used for the report writing.
 - "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
 - "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms.
-- "Research_Impact": Identify a specific challenge in latest mechanistic interpretability literature. Then, explain how the proposed research address that challenge, citing specific issues and resolutions.
+- "Research_Impact": Your primary target is to improve performance on the benchmark "unlearning" in the mechanistic interpretability literature. Evaluate and explain how the proposed model and experiment are promising to perform well on this benchmark.
 - "Implementation_Plan": A plan of steps to implement the experiment described above by modifying the code template in experiment.py.
 - "Interestingness_Evaluation": Give a one-sentence evaluation of the interestingness of the idea to justify the rating below.  
 - "Interestingness": A rating from 1 to 10 (lowest to highest). 

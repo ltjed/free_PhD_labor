@@ -1,0 +1,127 @@
+# Title: Multi-Scale Temporal Sparse Autoencoders for Efficient Unlearning
+
+# Visualization Outputs
+
+## training_analysis.png
+This figure contains four subplots showing key training metrics:
+
+1. Training Loss (top-left):
+   - Shows the convergence of the combined loss function over training steps
+   - Includes reconstruction loss (L2), sparsity penalty (L1), and feature separation loss
+   - Lower values indicate better model fit and feature extraction
+   - Different colors represent different experimental runs
+
+2. Average Gradient Norms (top-right):
+   - Displays the magnitude of parameter updates during training
+   - Helps monitor training stability and learning dynamics
+   - Spikes may indicate unstable learning or need for learning rate adjustment
+   - Gradual decrease suggests convergence
+
+3. Temporal Convolution Statistics (bottom-left):
+   - Shows mean activation values from temporal convolution layers
+   - Tracks the behavior of different dilation rates [1,2,4,8]
+   - Helps monitor feature extraction at different temporal scales
+   - Stable values indicate consistent temporal pattern detection
+
+4. Training Duration Comparison (bottom-right):
+   - Bar plot comparing number of completed steps across runs
+   - Helps identify premature training termination issues
+   - Current runs show consistent early termination at 4 steps
+   - Suggests underlying training stability issues
+
+## run_comparison.png
+This figure provides a comparative analysis of final metrics across different runs:
+
+1. Training Steps:
+   - Shows total steps completed for each experimental configuration
+   - All runs currently terminate at 4 steps
+   - Indicates persistent early stopping issue
+
+2. Final Loss:
+   - Compares final loss values across runs
+   - Currently showing null values due to premature termination
+   - Should show decreasing trend with improvements
+
+Key observations from visualizations:
+- Training consistently terminates after 4 steps despite implementation changes
+- Gradient norms remain stable during limited training period
+- Temporal convolution statistics show expected initialization behavior
+- Need to resolve early termination issue before meaningful comparisons
+
+# Experiment description: 1. Implement dilated depth-wise convolutions
+2. Add cosine-based feature separation loss
+3. Train on Gemma activation sequences
+4. Evaluate on WMDP-bio unlearning benchmark
+5. Compare against baseline SAEs
+6. Analyze feature disentanglement
+## Run 0: Baseline
+Results: {'eval_type_id': 'core', 'eval_config': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'eval_id': '816e6ded-4a67-43a7-bc3f-01b636f67965', 'datetime_epoch_millis': 1736553167253, 'eval_result_metrics': {'model_behavior_preservation': {'kl_div_score': -0.5279503105590062, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 15.375}, 'model_performance_preservation': {'ce_loss_score': -0.5855263157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 18.0, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': -0.78515625, 'mse': 47.25, 'cossim': -1.0}, 'shrinkage': {'l2_norm_in': 308.0, 'l2_norm_out': 0.0, 'l2_ratio': 0.0, 'relative_reconstruction_bias': -1.0}, 'sparsity': {'l0': 0.0, 'l1': 0.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}, 'eval_result_details': [], 'sae_bench_commit_hash': '972f2ecd7e88c6f60890726de69da2de706a5568', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_19_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 2304, 'hook_layer': 19, 'hook_name': 'blocks.19.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': {}}
+Description: Baseline results.
+
+## Run 1: Initial MTSAE Implementation
+Results: {'training_steps': 4, 'final_loss': None, 'layer': 3, 'dict_size': 512, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: First implementation of Multi-Scale Temporal Sparse Autoencoder (MTSAE) with dilated convolutions. The training completed but showed very limited steps (only 4) which indicates potential issues with the training loop or data processing. The final loss being None suggests the training may have terminated prematurely. This run used the Pythia-70m model with a single layer (layer 3) and dictionary size matching the model's hidden dimension (512). The implementation included temporal convolutions with multiple dilation rates [1,2,4,8] but may need adjustments to handle the temporal sequence data more effectively.
+
+## Run 2: Cosine-based Feature Separation Loss Implementation
+Results: {'training_steps': 4, 'final_loss': None, 'layer': 3, 'dict_size': 512, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Added cosine-based feature separation loss to encourage more diverse feature representations. The implementation included a new separation_penalty hyperparameter (0.1) and computed cosine similarities between feature vectors to penalize redundant representations. However, the training still terminated after only 4 steps with no final loss, suggesting that the underlying issue with the training loop persists. The results indicate that before focusing on loss function improvements, we need to address the premature training termination issue.
+
+Observations:
+- Training still terminates after 4 steps
+- No improvement in training stability
+- Feature separation loss implementation needs validation
+- Possible data loading or batch processing issues
+
+Next Steps:
+1. Debug training loop termination
+2. Add detailed logging for activation buffer and batch processing
+3. Implement proper error handling in training loop
+4. Verify data pipeline functionality
+
+## Run 3: Enhanced Debugging and Error Handling Implementation
+Results: {'training_steps': 4, 'final_loss': None, 'layer': 3, 'dict_size': 512, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented comprehensive debugging and error handling mechanisms to diagnose the training loop termination issue. Key changes included:
+- Added detailed shape and dtype logging for activation tensors
+- Implemented NaN/Inf value detection in activations
+- Added CUDA memory tracking
+- Enhanced error handling with detailed stack traces
+- Increased logging frequency for better visibility into training progress
+- Added activation reshaping safeguards
+
+Despite these improvements, the training still terminated after 4 steps without a final loss value. The enhanced logging revealed that the activations are being properly shaped and no NaN/Inf values were detected, suggesting the issue may lie deeper in the interaction between the temporal convolutions and the activation buffer.
+
+Observations:
+- Training continues to terminate at 4 steps despite robust error handling
+- No NaN/Inf values detected in activations
+- Proper tensor shapes confirmed through logging
+- Memory usage remains stable
+- No exceptions caught by new error handlers
+
+Next Steps:
+1. Investigate temporal convolution implementation
+2. Add gradient norm monitoring
+3. Implement learning rate warmup diagnostics
+4. Add activation statistics tracking
+
+## Run 4: Gradient and Temporal Convolution Diagnostics
+Results: {'training_steps': 4, 'final_loss': None, 'layer': 3, 'dict_size': 512, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Added comprehensive gradient monitoring and temporal convolution diagnostics to investigate the training termination issue. Key changes included:
+- Implemented detailed gradient norm tracking for all model parameters
+- Added temporal convolution output statistics monitoring (norm, mean, std)
+- Enhanced loss logging with gradient and convolution metrics
+- Improved progress reporting with detailed parameter statistics
+
+The results show that while gradients are being computed and temporal convolutions are producing outputs, the training still terminates after 4 steps. The gradient monitoring revealed that gradients are flowing through the network, but the training loop is still ending prematurely. This suggests the issue may be related to the activation buffer implementation or the interaction between the buffer and the training loop.
+
+Observations:
+- Gradient norms are non-zero and within expected ranges
+- Temporal convolution outputs show expected statistical properties
+- Training loop still terminates at 4 steps despite valid gradients
+- No numerical instabilities detected in convolution outputs
+- Buffer interaction may be causing premature termination
+
+Next Steps:
+1. Investigate activation buffer implementation
+2. Add buffer state monitoring
+3. Implement buffer refresh diagnostics
+4. Add detailed iteration tracking

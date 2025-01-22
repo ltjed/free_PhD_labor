@@ -1,5 +1,6 @@
 import json
 import os.path as osp
+import os
 import shutil
 import subprocess
 import sys
@@ -42,6 +43,10 @@ def run_experiment(folder_name, run_num, timeout=10800):
         f"--out_dir=run_{run_num}",
     ]
     try:
+        # Delete the file if it exists
+        result_file = osp.join(cwd, f"run_{run_num}", "final_info.json")
+        if osp.exists(result_file):
+            os.remove(result_file)
         result = subprocess.run(
             command, cwd=cwd, stderr=subprocess.PIPE, text=True, timeout=timeout
         )
@@ -129,12 +134,15 @@ def perform_experiments(idea, folder_name, coder, baseline_results) -> bool:
         if current_iter >= MAX_ITERS:
             print("Max iterations reached")
             break
+        
         coder_out = coder.run(next_prompt)
         # print(coder_out)
         print(f"coder_out: {coder_out}, type: {type(coder_out)}")
 
         if "ALL_COMPLETED" in coder_out:
             break
+        
+        
         return_code, next_prompt = run_experiment(folder_name, run)
         if return_code == 0:
             run += 1
