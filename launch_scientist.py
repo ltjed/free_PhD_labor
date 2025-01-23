@@ -336,6 +336,8 @@ if __name__ == "__main__":
     print("saved")
     novel_ideas = [idea for idea in ideas if idea["novel"]]
     # novel_ideas = list(reversed(novel_ideas))
+    
+    
 '''
     if args.parallel > 0:
         print(f"Running {args.parallel} parallel processes")

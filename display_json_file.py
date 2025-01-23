@@ -14,10 +14,10 @@ import json
 
 def display_json(file_path):
     try:
-        with open(file_path, 'r') as file:
+       with open(file_path, 'r', encoding='utf-8') as file:
             data = json.load(file)
-            data = data[8:]
-                        
+            data = data[8:]  # As in your code
+
             root = tk.Tk()
             root.title("JSON Viewer")
             root.geometry("800x600")
@@ -25,20 +25,21 @@ def display_json(file_path):
             text_area = scrolledtext.ScrolledText(root, width=80, height=30, font=('Consolas', 12))
             text_area.pack(padx=10, pady=10, expand=True, fill='both')
 
-            # Convert Python dict to JSON string with indentation
-            json_str = json.dumps(data, indent=4)
+            # Convert Python object to a JSON string with indentation
+            # Use ensure_ascii=False so that non-ASCII characters stay in Unicode form
+            json_str = json.dumps(data, indent=4, ensure_ascii=False)
 
-            # Convert any literal "\n" in the text to actual newlines
-            # Only needed if the JSON text *literally* contains backslash-n (\\n)
+            # If your JSON contains literal backslash-n (\\n) that needs to be turned
+            # into an actual newline, you can keep the following replacement:
             json_str = json_str.replace("\\n", "\n")
 
-            # Add extra newline after each entry
+            # Optionally add an extra blank line after each newline for readability
             json_str = json_str.replace("\n", "\n\n")
 
             # Insert the text into the ScrolledText
             text_area.insert(tk.END, json_str)
-
             text_area.configure(state='disabled')
+
             root.mainloop()
 
     except FileNotFoundError:

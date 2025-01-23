@@ -43,7 +43,6 @@ In <JSON>, provide the new idea in JSON format with the following fields:
 - "Title": A title for the idea, will be used for the report writing.
 - "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
 - "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms.
-- "Research_Impact": Your primary target is to improve performance on the benchmark "unlearning" in the mechanistic interpretability literature. Evaluate and explain how the proposed model and experiment are promising to perform well on this benchmark.
 - "Implementation_Plan": A plan of steps to implement the experiment described above by modifying the code template in experiment.py.
 - "Interestingness_Evaluation": Give a one-sentence evaluation of the interestingness of the idea to justify the rating below.  
 - "Interestingness": A rating from 1 to 10 (lowest to highest). 
@@ -51,18 +50,20 @@ In <JSON>, provide the new idea in JSON format with the following fields:
 - "Feasibility": A rating from 1 to 10 (lowest to highest). 
 - "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
 - "Novelty": A rating from 1 to 10 (lowest to highest).
-- "Overall_Score": A single number rating computed by 0.2 * Interestingness + 0.5 * Feasibility + 0.3 * Novelty. DO NOT INCLUDE THE COMPUTATION.
+- "Expected_Research_Impact": Your primary target is to improve performance on the benchmark "unlearning" in the mechanistic interpretability literature. Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
+- "Research_Impact": A rating from 1 to 10 (lowest to highest).
+- "Overall_Score": A single number rating computed by 0.1 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.2 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION.
 
 Be cautious and critical on your ratings.
 
-This JSON will be automatically parsed, so ensure the format is precise.
+This JSON will be automatically parsed, so ensure the format is precise. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
 You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
 """
 
 idea_reflection_prompt = """Round {current_round}/{num_reflections}.
 In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, especially the "Overall_Score" which should be above 9.
 Include any other factors that you think are important in evaluating the idea.
-Ensure the idea is clear and concise, and the JSON is the correct format.
+Ensure the idea is clear and concise, and the JSON is the correct format. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
 In the next attempt, try and refine and improve your idea.
 Stick to the spirit of the original idea unless there are glaring issues.
 
