@@ -1,0 +1,158 @@
+Using GPUs: [0]
+Using OpenAI API with deepseek-reasoner.
+Error decoding existing ideas. Generating new ideas.
+
+Generating idea 1/1
+Iteration 1/30
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let's tackle this. The goal is to come up with a novel SAE variant that improves interpretability, specifically targeting the SCR and TPP benchmarks. The existing ideas have explored various approaches like adaptive computation, gating, clustering, and mutual regularization. I need to think of something different that addresses polysemanticity and feature absorption.
+
+Hmm, one issue with SAEs is that features can be entangled, leading to polysemantic neurons. What if we could enforce a structure in the latent space that groups related features together? Maybe using a hierarchical approach where higher-level features are composed of lower-level ones. But how?
+
+Wait, the Matryoshka SAE was mentioned earlier, using nested dictionaries. But maybe combining that with some form of hierarchical sparsity. Alternatively, using contrastive learning to push different features apart in the latent space. Or perhaps introducing a disentanglement loss that penalizes features co-activating when they shouldn't.
+
+Another angle: the SCR benchmark requires isolating spurious correlations. If the SAE can separate features more cleanly, ablating gender features shouldn't affect profession classification. So, the SAE needs to have distinct features for each concept. Maybe adding a mutual information penalty between features to reduce redundancy.
+
+Or, maybe a dynamic routing mechanism where features compete to represent certain concepts, preventing overlap. But that's similar to the Switch SAE idea. Alternatively, using capsule networks' idea of assigning features to parts of the input.
+
+Wait, what about using a masked autoencoder where certain latents are only active for specific subsets of the data? For example, using a mixture of experts where each expert specializes in a particular concept. But that's similar to the Switch SAE.
+
+Alternatively, introducing an auxiliary loss that encourages features to be orthogonal when they are active together. Or using a diversity regularizer that maximizes the pairwise angles between feature vectors.
+
+Another thought: during training, if we can identify when two features are co-active and penalize that unless they are semantically related. But how to determine semantic relatedness without supervision?
+
+Maybe using a contrastive loss where features that fire on similar inputs are pulled together, and those on different inputs are pushed apart. But that requires knowing which inputs are similar, which might not be straightforward.
+
+Wait, the TPP metric involves ablating latents and seeing if only the targeted class is affected. If features are more disentangled, ablating a set for class i should only affect probe j=i. So, the SAE needs latents that are class-specific. Maybe training probes during SAE training to guide the features to align with class labels, but that introduces supervision.
+
+But the problem statement mentions unsupervised methods. So, perhaps an unsupervised way to encourage feature disentanglement. For example, using a sparsity penalty that not only encourages few active features per input but also that each feature is active in a diverse set of inputs.
+
+Or, using a variance regularization term that ensures each feature's activation distribution has high variance across the dataset, preventing them from being too niche or too general.
+
+Wait, the core issue is polysemanticity due to superposition. The original paper used SAEs to find directions in activation space. Maybe improving the decoding process to ensure that each latent's decoded output is as orthogonal as possible to others. For example, applying a Gram-Schmidt-like process during training to orthogonalize the decoder weights.
+
+Alternatively, using a structured sparsity penalty that groups features into categories and enforces sparsity at the group level, encouraging each group to capture a distinct concept. But how to define the groups without supervision?
+
+Hmm, maybe a self-supervised approach where the SAE is trained not only to reconstruct activations but also to predict some property derived from the input, encouraging features to align with meaningful concepts. But that might complicate the training objective.
+
+Another idea: feature hierarchy. Lower-level features capture simple patterns, and higher-level ones compose them. By enforcing a hierarchy, higher-level features can't activate unless their constituent lower-level features do. This might reduce redundancy. But implementing this in an SAE structure would require a multi-layer approach, which could be complex.
+
+Wait, the Matryoshka SAE uses nested dictionaries. Maybe combining that with a hierarchical sparsity constraint. The initial layers capture broad features, and deeper layers add specifics. But how to structure the loss?
+
+Alternatively, using a curriculum learning approach where the SAE first learns basic features and gradually introduces more specific ones, preventing early feature absorption.
+
+Or, introducing a diversity term in the loss that maximizes the cosine dissimilarity between decoder weights. This would push features to be orthogonal, reducing overlap and polysemanticity.
+
+But how feasible is that? The decoder weights are already constrained to have unit norm in some existing approaches. Adding a term that penalizes similarity between decoder vectors could help. For example, a regularization term that minimizes the sum of pairwise cosine similarities between decoder weights.
+
+That's a concrete idea. Let me think about the implementation. The SAE's decoder matrix W_dec has shape (d_sae, d_in). The pairwise cosine similarities can be computed as the product of W_dec with its transpose, normalized. The regularization term would be the sum of the squares of the off-diagonal elements. This encourages the decoder vectors to be orthogonal, which should reduce feature overlap.
+
+This approach could lead to more monosemantic features since each decoder vector is pushed to be orthogonal to others. If the decoder vectors are orthogonal, the features they represent are less likely to interfere, reducing polysemanticity. This should improve interpretability and help in SCR and TPP benchmarks by making feature ablation more precise.
+
+Now, how to implement this. The existing SAE code uses a CustomSAE class with W_enc and W_dec. Adding a new regularization term to the loss function that computes the sum of squared pairwise dot products between decoder weights (since they're already normalized, cosine similarity is the dot product). This would be added to the existing loss with a scaling hyperparameter.
+
+The Technical Details would involve modifying the loss function to include an orthogonality penalty. The Experiment would involve training SAEs with and without this penalty, comparing SCR and TPP scores, reconstruction error, and feature interpretability metrics.
+
+Implementation Plan: Modify the loss method in the CustomSAE's trainer. Compute the pairwise dot product matrix of W_dec (after normalization), subtract the identity matrix, square the elements, sum them, and add this as a regularization term. Adjust the hyperparameters for the orthogonality penalty.
+
+Feasibility: This is a straightforward modification. The main challenge is tuning the regularization coefficient. The code changes are minimal, and training time shouldn't increase much since the computation is O(d_sae^2), which is manageable for typical d_sae sizes.
+
+Research Impact: By reducing feature overlap, the SAE should better disentangle concepts, leading to higher SCR and TPP scores. Ablating spurious features would more precisely remove the target concept without affecting others, improving the normalized SHIFT score. Similarly, TPP's mean accuracy drop for targeted classes should be more pronounced.
+
+Potential issues: Over-regularization might harm reconstruction quality. Need to balance the orthogonality penalty with the L1 and L2 losses. Also, ensuring that the decoder weights remain unit-norm if that's part of the existing setup.
+
+This idea is different from previous ones because it directly targets the orthogonality of features in the decoder space, whereas others focused on activation sparsity, adaptive computation, or architecture changes. It's a simple yet novel regularization approach.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The key insight is that feature entanglement in SAEs stems from overlapping decoder directions. By explicitly enforcing orthogonality in decoder weights, we can create more distinct feature representations. This approach directly targets polysemanticity by minimizing interference between features. The orthogonality constraint encourages each latent to capture unique variance components, reducing the likelihood of feature absorption and promoting monosemanticity. This should improve SCR by enabling cleaner separation of spurious correlations and enhance TPP through more class-specific feature sets. Unlike previous approaches that focus on activation sparsity or architectural changes, this method modifies the fundamental geometry of the learned feature space.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "orthogonal_decoder_sae",
+    "Title": "Orthogonal Decoder Regularization for Disentangled Sparse Autoencoders",
+    "Experiment": "1. Add orthogonality regularization term to SAE loss function\n2. Implement efficient pairwise cosine similarity computation for decoder weights\n3. Train SAEs with varying orthogonality penalty strengths\n4. Evaluate on SCR/TPP benchmarks vs baseline SAEs\n5. Analyze decoder weight similarity matrices\n6. Measure reconstruction-sparsity-orthogonality tradeoffs\n7. Compare feature interpretability via automated methods",
+    "Technical_Details": "The Orthogonal Decoder SAE introduces a novel regularization term that minimizes pairwise cosine similarities between decoder weights. Let W_dec ∈ ℝ^{d_sae×d_in} be the decoder matrix with columns normalized to unit norm. The regularization term R = λ∑_{i≠j}(W_dec[i]·W_dec[j])² penalizes non-orthogonal decoder vectors. The total loss becomes L = ||x−x̂||² + α||h||₁ + βR, where h are latent activations. This formulation encourages the SAE to learn orthogonal feature directions in activation space while maintaining sparsity. The orthogonal constraint prevents feature overlap and forces each latent to explain unique variance components.",
+    "Implementation_Plan": "1. Modify CustomSAE's loss method to compute pairwise decoder similarities\n2. Add orthogonality regularization coefficient to trainer config\n3. Implement efficient computation of R using (W_dec @ W_dec.T - I).pow(2).sum()\n4. Adjust ConstrainedAdam to maintain decoder weight normalization\n5. Add hyperparameter search for β balancing reconstruction vs orthogonality\n6. Update evaluation scripts to track pairwise feature similarities",
+    "Interestingness_Evaluation": "This idea directly addresses feature entanglement in SAEs through a novel geometric constraint that complements existing sparsity methods.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Requires minimal architectural changes (1 new loss term), computationally feasible via matrix operations, and builds on existing SAE infrastructure. Implementation complexity matches typical ML papers. Junior PhD could implement in <1 week. Runtime overhead is O(d_sae²) per batch - acceptable for d_sae~1e4.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "First application of explicit decoder orthogonality constraints for mechanistic interpretability in SAEs.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "Orthogonal features should enable cleaner concept isolation critical for unlearning tasks, directly improving SCR/TPP metrics by reducing spurious correlations.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3
+}
+```
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The key insight is that feature entanglement in SAEs stems from overlapping decoder directions. By explicitly enforcing orthogonality in decoder weights, we can create more distinct feature representations. This approach directly targets polysemanticity by minimizing interference between features. The orthogonality constraint encourages each latent to capture unique variance components, reducing the likelihood of feature absorption and promoting monosemanticity. This should improve SCR by enabling cleaner separation of spurious correlations and enhance TPP through more class-specific feature sets. Unlike previous approaches that focus on activation sparsity or architectural changes, this method modifies the fundamental geometry of the learned feature space.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "orthogonal_decoder_sae",
+    "Title": "Orthogonal Decoder Regularization for Disentangled Sparse Autoencoders",
+    "Experiment": "1. Add orthogonality regularization term to SAE loss function\n2. Implement efficient pairwise cosine similarity computation for decoder weights\n3. Train SAEs with varying orthogonality penalty strengths\n4. Evaluate on SCR/TPP benchmarks vs baseline SAEs\n5. Analyze decoder weight similarity matrices\n6. Measure reconstruction-sparsity-orthogonality tradeoffs\n7. Compare feature interpretability via automated methods",
+    "Technical_Details": "The Orthogonal Decoder SAE introduces a novel regularization term that minimizes pairwise cosine similarities between decoder weights. Let W_dec ∈ ℝ^{d_sae×d_in} be the decoder matrix with columns normalized to unit norm. The regularization term R = λ∑_{i≠j}(W_dec[i]·W_dec[j])² penalizes non-orthogonal decoder vectors. The total loss becomes L = ||x−x̂||² + α||h||₁ + βR, where h are latent activations. This formulation encourages the SAE to learn orthogonal feature directions in activation space while maintaining sparsity. The orthogonal constraint prevents feature overlap and forces each latent to explain unique variance components.",
+    "Implementation_Plan": "1. Modify CustomSAE's loss method to compute pairwise decoder similarities\n2. Add orthogonality regularization coefficient to trainer config\n3. Implement efficient computation of R using (W_dec @ W_dec.T - I).pow(2).sum()\n4. Adjust ConstrainedAdam to maintain decoder weight normalization\n5. Add hyperparameter search for β balancing reconstruction vs orthogonality\n6. Update evaluation scripts to track pairwise feature similarities",
+    "Interestingness_Evaluation": "This idea directly addresses feature entanglement in SAEs through a novel geometric constraint that complements existing sparsity methods.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Requires minimal architectural changes (1 new loss term), computationally feasible via matrix operations, and builds on existing SAE infrastructure. Implementation complexity matches typical ML papers. Junior PhD could implement in <1 week. Runtime overhead is O(d_sae²) per batch - acceptable for d_sae~1e4.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "First application of explicit decoder orthogonality constraints for mechanistic interpretability in SAEs.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "Orthogonal features should enable cleaner concept isolation critical for unlearning tasks, directly improving SCR/TPP metrics by reducing spurious correlations.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'orthogonal_decoder_sae', 'Title': 'Orthogonal Decoder Regularization for Disentangled Sparse Autoencoders', 'Experiment': '1. Add orthogonality regularization term to SAE loss function\n2. Implement efficient pairwise cosine similarity computation for decoder weights\n3. Train SAEs with varying orthogonality penalty strengths\n4. Evaluate on SCR/TPP benchmarks vs baseline SAEs\n5. Analyze decoder weight similarity matrices\n6. Measure reconstruction-sparsity-orthogonality tradeoffs\n7. Compare feature interpretability via automated methods', 'Technical_Details': 'The Orthogonal Decoder SAE introduces a novel regularization term that minimizes pairwise cosine similarities between decoder weights. Let W_dec ∈ ℝ^{d_sae×d_in} be the decoder matrix with columns normalized to unit norm. The regularization term R = λ∑_{i≠j}(W_dec[i]·W_dec[j])² penalizes non-orthogonal decoder vectors. The total loss becomes L = ||x−x̂||² + α||h||₁ + βR, where h are latent activations. This formulation encourages the SAE to learn orthogonal feature directions in activation space while maintaining sparsity. The orthogonal constraint prevents feature overlap and forces each latent to explain unique variance components.', 'Implementation_Plan': "1. Modify CustomSAE's loss method to compute pairwise decoder similarities\n2. Add orthogonality regularization coefficient to trainer config\n3. Implement efficient computation of R using (W_dec @ W_dec.T - I).pow(2).sum()\n4. Adjust ConstrainedAdam to maintain decoder weight normalization\n5. Add hyperparameter search for β balancing reconstruction vs orthogonality\n6. Update evaluation scripts to track pairwise feature similarities", 'Interestingness_Evaluation': 'This idea directly addresses feature entanglement in SAEs through a novel geometric constraint that complements existing sparsity methods.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Requires minimal architectural changes (1 new loss term), computationally feasible via matrix operations, and builds on existing SAE infrastructure. Implementation complexity matches typical ML papers. Junior PhD could implement in <1 week. Runtime overhead is O(d_sae²) per batch - acceptable for d_sae~1e4.', 'Feasibility': 9, 'Novelty_Evaluation': 'First application of explicit decoder orthogonality constraints for mechanistic interpretability in SAEs.', 'Novelty': 7, 'Expected_Research_Impact': 'Orthogonal features should enable cleaner concept isolation critical for unlearning tasks, directly improving SCR/TPP metrics by reducing spurious correlations.', 'Research_Impact': 8, 'Overall_Score': 8.3}

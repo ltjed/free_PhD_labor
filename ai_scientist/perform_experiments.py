@@ -12,6 +12,8 @@ MAX_STDERR_OUTPUT = 1500
 
 coder_prompt = """Your goal is to implement the following idea: {title}.
 The proposed experiment is as follows: {idea}.
+The implementation plan is as follows: {implementation_plan}.
+
 You are given a total of up to {max_runs} runs to complete the necessary experiments. You do not need to use all {max_runs}.
 
 First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run.
@@ -125,6 +127,7 @@ def perform_experiments(idea, folder_name, coder, baseline_results) -> bool:
     next_prompt = coder_prompt.format(
         title=idea["Title"],
         idea=idea["Experiment"],
+        implementation_plan = idea["Implementation_Plan"],
         max_runs=MAX_RUNS,
         baseline_results=baseline_results,
     )

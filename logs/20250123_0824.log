@@ -1,0 +1,67 @@
+Using GPUs: [0]
+Using OpenAI API with deepseek-reasoner.
+Error decoding existing ideas. Generating new ideas.
+
+Generating idea 1/1
+Iteration 1/30
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let's tackle this problem. The user wants me to come up with a new variant of sparse autoencoders (SAEs) that improves interpretability, specifically targeting the SCR and TPP benchmarks. The existing ideas focus on things like adaptive computation, gating, clustering, and mutual regularization. I need to think of something novel that addresses polysemanticity and feature absorption, which are the main issues mentioned.
+
+Hmm, the key issue is that current SAEs have features that represent multiple concepts (polysemanticity), making them hard to interpret. The example given was "starts with S" and "short" where the SAE combines them, leading to less interpretable features. The target benchmarks SCR and TPP require the SAE to disentangle features so that ablating certain latents removes specific concepts without affecting others.
+
+What if we could enforce a hierarchical structure in the SAE's features? If features are organized hierarchically, parent features could represent broader concepts (like "starts with S") and child features more specific ones (like "short"). This might prevent feature absorption because the parent and child features are explicitly separated, and the model is trained to activate them in a structured way. 
+
+For example, a hierarchical SAE could have a tree-like structure where each node represents a feature. When a token is processed, the SAE activates a path from the root to a leaf, ensuring that each feature in the path is more specific. This would naturally separate general and specific features, reducing the incentive for the model to merge them into a single latent. 
+
+But how to implement this? Maybe using a tree-structured sparsity constraint. Each feature in the SAE is part of a tree, and the activation of a child feature requires the parent to be active. This way, the SAE is forced to decompose features into a hierarchy, preventing absorption. The loss function could include a term that encourages this hierarchical sparsity pattern.
+
+Another angle: during training, we could use a regularization term that penalizes features that are active in contexts where their parent features are not. This would enforce the hierarchy. Additionally, the decoding weights could be structured such that child features are orthogonal to their parents except for a component that adds specificity.
+
+Wait, existing methods like Matryoshka SAE use nested dictionaries but don't enforce a hierarchical activation structure. The proposed idea is different because it explicitly models parent-child relationships in features, which should lead to more interpretable and monosemantic features by design.
+
+For the implementation, modifying the SAE's architecture to include hierarchical groups and adjusting the sparsity penalty to enforce activation dependencies. The training process would need to ensure that child features are only active when their parents are. This might involve a mask that gates child activations based on parent activations.
+
+In terms of the SCR benchmark, if gender and profession are in different branches of the hierarchy, ablating the gender branch would cleanly remove that signal without affecting profession, improving the SHIFT score. For TPP, each class could correspond to a subtree, so ablating that subtree only affects the targeted class.
+
+Potential challenges: How to define the hierarchy structure? Maybe learn it during training, but that's complex. Alternatively, use a predefined shallow hierarchy based on known concept relationships. For initial experiments, a simple two-level hierarchy (e.g., general vs. specific) could suffice.
+
+The technical details would involve modifying the SAE's activation function to include hierarchical constraints. For example, using a group lasso penalty where each group is a subtree. Or using a gating mechanism where parent features must activate before children can.
+
+Implementation plan: Adjust the SAE's forward pass to compute activations in a hierarchical manner. Add a regularization term that penalizes child activations without parent activations. Modify the loss function accordingly. Use a predefined hierarchy structure for initial testing.
+
+Feasibility: The modifications are manageable within the existing code framework. The main changes are in the activation computation and loss function. No complex new layers are needed, just structured sparsity. Training might be more computationally intensive, but manageable on an H100 within 30 minutes if the hierarchy is not too deep.
+
+Research impact: If successful, this should improve SCR and TPP scores by better disentangling features, which directly targets the benchmarks. The hierarchical structure should reduce polysemanticity, making features more interpretable and ablation more precise.
+
+Need to structure this into the JSON format. Let's outline the experiment steps, technical details, and implementation plan.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The key insight is that hierarchical concept relationships (e.g. "India" → "Asia") enable feature absorption in standard SAEs. By explicitly modeling hierarchical dependencies between features through parent-child relationships and conditional activation constraints, we can prevent feature merging while maintaining sparsity. Unlike prior work that nests representations (Matryoshka SAE) or uses separate gates (Gated SAE), this approach enforces a tree structure where child features can only activate if their parent features are active. This should better isolate hierarchical concepts, improving SCR/TPP scores by enabling precise ablation of entire concept subtrees without affecting unrelated features. The implementation modifies the activation function and adds structural regularization to enforce hierarchy constraints.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "hierarchical_sparse_autoencoder",
+    "Title": "Hierarchical Sparse Autoencoders for Concept Tree Disentanglement",
+    "Experiment": "1. Implement hierarchical activation function with parent-child dependencies\n2. Add structural regularization enforcing child features only activate with parents\n3. Predefine concept hierarchy (e.g. geographic terms) for initial validation\n4. Train on Pythia-70M and Gemma-2B residual streams\n5. Evaluate SCR/TPP vs baseline SAEs\n6. Analyze feature activation patterns across hierarchy levels\n7. Measure cross-entropy impact when ablating entire subtrees",
+    "Technical_Details": "The Hierarchical SAE (HSAE) organizes features into a tree structure where each child feature f_ij (child j of parent i) computes activation as h_ij = ReLU(W_ijx + b_ij) * σ(h_i) where σ is sigmoid gate and h_i is parent activation. Structural regularization L_struct = λ∑_ij||h_ij ⊙ (1-σ(h_i))||_1 enforces child inactivity when parents are inactive. During decoding, child features add residual components: x̂ = ∑_i(W_i^T h_i + ∑_jW_ij^T h_ij). The tree depth is fixed during training (e.g. 3 levels), with 25% of features allocated to each non-leaf level. Parent features use doubled L1 penalty compared to children.",
+    "Implementation_Plan": "1. Modify SAE forward pass to compute hierarchical activations\n2. Add tree structure metadata to track parent-child relationships\n3. Implement structural regularization in loss calculation\n4. Adjust optimizer to handle per-level sparsity coefficients\n5. Add subtree ablation functionality for evaluation\n6. Extend probing to measure concept hierarchy alignment",
+    "Interestingness_Evaluation": "Introduces novel hierarchical activation constraints that directly address feature absorption in concept hierarchies.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Requires moderate architectural changes but uses established components (tree structures, conditional activations). Predefined hierarchies simplify initial implementation. Training overhead manageable with careful GPU memory optimization.",
+    "Feasibility": 7,
+    "Novelty_Evaluation": "First SAE variant to explicitly model parent-child feature dependencies through activation gating and structural regularization.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Directly improves SCR/TPP by enabling precise subtree ablations for spurious correlations while preserving hierarchical concept structure.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.1
+}
+```

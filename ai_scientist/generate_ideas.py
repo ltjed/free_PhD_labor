@@ -94,9 +94,10 @@ def generate_ideas(
         try:
             with open(osp.join(base_dir, "ideas.json"), "r") as f:
                 ideas = json.load(f)
+                print("ideas")
             print("Loaded existing ideas:")
-            for idea in ideas:
-                print(idea)
+            # start from the last idea
+            #ideas = ideas[-1:-2:-1]
             return ideas
         except FileNotFoundError:
             print("No existing ideas found. Generating new ideas.")
@@ -511,7 +512,6 @@ if __name__ == "__main__":
         base_dir,
         client=client,
         model=client_model,
-        skip_generation=args.skip_idea_generation,
         max_num_generations=MAX_NUM_GENERATIONS,
         num_reflections=NUM_REFLECTIONS,
     )

@@ -249,7 +249,7 @@ def get_response_from_llm(
     elif model == "deepseek-reasoner":
         # print(f"msg_history at the start of iteration is {msg_history}")
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
-        # print(f"new_msg_history after appending msg is {new_msg_history}")
+        #print(f"new_msg_history after appending msg is {new_msg_history}")
         response = client.chat.completions.create(
             model="deepseek-reasoner",
             messages=[
