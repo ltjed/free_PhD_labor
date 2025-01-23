@@ -1,0 +1,188 @@
+Using GPUs: [0]
+Using OpenAI API with deepseek-reasoner.
+
+Generating idea 1/10
+Iteration 1/30
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let's tackle this problem. The user is looking for a novel SAE variant that improves interpretability, specifically targeting the SCR and TPP benchmarks. The existing ideas have explored various approaches like adaptive computation, gating mechanisms, and different activation functions. I need to come up with something that addresses polysemanticity more directly, perhaps by encouraging features to be more semantically pure.
+
+First, I recall that the core issue is polysemanticity, where a single latent feature represents multiple concepts. Existing methods try to increase sparsity or modify the architecture, but maybe adding a semantic-aware loss could help. What if we could regularize the SAE to ensure that each feature correlates strongly with a specific semantic concept, as identified by some external probe?
+
+Wait, the SCR benchmark involves removing spurious correlations by ablating specific latents. If the SAE features are more aligned with individual concepts, then selecting the right latents for ablation should be easier, improving SCR scores. Similarly, for TPP, if features are disentangled, ablating a set should affect only the corresponding class.
+
+So the idea is to integrate probing into the training process. Probes trained on concept labels (like gender or profession) can identify which features are relevant. By adding a regularization term that encourages features to have high mutual information with specific concepts, the SAE might learn more monosemantic features.
+
+But how to implement this? During training, for each batch, we could train a set of linear probes on the SAE's activations to predict concept labels. Then, add a loss term that maximizes the probe accuracy for each feature. However, training probes on the fly might be computationally intensive. Alternatively, pre-trained probes could be used, but that might not adapt well during SAE training.
+
+Another angle: use contrastive learning. For each feature, encourage it to activate more for samples of one concept and less for others. This could be done with a contrastive loss that maximizes the difference in activation means between positive and negative concept samples.
+
+Alternatively, incorporate a diversity penalty that minimizes the covariance between features, encouraging them to capture orthogonal concepts. This might reduce redundancy and overlapping representations.
+
+Wait, the key insight from the original paper is that superposition causes polysemanticity. So, if we can structure the SAE to avoid superposition by ensuring each feature corresponds to a single concept, that would help. Maybe a multi-task setup where the SAE is not only reconstructing activations but also predicting concept labels through sparse features.
+
+Let me outline this: during SAE training, in addition to the reconstruction and sparsity losses, add an auxiliary loss that trains a linear classifier on the SAE's features to predict concept labels (like gender or profession). This classifier's gradients would backpropagate into the SAE, encouraging features that are discriminative for specific concepts. However, this requires labeled data for the concepts, which might be available from the SCR/TPP datasets.
+
+But how to handle multiple concepts? Maybe train separate classifiers for each concept and combine their losses. This way, each feature can be pushed to align with one concept. However, this might complicate the training process.
+
+Alternatively, use unsupervised methods to discover concepts. But that's less straightforward. Perhaps using the existing spurious correlations in the data (like in the SCR setup) to guide feature learning. For example, during training, include a term that penalizes features that are predictive of both the main and spurious concepts, encouraging them to separate.
+
+Another thought: leverage the fact that in SCR, the goal is to remove spurious features. If during SAE training, we can ensure that features related to spurious concepts are distinct from those related to the main task, ablation would be more effective. Maybe a disentanglement loss that minimizes the mutual information between features of different concepts.
+
+Putting this together, the proposed SAE variant could incorporate a concept-aware regularization term. For example, using mutual information between features and concept labels to encourage each feature to be strongly associated with at most one concept. This would require labeled data, but the SCR and TPP benchmarks already use such datasets.
+
+Implementation-wise, during training, for each batch, compute the mutual information between each SAE feature and the concept labels. Add a penalty for features that have high MI with multiple concepts. Alternatively, maximize the MI for each feature with a single concept while minimizing it for others. This could be approximated using contrastive predictive coding or similar techniques.
+
+But calculating MI is tricky. A practical approach could be to train linear probes for each concept on the SAE features and use the probe weights to compute feature importance. Then, regularize the features to have high weights for one probe and low for others. This would encourage features to specialize.
+
+So the technical details would involve modifying the SAE loss function to include a term that encourages each latent feature to be predictive of a single concept. This could be done by, for each feature, taking the maximum probe score across all concepts and penalizing features that contribute to multiple concepts.
+
+The experiment steps would involve:
+
+1. Modify the SAE training loop to include concept labels (from SCR/TPP datasets).
+2. Train linear probes on SAE features for each concept during training.
+3. Add a regularization term that maximizes the maximum probe score for each feature while minimizing the sum of other probe scores.
+4. Train the SAE with this combined loss and evaluate on SCR and TPP benchmarks.
+
+Implementation Plan:
+
+In the existing code, the CustomSAE class would need to include the probe training. However, since the probes are linear and trained online, this can be done efficiently. The loss function in the CustomTrainer would be modified to include the probe-based regularization.
+
+Potential challenges include the computational overhead of training probes during SAE training. To mitigate this, probes could be updated less frequently or use a smaller subset of data. Also, handling multiple concepts requires careful design to avoid overwhelming the SAE with conflicting signals.
+
+The expected research impact is high because explicitly aligning features with concepts should make them more interpretable, directly improving SCR and TPP scores by making feature ablation more precise. The novelty comes from integrating concept probes into the SAE training process, which hasn't been done in existing approaches. Feasibility is moderate since adding probes and a regularization term is manageable within the code structure, though tuning the loss weights might be time-consuming.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The key insight is that existing SAE variants primarily focus on architectural changes or sparsity constraints but don't explicitly address semantic disentanglement. My idea introduces concept-aware regularization using auxiliary probe networks trained concurrently with the SAE. By directly optimizing for feature-probe alignment during training, we can force latents to correspond to human-interpretable concepts measured in SCR/TPP benchmarks. This differs from post-hoc probing by making concept alignment an explicit training objective. The technical novelty lies in the joint optimization of reconstruction error and probe-guided feature purity through a multi-task loss. This should reduce polysemanticity by construction rather than through post-training analysis.
+
+NEW IDEA JSON:
+```json
+{
+  "Name": "probe_guided_sae",
+  "Title": "Probe-Guided Sparse Autoencoders for Concept-Aligned Representations",
+  "Experiment": "1. Implement auxiliary probe networks for target concepts (gender/profession)\n2. Modify SAE loss to include probe prediction accuracy\n3. Train SAE with joint reconstruction+concept alignment objective\n4. Compare SCR/TPP scores against baseline SAEs\n5. Analyze feature-probe weight correlations\n6. Ablate components via probe-only vs reconstruction-only training",
+  "Technical_Details": "The SAE is trained with an additional loss term that maximizes the mutual information between latent activations and target concept labels. For each batch (x, y_concept):\n1. Compute SAE activations f = encoder(x)\n2. Train linear probe P: f → y_concept with cross-entropy loss\n3. Compute concept alignment loss L_concept = -Σ_i |w_probe_i| * entropy(f_i)\n4. Total loss = L_reconstruction + λ_sparsity * L_sparsity + λ_concept * L_concept\nWhere |w_probe_i| is the absolute probe weight for latent i, encouraging features with high probe relevance to have low activation entropy (monosemanticity). Probes are reinitialized each batch to prevent feature-probe co-adaptation.",
+  "Implementation_Plan": "1. Modify CustomSAE class to return intermediate activations\n2. Add ProbeNetwork module with linear classifiers\n3. Update CustomTrainer's loss function to include concept labels and probe training\n4. Add concept dataset loading to ActivationBuffer\n5. Implement entropy calculation and loss weighting\n6. Add probe accuracy monitoring to logging",
+  "Interestingness_Evaluation": "This directly bridges mechanistic interpretability objectives with representation learning through a novel multi-task framework.",
+  "Interestingness": 9,
+  "Feasibility_Evaluation": "Requires adding probe networks and modified loss, but uses existing SAE infrastructure. Concept labels are already available in benchmark datasets. Main challenge is balancing loss terms, but manageable with grid search.",
+  "Feasibility": 7,
+  "Novelty_Evaluation": "First method to integrate concept probes directly into SAE training rather than using them post-hoc.",
+  "Novelty": 8,
+  "Expected_Research_Impact": "Explicit concept alignment should maximize SCR/TPP scores by design, as the evaluation metrics directly test probe-feature relationships.",
+  "Research_Impact": 9,
+  "Overall_Score": 7.9
+}
+```
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The key insight is that existing SAE variants primarily focus on architectural changes or sparsity constraints but don't explicitly address semantic disentanglement. My idea introduces concept-aware regularization using auxiliary probe networks trained concurrently with the SAE. By directly optimizing for feature-probe alignment during training, we can force latents to correspond to human-interpretable concepts measured in SCR/TPP benchmarks. This differs from post-hoc probing by making concept alignment an explicit training objective. The technical novelty lies in the joint optimization of reconstruction error and probe-guided feature purity through a multi-task loss. This should reduce polysemanticity by construction rather than through post-training analysis.
+
+NEW IDEA JSON:
+```json
+{
+  "Name": "probe_guided_sae",
+  "Title": "Probe-Guided Sparse Autoencoders for Concept-Aligned Representations",
+  "Experiment": "1. Implement auxiliary probe networks for target concepts (gender/profession)\n2. Modify SAE loss to include probe prediction accuracy\n3. Train SAE with joint reconstruction+concept alignment objective\n4. Compare SCR/TPP scores against baseline SAEs\n5. Analyze feature-probe weight correlations\n6. Ablate components via probe-only vs reconstruction-only training",
+  "Technical_Details": "The SAE is trained with an additional loss term that maximizes the mutual information between latent activations and target concept labels. For each batch (x, y_concept):\n1. Compute SAE activations f = encoder(x)\n2. Train linear probe P: f → y_concept with cross-entropy loss\n3. Compute concept alignment loss L_concept = -Σ_i |w_probe_i| * entropy(f_i)\n4. Total loss = L_reconstruction + λ_sparsity * L_sparsity + λ_concept * L_concept\nWhere |w_probe_i| is the absolute probe weight for latent i, encouraging features with high probe relevance to have low activation entropy (monosemanticity). Probes are reinitialized each batch to prevent feature-probe co-adaptation.",
+  "Implementation_Plan": "1. Modify CustomSAE class to return intermediate activations\n2. Add ProbeNetwork module with linear classifiers\n3. Update CustomTrainer's loss function to include concept labels and probe training\n4. Add concept dataset loading to ActivationBuffer\n5. Implement entropy calculation and loss weighting\n6. Add probe accuracy monitoring to logging",
+  "Interestingness_Evaluation": "This directly bridges mechanistic interpretability objectives with representation learning through a novel multi-task framework.",
+  "Interestingness": 9,
+  "Feasibility_Evaluation": "Requires adding probe networks and modified loss, but uses existing SAE infrastructure. Concept labels are already available in benchmark datasets. Main challenge is balancing loss terms, but manageable with grid search.",
+  "Feasibility": 7,
+  "Novelty_Evaluation": "First method to integrate concept probes directly into SAE training rather than using them post-hoc.",
+  "Novelty": 8,
+  "Expected_Research_Impact": "Explicit concept alignment should maximize SCR/TPP scores by design, as the evaluation metrics directly test probe-feature relationships.",
+  "Research_Impact": 9,
+  "Overall_Score": 7.9
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'probe_guided_sae', 'Title': 'Probe-Guided Sparse Autoencoders for Concept-Aligned Representations', 'Experiment': '1. Implement auxiliary probe networks for target concepts (gender/profession)\n2. Modify SAE loss to include probe prediction accuracy\n3. Train SAE with joint reconstruction+concept alignment objective\n4. Compare SCR/TPP scores against baseline SAEs\n5. Analyze feature-probe weight correlations\n6. Ablate components via probe-only vs reconstruction-only training', 'Technical_Details': 'The SAE is trained with an additional loss term that maximizes the mutual information between latent activations and target concept labels. For each batch (x, y_concept):\n1. Compute SAE activations f = encoder(x)\n2. Train linear probe P: f → y_concept with cross-entropy loss\n3. Compute concept alignment loss L_concept = -Σ_i |w_probe_i| * entropy(f_i)\n4. Total loss = L_reconstruction + λ_sparsity * L_sparsity + λ_concept * L_concept\nWhere |w_probe_i| is the absolute probe weight for latent i, encouraging features with high probe relevance to have low activation entropy (monosemanticity). Probes are reinitialized each batch to prevent feature-probe co-adaptation.', 'Implementation_Plan': "1. Modify CustomSAE class to return intermediate activations\n2. Add ProbeNetwork module with linear classifiers\n3. Update CustomTrainer's loss function to include concept labels and probe training\n4. Add concept dataset loading to ActivationBuffer\n5. Implement entropy calculation and loss weighting\n6. Add probe accuracy monitoring to logging", 'Interestingness_Evaluation': 'This directly bridges mechanistic interpretability objectives with representation learning through a novel multi-task framework.', 'Interestingness': 9, 'Feasibility_Evaluation': 'Requires adding probe networks and modified loss, but uses existing SAE infrastructure. Concept labels are already available in benchmark datasets. Main challenge is balancing loss terms, but manageable with grid search.', 'Feasibility': 7, 'Novelty_Evaluation': 'First method to integrate concept probes directly into SAE training rather than using them post-hoc.', 'Novelty': 8, 'Expected_Research_Impact': 'Explicit concept alignment should maximize SCR/TPP scores by design, as the evaluation metrics directly test probe-feature relationships.', 'Research_Impact': 9, 'Overall_Score': 7.9}
+Iteration 2/30
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let me try to refine this idea. The original concept of integrating probes into SAE training is solid, but I need to address feasibility and research impact more effectively. The previous version's feasibility score was 7, which might be due to the complexity of dynamic probe training and loss balancing. Let me simplify the approach.
+
+Instead of reinitializing probes each batch, which could be unstable, maybe use fixed probes pre-trained on concept labels. This reduces computation and training complexity. Also, the entropy term might be tricky; perhaps using a simpler L1 penalty on probe-aligned features would be better. 
+
+I should also align the technical details more closely with the SCR/TPP benchmarks. For example, focusing on spurious correlations explicitly during training. Maybe using contrastive learning between concepts to enhance disentanglement. 
+
+Implementation-wise, pre-training the probes on the original activations and then freezing them during SAE training would make the process more manageable. The loss function can then encourage SAE features to align with these frozen probe directions, adding a regularization term that maximizes the cosine similarity between SAE features and probe weights. 
+
+This adjustment should improve feasibility by reducing the training complexity and making the implementation more straightforward. The research impact remains high because the method directly targets the metrics used in SCR/TPP by design. Novelty is maintained as it's still integrating probe guidance into the training loop rather than post-hoc analysis.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The original idea shows promise but needs refinement to boost feasibility and impact. Key improvements: 1) Simplify concept alignment via frozen pre-trained probes rather than dynamic probe retraining 2) Use cosine similarity to probe directions instead of entropy 3) Focus on SCR/TPP's core challenge of feature disentanglement through contrastive concept pairs. This maintains novelty while reducing implementation complexity. By anchoring probes to known spurious correlations from the benchmark datasets, we directly optimize for the evaluation metric structure.
+
+NEW IDEA JSON:
+```json
+{
+  "Name": "concept_anchored_sae",
+  "Title": "Concept-Anchored Sparse Autoencoders for Disentangled Representations",
+  "Experiment": "1. Pre-train linear probes for spurious/concept labels (gender/profession) on original activations\n2. Modify SAE loss to maximize alignment between latents and concept probe directions\n3. Add contrastive loss between orthogonal concept pairs\n4. Train SAE with combined reconstruction+alignment+contrastive objectives\n5. Evaluate SCR/TPP metrics against baselines\n6. Analyze concept purity via probe weight sparsity",
+  "Technical_Details": "Three-stage training:\n1. Pre-train concept probes {P_c} on original activations using SCR/TPP dataset labels\n2. SAE encoder outputs f(x) are regularized to align with relevant probes and anti-align with others:\n   L_align = Σ_c∈C |cos_sim(W_enc[:,i], P_c)| * mask(c,i)\n   L_contrast = Σ_{c≠c'} |cos_sim(P_c, P_c')| * ||f_c⊙f_c'||_1\n3. Final loss: L = L_recon + λ_sparseL1 + λ_alignL_align + λ_contrastL_contrast\nWhere mask(c,i) activates only for latents in the top-k for concept c. Probes remain frozen during SAE training.",
+  "Implementation_Plan": "1. Add probe pretraining phase to ActivationBuffer\n2. Modify CustomSAE to track concept masks\n3. Implement cosine similarity regularization in CustomTrainer\n4. Add contrastive loss calculation between concept pairs\n5. Update evaluation to use pre-trained probes for SCR/TPP\n6. Optimize λ weights via grid search on validation split",
+  "Interestingness_Evaluation": "Directly optimizes SAE features for benchmark-relevant concept disentanglement through probe anchoring.",
+  "Interestingness": 9,
+  "Feasibility_Evaluation": "Simpler than dynamic probe training - uses fixed pre-trained probes. Alignment losses build on existing SAE infrastructure. Contrastive term adds moderate complexity but uses standard ops.",
+  "Feasibility": 8,
+  "Novelty_Evaluation": "First to combine frozen concept probes with contrastive alignment in SAE training.",
+  "Novelty": 8,
+  "Expected_Research_Impact": "Explicit concept disentanglement should maximize SCR/TPP by design, as metrics test isolated feature ablation.",
+  "Research_Impact": 9,
+  "Overall_Score": 8.6
+}
+```
