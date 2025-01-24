@@ -17,6 +17,70 @@ idea_first_prompt = """{task_description}
 {code}
 </experiment.py>
 
+Come up with an impactful and creative idea for research and experiments.
+
+Here is a prototype idea from which you should develop, improve, and modify. The idea you come up with should NOT be a completely different idea from the prototype idea, but should be more mature, more considerate, more detailed and specific. The idea you generate should not be more complex than the prototype idea. DO NOT INTRODUCE ANY EXTRA ARCHITECTURE, THEORY, FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
+
+<PROTOTYPE_IDEA>
+        "Name": "hierarchical_sae",
+        "Title": "Two-Level Hierarchical Sparse Autoencoders for Targeted Knowledge Unlearning",
+        "Experiment": "1. Implement unified two-level SAE architecture\n2. Train on WMDP-bio and WikiText datasets\n3. Compare three intervention strategies:\n   - Base-level clamping (baseline)\n   - Concept-level clamping\n   - Multi-level coordinated clamping\n4. Evaluate using standard metrics:\n   - WMDP-bio accuracy reduction\n   - MMLU preservation (>0.99)\n5. Analyze feature interactions between levels",
+        "Technical_Details": "Architecture:\n- Base level: d_sae features, initialized with Xavier uniform\n- Concept level: d_sae/4 features, initialized near zero\n- Unified forward pass: z_1 = TopK(W_1*x + b_1, k=32), z_2 = TopK(W_2*z_1 + b_2, k=8)\n\nLoss function: L = L_rec + \u03bb_1||z_1||_1 + \u03bb_2||z_2||_1 + \u03bb_h||W_2||_1\nwhere \u03bb_1=0.1, \u03bb_2=0.2, \u03bb_h=0.01\n\nTraining:\n- Single phase optimization with Adam(lr=3e-4)\n- Gradient scaling: 0.1\u00d7 for concept level in first 1000 steps\n- Batch size 2048, context length 128\n\nIntervention:\n- Compute feature importance scores using dual-dataset approach\n- Select top-k features at each level (k_1=16, k_2=4)\n- Apply coordinated negative clamping (-2.0 base, -1.0 concept)",
+        "Research_Impact": "A key challenge in selective unlearning is maintaining model stability during interventions. Current approaches often cause cascading effects when clamping features, degrading performance on unrelated tasks. This research addresses the challenge through hierarchical feature organization and coordinated multi-level interventions. By carefully controlling the interaction between base and concept features during clamping, we can achieve more stable and targeted knowledge removal.",
+        "Implementation_Plan": "1. Create TwoLevelSAE extending CustomSAE\n2. Add TopK activation with different k per level\n3. Implement unified training in CustomTrainer\n4. Add feature importance calculation utilities\n5. Create intervention coordination module\n6. Update evaluation pipeline for multi-level analysis",
+        "Interestingness_Evaluation": "The unified training approach with coordinated interventions provides an elegant solution to the stability-effectiveness trade-off in knowledge unlearning.",
+        "Interestingness": 9,
+        "Feasibility_Evaluation": "The unified training eliminates complexity of sequential phases; fixed hyperparameters and simple TopK operations ensure efficient implementation; single forward pass with two levels stays well within 30-minute limit on H100; clear initialization and training procedure reduces development time.",
+        "Feasibility": 10,
+        "Novelty_Evaluation": "While hierarchical models exist, the combination of unified training, coordinated interventions, and specific application to knowledge unlearning represents a novel contribution.",
+        "Novelty": 9,
+        "Overall_Score": 9.5,
+        "novel": true
+</PROTOTYPE_IDEA>
+
+
+Respond in the following format:
+
+THOUGHT:
+<THOUGHT>
+
+NEW IDEA JSON:
+```json
+<JSON>
+```
+
+In <THOUGHT>, first briefly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. **Justify how the idea refines the prototype idea without introducing too much complexity.**
+Also detail the reasoning behind why they expect the modification of autoencoder you propose will work better for mechanistic interpretability purposes.
+
+In <JSON>, provide the new idea in JSON format with the following fields:
+- "Name": A shortened descriptor of the idea. Lowercase, no spaces, underscores allowed.
+- "Title": A title for the idea, will be used for the report writing.
+- "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
+- "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms.
+- "Implementation_Plan": A plan of steps to implement the experiment described above by modifying the code template in experiment.py.
+- "Interestingness_Evaluation": Give a one-sentence evaluation of the interestingness of the idea to justify the rating below.  
+- "Interestingness": A rating from 1 to 10 (lowest to highest). 
+- "Feasibility_Evaluation": Carefully evaluate the feasibility to justify the rating below. BE STRICT. Consider the following three factors. 1. Refer to the "Experiment" and "Technical_Details" fields you wrote above, and consider the complexity of the idea in comparison to typical ML conference papers. Note it need not and should better not introduce too deep theoretical elements such as those from pure mathematics. Be relevant and understandable to the machine learning community. 2. Refer to the "Implementation_Plan" you wrote and consider the implementation difficulties. Note the coding work to implement the experiments is to be completed by a junior CS PhD student within 1 month. 3. Refer to the "Experiment", "Technical_Details", and "Implementation_Plan" and consider the time cost of running the experiment. Note each run of the experiment has to be conducted on a single NVIDIA H100 GPU WITHIN 30 MINS.
+- "Feasibility": A rating from 1 to 10 (lowest to highest). 
+- "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
+- "Novelty": A rating from 1 to 10 (lowest to highest).
+- "Expected_Research_Impact": Your primary target is to improve performance on the benchmarks "sparse_probing" and "core". Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
+- "Research_Impact": A rating from 1 to 10 (lowest to highest).
+- "Overall_Score": A single number rating computed by 0.1 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.3 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION.
+- "Abstract": An abstract of the idea, which will be used for the report writing. The style, length, and content should be similar to a conference paper abstract.
+
+Be cautious and critical on your ratings.
+
+This JSON will be automatically parsed, so ensure the format is precise. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
+You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
+"""
+
+
+xxx = """{task_description}
+<experiment.py>
+{code}
+</experiment.py>
+
 Here are the ideas that you have already generated:
 
 '''
@@ -50,9 +114,10 @@ In <JSON>, provide the new idea in JSON format with the following fields:
 - "Feasibility": A rating from 1 to 10 (lowest to highest). 
 - "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
 - "Novelty": A rating from 1 to 10 (lowest to highest).
-- "Expected_Research_Impact": Your primary target is to improve performance on the benchmark "unlearning" in the mechanistic interpretability literature. Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
+- "Expected_Research_Impact": Your primary target is to improve performance on the benchmarks "sparse_probing" and "core". Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
 - "Research_Impact": A rating from 1 to 10 (lowest to highest).
-- "Overall_Score": A single number rating computed by 0.1 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.2 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION.
+- "Overall_Score": A single number rating computed by 0.1 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.2 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION. Note a 9.0 score would yield an oral presentation at a top-tier conference, while a 7.5 score would yield a poster presentation at a top-tier conference.
+- "Abstract": An abstract of the idea, which will be used for the report writing. The style, length, and content should be similar to a conference paper abstract. BUT DO NOT INCLUDE ANY RESULTS SINCE THE IDEA HAS NOT BEEN IMPLEMENTED YET.
 
 Be cautious and critical on your ratings.
 
@@ -60,12 +125,14 @@ This JSON will be automatically parsed, so ensure the format is precise. BE SURE
 You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
 """
 
+
+
+
 idea_reflection_prompt = """Round {current_round}/{num_reflections}.
-In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, especially the "Overall_Score" which should be above 9.
+In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, especially the "Overall_Score".
 Include any other factors that you think are important in evaluating the idea.
 Ensure the idea is clear and concise, and the JSON is the correct format. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
-In the next attempt, try and refine and improve your idea.
-Stick to the spirit of the original idea unless there are glaring issues.
+In the next attempt, try and refine and improve your last idea. Stick to the spirit of the last idea and make sure your do not deviate too much from the prototype idea. DO NOT INTRODUCE ANY EXTRA ARCHITECTURE, THEORY, FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
 
 Respond in the same format as before:
 THOUGHT:
