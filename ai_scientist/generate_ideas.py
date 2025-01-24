@@ -22,19 +22,19 @@ Come up with an impactful and creative idea for research and experiments.
 Here is a prototype idea from which you should develop, improve, and modify. The idea you come up with should NOT be a completely different idea from the prototype idea, but should be more mature, more considerate, more detailed and specific. The idea you generate should not be more complex than the prototype idea. DO NOT INTRODUCE ANY EXTRA ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
 
 <PROTOTYPE_IDEA>
-        "Name": "temporal_causal_sae",
-        "Title": "Temporal Causal Sparse Autoencoders for Precise Knowledge Pattern Unlearning",
-        "Experiment": "1. Implement efficient temporal correlation tracking\n2. Add sliding window feature dependency analysis\n3. Train on WMDP-bio and WikiText with temporal modeling\n4. Compare intervention strategies:\n   - Standard feature clamping (baseline)\n   - Temporal chain clamping\n   - Adaptive threshold intervention\n5. Evaluate using:\n   - WMDP-bio accuracy reduction\n   - MMLU preservation\n   - Temporal consistency scores\n   - Pattern detection accuracy",
-        "Technical_Details": "Improved architecture:\n1. Temporal correlation tracking:\n   R[t] = \u03c3(z[t]^T W z[t-1])\n   where W is learned correlation matrix\n\n2. Efficient dependency analysis:\n   - Circular buffer B[t-w:t] for window w=4\n   - Update using EMA: C[t] = \u03b1R[t] + (1-\u03b1)C[t-1]\n   - Sparse updates only for correlations > \u03c4\n\n3. Intervention strategy:\n   - Identify chains using max-flow in correlation graph\n   - Progressive clamping: v[t] = -\u03b2 * \u03a3_k \u03b3^k C[t-k]v[t-k]\n   where \u03b2=1.0, \u03b3=0.7 is decay factor\n\nOptimizations:\n- Quantized intermediate states (8-bit)\n- Sparse matrix operations throughout\n- Aggressive gradient checkpointing\n- Pre-allocated circular buffers\n\nHyperparameters:\n- Correlation threshold \u03c4=0.1\n- EMA rate \u03b1=0.02\n- Batch size 2048\n- Learning rate 3e-4",
-        "Research_Impact": "A key challenge in selective unlearning is precisely identifying and removing dangerous knowledge that manifests as temporal patterns while preserving safe knowledge with similar local structure. Current approaches that treat each token independently often fail to capture these temporal dependencies, leading to incomplete knowledge removal or unintended side effects. This research addresses the challenge through efficient temporal correlation tracking and chain-based interventions, enabling more precise knowledge removal while maintaining computational efficiency.",
-        "Implementation_Plan": "1. Create CircularFeatureBuffer class\n2. Implement TemporalCorrelationTracker\n3. Add correlation matrix learning\n4. Modify CustomSAE with temporal tracking\n5. Create chain intervention module\n6. Implement evaluation metrics\n7. Add visualization tools",
-        "Interestingness_Evaluation": "The combination of efficient temporal modeling with chain-based interventions creates a practical and theoretically grounded approach to precise knowledge removal.",
+        "Name": "Orthogonal_sae",
+        "Title": "Orthogonal Feature Learning for Optimal Knowledge Separation in Sparse Autoencoders",
+        "Experiment": "1. Implement adaptive orthogonality loss with controlled feature sharing\n2. Add batch-wise feature grouping with periodic updates\n3. Train on Pythia-70M using WMDP-bio and WikiText datasets\n4. Compare unlearning performance against baseline and fixed orthogonal SAE\n5. Analyze condition numbers of feature subspaces\n6. Evaluate impact of different \u03b1 values for controlled sharing",
+        "Technical_Details": "The method uses an adaptive objective: L = L_recon + \u03bb_1 * L_sparse + \u03bb_2(t) * L_ortho where \u03bb_2(t) = \u03bb_2_max * min(1, t/t_0) increases linearly until step t_0. L_ortho = ||W_1^T W_2 - \u03b1I||_F allows controlled feature sharing through parameter \u03b1. Feature groups are updated every n=100 steps using efficient batch statistics. Implementation includes early stopping based on condition number thresholds. The decoder uses group-specific bias terms while sharing weights to balance separation and reconstruction quality.",
+        "Research_Impact": "A key challenge in selective unlearning is finding the optimal balance between knowledge separation and model performance. Current approaches either sacrifice reconstruction quality for separation or vice versa. This research addresses the challenge through adaptive training and controlled feature sharing, achieving better separation while maintaining performance. The theoretical framework provides precise control over the separation-performance trade-off.",
+        "Implementation_Plan": "1. Add AdaptiveOrthogonalityLoss with scheduling\n2. Implement efficient batch-wise feature grouping\n3. Modify CustomSAE to include group-specific biases\n4. Add condition number calculation utilities\n5. Update CustomTrainer with adaptive loss weight\n6. Add evaluation metrics for controlled sharing",
+        "Interestingness_Evaluation": "The combination of theoretical insights about feature sharing with practical adaptive training creates a more nuanced and effective approach to knowledge separation.",
         "Interestingness": 9,
-        "Feasibility_Evaluation": "Implementation greatly simplified through correlation tracking and circular buffers; sparse operations ensure efficiency; quantization reduces memory usage; complete implementation feasible within 2 weeks; runtime reduced to 12-min limit on H100 due to optimized design.",
-        "Feasibility": 10,
-        "Novelty_Evaluation": "The integration of temporal correlation tracking with chain-based interventions represents a novel and practical approach to selective knowledge unlearning.",
+        "Feasibility_Evaluation": "The implementation remains efficient with batch-wise updates and simple matrix operations; adaptive weighting adds minimal overhead; controlled sharing through \u03b1 provides easy tuning; all computations well within 30-minute limit on H100.",
+        "Feasibility": 9,
+        "Novelty_Evaluation": "The adaptive approach with controlled feature sharing provides a novel theoretical framework for knowledge separation that bridges the gap between strict orthogonality and practical performance.",
         "Novelty": 9,
-        "Overall_Score": 9.5,
+        "Overall_Score": 9.0,
         "novel": true
 </PROTOTYPE_IDEA>
 
@@ -143,7 +143,6 @@ NEW IDEA JSON:
 <JSON>
 ```
 **IN THE "Abstract" FIELD, BE SURE TO OMIT ALL RESULTS ABOUT IMPROVED PERFORMANCE SINCE THE IDEA HAS NOT BEEN IMPLEMENTED YET (EVEN IF YOU EXPECT SUCH RESULTS).**
-
 If there is nothing to improve, simply repeat the previous JSON EXACTLY after the thought and include "I am done" at the end of the thoughts but before the JSON.
 ONLY INCLUDE "I am done" IF YOU ARE MAKING NO MORE CHANGES."""
 

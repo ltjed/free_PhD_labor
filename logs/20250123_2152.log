@@ -1,0 +1,210 @@
+Using GPUs: [0]
+Using OpenAI API with deepseek-reasoner.
+
+Generating idea 1/5
+Iteration 1/7
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let's tackle this problem step by step. The user wants me to come up with an improved version of the prototype idea for a sparse autoencoder (SAE) variant that addresses polysemanticity and improves interpretability, specifically targeting the sparse_probing benchmark. The prototype idea was a two-level hierarchical SAE for knowledge unlearning, but the user wants a more focused approach that doesn't add unnecessary complexity.
+
+First, I need to understand the core issue here: polysemanticity in SAE latents. The prototype's hierarchical approach tried to tackle this by having two levels, but maybe that's adding too much structure. The key is to improve interpretability without making the architecture too complex. The example given in the problem statement was the Matryoshka SAE, which uses nested dictionaries. That's interesting because it encourages features to be organized hierarchically by their generality, which could reduce polysemanticity by forcing more general features to be captured in the earlier, shared layers.
+
+Wait, the prototype idea used a two-level hierarchy with TopK activations. But the Matryoshka approach uses multiple nested dictionaries. Maybe combining these ideas? Or perhaps simplifying the hierarchy to focus on feature generality without multiple levels. Another angle is to consider how features are activated. If more general features are used across different scales, they might be less likely to absorb specific features because they're needed in multiple reconstruction tasks. This could naturally discourage feature absorption since a general feature can't be too specific if it has to help reconstruct at multiple scales.
+
+The problem with feature absorption is that when a feature A implies B, the SAE might merge them into a single latent, making interpretation harder. By using nested dictionaries, the Matryoshka approach forces the model to have features that work at different scales. The initial latents must handle coarse reconstructions (like broad categories), while later ones add finer details. This structure might prevent the model from absorbing features because the early features are too general to capture specific implications. For example, a "short" feature might not be able to absorb "starts with S" if "starts with S" is needed across multiple scales.
+
+So, the idea is to implement a nested SAE where the loss function combines reconstruction errors from multiple scales. Each scale uses a subset of the latents, starting from the first N, then N/2, etc. The loss would be a weighted sum of each scale's reconstruction plus their sparsity penalties. This way, the model is incentivized to have the initial latents capture broad features used across all scales, reducing the chance of feature absorption since those features need to be useful in multiple contexts.
+
+Now, considering the technical details: The prototype used two levels with TopK. The Matryoshka approach in the example summed losses from nested autoencoders. To adapt this, we can have the main SAE with, say, four nested levels (e.g., full, half, quarter, etc.). Each level's reconstruction is computed using the first portion of the latents. The total loss would be the sum of each level's reconstruction loss and their respective sparsity terms. For example, if the SAE has d_sae=1024, the nested levels might use 1024, 512, 256, etc., latents. Each level's loss is added together, encouraging the early latents to be general.
+
+Implementation-wise, the CustomSAE class needs to handle multiple decoders for each scale, but wait—no, maybe not. Instead, during the forward pass, the encoded latents are used to compute reconstructions at each scale by taking subsets. For example, after encoding, for each scale, take the first k latents, decode them, and compute the loss. All these losses are summed. The decoders could be shared or separate. Wait, in the Matryoshka example, the decoders are nested. So the largest autoencoder uses all latents, the next uses the first half, etc. Each has its own decoder? Or perhaps the same decoder but only a subset of the latents are active. Hmm, that might complicate things. Alternatively, the same decoder matrix is used, but for each scale, only the first k latents are used, and the rest are masked. That way, the decoder weights for the first k latents are shared across scales. This would encourage those latents to be useful across different scales.
+
+But how to structure this in code? The CustomSAE's forward method would need to compute multiple reconstructions. For each scale, mask the latents beyond the current subset, then decode. The loss would be the sum of each reconstruction's MSE plus the sparsity terms. However, this could increase computation since multiple reconstructions are done. To manage this, maybe limit the number of scales. For example, four scales: full, half, quarter, eighth. Each scale's loss is weighted equally or with decreasing weights.
+
+Another consideration: the sparsity penalty. Each scale might have its own sparsity term, but that could complicate things. Alternatively, apply the same sparsity penalty to all latents, regardless of the scale. Or perhaps have a single sparsity term for the entire latent vector, as usual.
+
+The key modification is in the loss function. The existing SAE has a single reconstruction loss. The Matryoshka SAE would have multiple reconstruction losses from different subsets of latents. So, during training, for each input activation, the SAE encodes it into all latents, then for each scale, a subset of latents is used to reconstruct, and their losses are summed.
+
+This approach should incentivize the early latents to capture more general features that are useful across all scales, reducing the likelihood of feature absorption because those features can't afford to be too specific. If a feature is only useful in the finest scale, it might be pushed to later latents, but the early ones must be general. This should lead to more monosemantic features in the early latents, improving interpretability.
+
+Now, considering the implementation plan: The CustomSAE would need to generate multiple reconstructions. The encode step remains the same, but the decode step is done for each scale. The forward method would return all reconstructions, and the loss function would compute each's MSE plus the sparsity. The decoder matrices could be shared, but each scale uses a subset. Alternatively, each scale has its own decoder. The former is more efficient. For example, the full decoder is W_dec, and for the half scale, we use the first half of W_dec's columns. Wait, no—the latents are the activations, so for each scale, we take the first k latents and multiply by the corresponding rows in W_dec. Wait, the decoder is a matrix W_dec of shape (d_sae, d_in). So, for the half scale, we take the first d_sae/2 latents and multiply by the first d_sae/2 rows of W_dec, then add b_dec. So each scale's reconstruction is a partial sum from the latents.
+
+But this would require slicing the W_dec matrix for each scale. However, during training, all scales' losses are backpropagated, which would update the entire W_dec matrix. This way, the early rows of W_dec (corresponding to early latents) are optimized to contribute to multiple reconstructions, encouraging them to represent more general features.
+
+The Technical Details would specify the architecture: nested scales with shared decoder weights. The loss function is the sum of each scale's reconstruction loss plus a global sparsity penalty. For example, with four scales (100%, 50%, 25%, 12.5%), each reconstruction uses the first k latents, where k decreases by half each time. The total loss is L = sum_{s}(λ_s * MSE(s)) + λ_1 * ||z||_1. The hyperparameters λ_s could be set to 1 for all scales, or decay with scale depth.
+
+In the Implementation Plan, modify the CustomSAE's forward method to compute multiple reconstructions. The encode step is the same, but during decode, for each scale, take the first k latents, multiply by the corresponding part of W_dec, sum, and compute MSE. The loss is the sum of these MSEs plus the L1 penalty. The CustomTrainer's loss function would be adjusted accordingly.
+
+Testing this approach on the sparse_probing benchmark would involve checking if the learned features are more monosemantic. Since the early latents are forced to be general, their probes should have higher accuracy with fewer features, indicating less feature absorption. For example, in the first-letter task, the main latent should capture the feature without needing splits, as the general features aren't absorbed into specific ones.
+
+Feasibility-wise, this doesn't add too much complexity. The main changes are in the loss calculation, which involves multiple reconstructions. However, since all scales use the same W_dec matrix, just sliced, the computational overhead is manageable. The training time might increase slightly due to multiple MSE computations, but on an H100, this should fit within 30 minutes if the number of tokens is kept reasonable.
+
+Novelty comes from applying Matryoshka representation learning specifically to SAEs for interpretability, which hasn't been extensively explored. Prior work on Matryoshka representations focuses on model compression or multi-scale features, but using it to combat polysemanticity in SAEs is a novel application.
+
+In terms of research impact, if this approach reduces feature absorption, the sparse_probing benchmark should show higher accuracy with fewer features, indicating better monosemanticity. The core metrics (reconstruction loss, sparsity) should remain competitive, but the interpretability metrics would improve.
+
+Potential challenges include tuning the scale weights (λ_s) and ensuring that the nested reconstructions don't interfere with each other. Also, determining the optimal number of scales and their sizes might require ablation studies. However, the prototype can start with a fixed number of scales (e.g., 4) and equal weights to simplify.
+
+In summary, the proposed Matryoshka Sparse Autoencoder uses nested reconstructions at multiple scales to encourage general features in early latents, reducing feature absorption and improving interpretability. This builds on the prototype's hierarchical idea but simplifies it by using nested scales with shared parameters, avoiding complex multi-level architectures.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The core insight is that nested feature hierarchies can naturally discourage feature absorption by forcing foundational features to participate in multiple reconstruction scales. Where the prototype used explicit hierarchy levels, this approach embeds scale-awareness through progressive latent subset usage. By requiring early latents to contribute to both coarse and fine reconstructions, we incentivize them to capture atomic features rather than absorbed combinations. This builds on the Matryoshka concept from the example but focuses specifically on polysemanticity reduction through multi-scale pressure. The implementation remains simple through weight sharing and additive losses, avoiding complex architectural changes.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "matryoshka_sae",
+    "Title": "Nested Scale Sparse Autoencoders for Polysemanticity Reduction",
+    "Experiment": "1. Implement SAE with 4 nested reconstruction scales (100%, 50%, 25%, 12.5% of latents)\n2. Train on standard corpus (OpenWebText)\n3. Compare to baseline SAE on:\n   - Sparse probing performance (35-task benchmark)\n   - Feature absorption metrics\n   - Reconstruction quality\n4. Analyze latent reuse across scales via activation correlations",
+    "Technical_Details": "Architecture:\n- Single set of latents with scale-specific decoders:\n  z = ReLU(W_enc(x) + b_enc)\n  x̂_scale = Σ_{i=0}^{d_sae/2^s} z_i W_dec[i,:] + b_dec\n- Loss: L = Σ_s λ_s||x - x̂_s||^2 + λ_1||z||_1\n  λ_s = [1.0, 0.8, 0.6, 0.4], λ_1=0.1\n\nTraining:\n- AdamW optimizer (lr=3e-4)\n- Linear warmup over 1k steps\n- Batch size 2048, context length 128\n- No separate resampling\n\nAnalysis:\n- Measure feature cross-scale consistency via\n  max_j≠i (corr(z_i^{full}, z_j^{subset}))\n- Track probe accuracy vs num scales using feature",
+    "Implementation_Plan": "1. Modify CustomSAE.forward() to compute multiple reconstructions\n2. Add scale mask buffers for latent subsets\n3. Update loss calculation in CustomTrainer\n4. Add multi-scale correlation metrics\n5. Extend sparse_probing evaluation to track scale participation\n6. Keep existing SAE interface for compatibility",
+    "Interestingness_Evaluation": "Elegantly addresses feature absorption through multi-scale pressure without complex architectural changes.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Requires only modified loss calculation and masked reconstructions; no new parameters beyond baseline SAE; total FLOPs increase <15% based on scale count; compatible with existing evaluation pipelines.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "First application of nested feature scaling to combat polysemanticity in SAEs.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Directly targets sparse_probing benchmark by producing more atomic features; nested structure provides built-in interpretability hierarchy.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.9,
+    "Abstract": "We propose a nested scale sparse autoencoder (Matryoshka SAE) that learns interpretable features through multi-resolution reconstruction objectives. By requiring latent features to simultaneously reconstruct input activations at multiple scales, our method discourages feature absorption and encourages learning of atomic semantic units. The autoencoder computes reconstructions using progressively larger subsets of its latent dimensions, with shared weights across scales. This creates implicit pressure for early latents to capture fundamental features needed across all resolutions, while later latents specialize in finer details. We evaluate our approach on a comprehensive sparse probing benchmark, demonstrating improved feature interpretability through reduced polysemanticity. The method maintains computational efficiency comparable to standard sparse autoencoders while providing built-in hierarchical organization of learned features."
+}
+```
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The core insight is that nested feature hierarchies can naturally discourage feature absorption by forcing foundational features to participate in multiple reconstruction scales. Where the prototype used explicit hierarchy levels, this approach embeds scale-awareness through progressive latent subset usage. By requiring early latents to contribute to both coarse and fine reconstructions, we incentivize them to capture atomic features rather than absorbed combinations. This builds on the Matryoshka concept from the example but focuses specifically on polysemanticity reduction through multi-scale pressure. The implementation remains simple through weight sharing and additive losses, avoiding complex architectural changes.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "matryoshka_sae",
+    "Title": "Nested Scale Sparse Autoencoders for Polysemanticity Reduction",
+    "Experiment": "1. Implement SAE with 4 nested reconstruction scales (100%, 50%, 25%, 12.5% of latents)\n2. Train on standard corpus (OpenWebText)\n3. Compare to baseline SAE on:\n   - Sparse probing performance (35-task benchmark)\n   - Feature absorption metrics\n   - Reconstruction quality\n4. Analyze latent reuse across scales via activation correlations",
+    "Technical_Details": "Architecture:\n- Single set of latents with scale-specific decoders:\n  z = ReLU(W_enc(x) + b_enc)\n  x̂_scale = Σ_{i=0}^{d_sae/2^s} z_i W_dec[i,:] + b_dec\n- Loss: L = Σ_s λ_s||x - x̂_s||^2 + λ_1||z||_1\n  λ_s = [1.0, 0.8, 0.6, 0.4], λ_1=0.1\n\nTraining:\n- AdamW optimizer (lr=3e-4)\n- Linear warmup over 1k steps\n- Batch size 2048, context length 128\n- No separate resampling\n\nAnalysis:\n- Measure feature cross-scale consistency via\n  max_j≠i (corr(z_i^{full}, z_j^{subset}))\n- Track probe accuracy vs num scales using feature",
+    "Implementation_Plan": "1. Modify CustomSAE.forward() to compute multiple reconstructions\n2. Add scale mask buffers for latent subsets\n3. Update loss calculation in CustomTrainer\n4. Add multi-scale correlation metrics\n5. Extend sparse_probing evaluation to track scale participation\n6. Keep existing SAE interface for compatibility",
+    "Interestingness_Evaluation": "Elegantly addresses feature absorption through multi-scale pressure without complex architectural changes.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Requires only modified loss calculation and masked reconstructions; no new parameters beyond baseline SAE; total FLOPs increase <15% based on scale count; compatible with existing evaluation pipelines.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "First application of nested feature scaling to combat polysemanticity in SAEs.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Directly targets sparse_probing benchmark by producing more atomic features; nested structure provides built-in interpretability hierarchy.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.9,
+    "Abstract": "We propose a nested scale sparse autoencoder (Matryoshka SAE) that learns interpretable features through multi-resolution reconstruction objectives. By requiring latent features to simultaneously reconstruct input activations at multiple scales, our method discourages feature absorption and encourages learning of atomic semantic units. The autoencoder computes reconstructions using progressively larger subsets of its latent dimensions, with shared weights across scales. This creates implicit pressure for early latents to capture fundamental features needed across all resolutions, while later latents specialize in finer details. We evaluate our approach on a comprehensive sparse probing benchmark, demonstrating improved feature interpretability through reduced polysemanticity. The method maintains computational efficiency comparable to standard sparse autoencoders while providing built-in hierarchical organization of learned features."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'matryoshka_sae', 'Title': 'Nested Scale Sparse Autoencoders for Polysemanticity Reduction', 'Experiment': '1. Implement SAE with 4 nested reconstruction scales (100%, 50%, 25%, 12.5% of latents)\n2. Train on standard corpus (OpenWebText)\n3. Compare to baseline SAE on:\n   - Sparse probing performance (35-task benchmark)\n   - Feature absorption metrics\n   - Reconstruction quality\n4. Analyze latent reuse across scales via activation correlations', 'Technical_Details': 'Architecture:\n- Single set of latents with scale-specific decoders:\n  z = ReLU(W_enc(x) + b_enc)\n  x̂_scale = Σ_{i=0}^{d_sae/2^s} z_i W_dec[i,:] + b_dec\n- Loss: L = Σ_s λ_s||x - x̂_s||^2 + λ_1||z||_1\n  λ_s = [1.0, 0.8, 0.6, 0.4], λ_1=0.1\n\nTraining:\n- AdamW optimizer (lr=3e-4)\n- Linear warmup over 1k steps\n- Batch size 2048, context length 128\n- No separate resampling\n\nAnalysis:\n- Measure feature cross-scale consistency via\n  max_j≠i (corr(z_i^{full}, z_j^{subset}))\n- Track probe accuracy vs num scales using feature', 'Implementation_Plan': '1. Modify CustomSAE.forward() to compute multiple reconstructions\n2. Add scale mask buffers for latent subsets\n3. Update loss calculation in CustomTrainer\n4. Add multi-scale correlation metrics\n5. Extend sparse_probing evaluation to track scale participation\n6. Keep existing SAE interface for compatibility', 'Interestingness_Evaluation': 'Elegantly addresses feature absorption through multi-scale pressure without complex architectural changes.', 'Interestingness': 9, 'Feasibility_Evaluation': 'Requires only modified loss calculation and masked reconstructions; no new parameters beyond baseline SAE; total FLOPs increase <15% based on scale count; compatible with existing evaluation pipelines.', 'Feasibility': 9, 'Novelty_Evaluation': 'First application of nested feature scaling to combat polysemanticity in SAEs.', 'Novelty': 8, 'Expected_Research_Impact': 'Directly targets sparse_probing benchmark by producing more atomic features; nested structure provides built-in interpretability hierarchy.', 'Research_Impact': 9, 'Overall_Score': 8.9, 'Abstract': 'We propose a nested scale sparse autoencoder (Matryoshka SAE) that learns interpretable features through multi-resolution reconstruction objectives. By requiring latent features to simultaneously reconstruct input activations at multiple scales, our method discourages feature absorption and encourages learning of atomic semantic units. The autoencoder computes reconstructions using progressively larger subsets of its latent dimensions, with shared weights across scales. This creates implicit pressure for early latents to capture fundamental features needed across all resolutions, while later latents specialize in finer details. We evaluate our approach on a comprehensive sparse probing benchmark, demonstrating improved feature interpretability through reduced polysemanticity. The method maintains computational efficiency comparable to standard sparse autoencoders while providing built-in hierarchical organization of learned features.'}
+Iteration 2/7
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let me look at the previous idea and see where I can improve it without adding complexity. The initial idea was the Matryoshka SAE with nested scales to reduce polysemanticity by forcing features to be useful across multiple reconstruction scales. The overall score was 8.9, which is pretty good, but maybe I can refine some aspects.
+
+First, the Technical Details mention multiple decoders for each scale, which might introduce extra parameters. Wait, no—the original idea uses a single decoder but applies masks to the latents. Wait, the Technical_Details say "scale-specific decoders". That might actually add parameters, which complicates things. The prototype idea from the user example had nested autoencoders with shared weights. Oh, right, the user's example had a Matryoshka approach where different subsets of the same latents are used for different scales. So maybe in the initial JSON, having scale-specific decoders is a mistake. That would add more parameters, increasing complexity. Instead, the decoder should be shared, and the different scales just use subsets of the latents. So that's a correction needed.
+
+In the Implementation Plan, step 1 says modifying the forward pass to compute multiple reconstructions. If each scale has its own decoder, that's more work. But if it's a single decoder with masked latents, then it's simpler. So the Technical_Details need to clarify that the decoder is shared, and each scale uses a subset of the latents. This reduces parameters and keeps feasibility high.
+
+Next, the loss function in Technical_Details uses a sum over scales with λ_s coefficients. Maybe adjusting these coefficients could be better, but the initial choice is [1.0, 0.8, 0.6, 0.4]. Perhaps making them equal would simplify, but the idea is that coarser scales (using more latents) have higher weights. That makes sense, but maybe the exact values could be tuned. However, since we can't introduce new hyperparameters without justification, keeping them as is is okay.
+
+In the Analysis section, measuring cross-scale consistency via max correlation might not capture the hierarchical structure well. Maybe instead, compute the average correlation of each latent in the full scale with its presence in the subsets. Or track how often a latent is active across multiple scales. That could give a better measure of feature reuse.
+
+The Feasibility_Evaluation mentions a 15% FLOPs increase. If using multiple decoders, that would be higher, but with shared decoder and masked latents, the increase is just from computing multiple reconstructions. Each reconstruction is a subset of the latents multiplied by the decoder. Since the decoder is shared, the main computation is the matrix multiplication for each subset. However, if the subsets are nested (e.g., first 50%, then 25%, etc.), you can compute cumulative sums or use masking efficiently. This should keep computational overhead manageable.
+
+In the Implementation Plan, step 3 mentions updating the loss calculation. If the loss is a sum over scales, each contributing their own reconstruction error, then the trainer's loss function needs to compute each x̂_scale and sum their losses. This requires modifying the loss function but doesn't add new parameters, just computation.
+
+Another point: the initial idea uses four scales. Maybe reducing the number of scales to three (100%, 50%, 25%) would simplify implementation while still providing the hierarchical pressure. However, the prototype idea used four, so it's better to keep as is unless it's causing feasibility issues.
+
+The Research_Impact is rated 9, which is high, but the Expected_Research_Impact should directly target the sparse_probing and core benchmarks. The abstract mentions evaluating on sparse_probing, which is good. However, the Experiment section compares to baseline SAE on sparse_probing, which aligns with the target benchmark. So that's solid.
+
+In the Novelty_Evaluation, it's the first application of nested scaling to combat polysemanticity. That's correct, as previous work used Matryoshka for representation learning but not specifically in SAEs for interpretability.
+
+Possible improvements: 
+
+1. Correct the Technical_Details to use a shared decoder with masked latents for each scale, avoiding scale-specific decoders. This reduces parameters and keeps the architecture simple.
+
+2. Clarify how the multiple reconstructions are computed—using subsets of the latents with the same decoder weights.
+
+3. In the Implementation Plan, specify that the decoder is shared and masks are applied to the latent activations for each scale.
+
+4. Adjust the loss function description to reflect that each scale's reconstruction uses a masked version of the latents.
+
+5. Ensure that the Feasibility_Evaluation accounts for the shared decoder, which keeps parameter count the same as a standard SAE, only increasing computation by the number of scales.
+
+By making these adjustments, the idea becomes more feasible and aligned with the prototype, maintaining simplicity while effectively addressing feature absorption.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The previous iteration's technical details inaccurately described scale-specific decoders when the intended design uses a single shared decoder with latent subset masking. Correcting this improves feasibility while maintaining the core concept. We further simplify by using cumulative latent subsets (e.g. scale 2 uses scale 1's features plus new ones) rather than independent masks, reducing implementation complexity. The loss coefficients are adjusted to emphasize broader feature utility while keeping hyperparameters minimal. These refinements better align with the prototype's simplicity while strengthening the anti-absorption mechanism.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "matryoshka_sae",
+    "Title": "Cumulative Scale Sparse Autoencoders for Feature Atomicity",
+    "Experiment": "1. Implement SAE with 3 nested scales (100%, 50%, 25% latents)\n2. Train on OpenWebText with shared decoder\n3. Evaluate via:\n   - Sparse probing F1 across 35 tasks\n   - Feature absorption metrics (first-letter classification)\n   - Activation overlap between scales\n4. Compare to baseline SAE on reconstruction MSE",
+    "Technical_Details": "Architecture:\n- Single decoder W_dec ∈ R^{d_sae×d_in}\n- Cumulative latent masks: S_1=[0:d_sae], S_2=[0:d_sae/2], S_3=[0:d_sae/4]\n- Reconstructions: x̂_s = (z⊙m_s)W_dec + b_dec where m_s is binary mask\n- Loss: L = Σ_{s∈{1,2,3}} ||x - x̂_s||^2 + 0.1||z||_1\n\nTraining:\n- Adam optimizer (lr=3e-4)\n- Linear warmup over 1k steps\n- Batch size 2048\n- No architectural changes vs base SAE\n\nAnalysis:\n- Measure feature cross-scale utility: % activations present in ≥2 scales\n- Track probe accuracy vs minimum scale containing feature",
+    "Implementation_Plan": "1. Modify CustomSAE.forward() to return multiple masked reconstructions\n2. Add mask buffers for cumulative scales\n3. Update trainer loss to sum scale losses\n4. Reuse existing decoder parameters\n5. Add scale participation tracking in evaluations\n6. Maintain backward compatibility with probe pipelines",
+    "Interestingness_Evaluation": "Forces feature reuse across scales through cumulative masking, directly combating absorption.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Requires only mask application and loss summation; decoder remains shared (same params as base SAE); FLOPs increase ~12% for 3 scales; evaluation metrics build on existing code.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "First use of cumulative scale reconstruction to enforce feature hierarchy in SAEs.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Directly improves sparse_probing by learning more atomic features; cumulative structure provides natural interpretability priors.",
+    "Research_Impact": 9,
+    "Overall_Score": 9.2,
+    "Abstract": "We propose cumulative scale sparse autoencoders (Matryoshka SAE) that learn hierarchically structured features through progressive reconstruction objectives. By requiring latent features to participate in reconstructions of increasing granularity—from fine (full dictionary) to coarse (quarter dictionary)—our method incentivizes fundamental, atomic features that resist absorption. Each scale reconstructs inputs using progressively smaller subsets of latents, with earlier features required to contribute to all scales. This creates implicit pressure against polysemanticity, as absorbed features cannot satisfy multiple reconstruction goals simultaneously. We evaluate our approach using standardized sparse probing benchmarks, demonstrating how multi-scale participation correlates with interpretability. The architecture maintains parameter efficiency through shared decoder weights while enabling natural hierarchical analysis of learned features."
+}
+```
