@@ -1,0 +1,1890 @@
+Using GPUs: [0]
+Using Anthropic API with model claude-3-5-sonnet-20241022.
+
+Generating idea 1/15
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea introduces orthogonality constraints to improve feature separation, but I believe we can refine this approach in a more targeted way. Instead of enforcing orthogonality across all features, we can focus on maximizing the distinctiveness of highly activated features within each batch. This builds on the core insight of the prototype while being more computationally efficient and potentially more effective.
+
+The key modification is to introduce a "feature distinctiveness loss" that encourages highly activated features to have minimal overlap in their decoder weights, while not constraining less activated features. This is more nuanced than blanket orthogonality and directly addresses the polysemanticity problem by focusing on the most relevant features for each input.
+
+This refinement maintains the spirit of the prototype idea but:
+1. Reduces computational overhead by only considering highly activated features
+2. More directly targets polysemanticity where it matters most
+3. Avoids potential issues with strict orthogonality that might harm reconstruction
+4. Keeps the implementation simple with minimal additional parameters
+
+I expect this to work better for mechanistic interpretability because it:
+- Focuses optimization where interpretability matters most (highly activated features)
+- Allows natural feature sharing where appropriate while preventing harmful overlap
+- Maintains good reconstruction while improving feature separation
+- Is more aligned with how humans interpret concepts (distinct when important, allowed to overlap when less relevant)
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "selective_distinctiveness_sae",
+    "Title": "Selective Feature Distinctiveness for Improved Interpretability in Sparse Autoencoders",
+    "Experiment": "1. Modify loss function to include feature distinctiveness term\n2. Implement activation-weighted feature similarity calculation\n3. Add threshold-based feature selection\n4. Train on standard datasets with varying distinctiveness weights\n5. Evaluate impact on feature interpretability metrics\n6. Compare against baseline SAE on sparse probing tasks",
+    "Technical_Details": "The method introduces a selective distinctiveness loss: L = L_recon + λ_1 * L_sparse + λ_2 * L_distinct where L_distinct = Σ_ij a_i * a_j * cos_sim(w_i, w_j) for features i,j with activations a_i, a_j above threshold τ. w_i represents decoder weights for feature i. The loss only penalizes similarity between highly activated features (a > τ), allowing natural feature sharing elsewhere. τ is set to the 90th percentile of activations in each batch. λ_2 is fixed at 0.1 to balance distinctiveness and reconstruction.",
+    "Implementation_Plan": "1. Add feature_distinctiveness_loss function to compute activation-weighted cosine similarities\n2. Modify CustomTrainer to incorporate new loss term\n3. Add activation threshold calculation\n4. Implement efficient batch processing for similarity computation\n5. Add logging for feature distinctiveness metrics\n6. Update evaluation code to track feature separation",
+    "Interestingness_Evaluation": "The selective approach provides an elegant solution to the trade-off between feature separation and reconstruction quality by focusing optimization where it matters most.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation requires only simple matrix operations and can use efficient batch processing; the additional loss term adds minimal computational overhead; all components are straightforward to implement with PyTorch; experiment runs well within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The activation-weighted approach to feature separation provides a novel and more nuanced alternative to existing methods.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The focused approach to feature separation should directly improve sparse probing performance by making highly activated features more distinct and interpretable, while maintaining good reconstruction scores in core metrics.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "We present a novel approach to improving feature interpretability in sparse autoencoders through selective distinctiveness optimization. Rather than enforcing blanket constraints across all features, our method dynamically identifies and separates highly activated features within each batch while allowing natural feature sharing elsewhere. This selective approach directly targets the polysemanticity problem where it matters most - in the features that are most relevant for each input. We introduce an activation-weighted distinctiveness loss that encourages separation between strongly activated features while maintaining the autoencoder's reconstruction capabilities. Our method builds on existing sparse autoencoder architectures with minimal modifications, providing a practical path toward more interpretable feature representations."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'selective_distinctiveness_sae', 'Title': 'Selective Feature Distinctiveness for Improved Interpretability in Sparse Autoencoders', 'Experiment': '1. Modify loss function to include feature distinctiveness term\n2. Implement activation-weighted feature similarity calculation\n3. Add threshold-based feature selection\n4. Train on standard datasets with varying distinctiveness weights\n5. Evaluate impact on feature interpretability metrics\n6. Compare against baseline SAE on sparse probing tasks', 'Technical_Details': 'The method introduces a selective distinctiveness loss: L = L_recon + λ_1 * L_sparse + λ_2 * L_distinct where L_distinct = Σ_ij a_i * a_j * cos_sim(w_i, w_j) for features i,j with activations a_i, a_j above threshold τ. w_i represents decoder weights for feature i. The loss only penalizes similarity between highly activated features (a > τ), allowing natural feature sharing elsewhere. τ is set to the 90th percentile of activations in each batch. λ_2 is fixed at 0.1 to balance distinctiveness and reconstruction.', 'Implementation_Plan': '1. Add feature_distinctiveness_loss function to compute activation-weighted cosine similarities\n2. Modify CustomTrainer to incorporate new loss term\n3. Add activation threshold calculation\n4. Implement efficient batch processing for similarity computation\n5. Add logging for feature distinctiveness metrics\n6. Update evaluation code to track feature separation', 'Interestingness_Evaluation': 'The selective approach provides an elegant solution to the trade-off between feature separation and reconstruction quality by focusing optimization where it matters most.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation requires only simple matrix operations and can use efficient batch processing; the additional loss term adds minimal computational overhead; all components are straightforward to implement with PyTorch; experiment runs well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'The activation-weighted approach to feature separation provides a novel and more nuanced alternative to existing methods.', 'Novelty': 7, 'Expected_Research_Impact': 'The focused approach to feature separation should directly improve sparse probing performance by making highly activated features more distinct and interpretable, while maintaining good reconstruction scores in core metrics.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': "We present a novel approach to improving feature interpretability in sparse autoencoders through selective distinctiveness optimization. Rather than enforcing blanket constraints across all features, our method dynamically identifies and separates highly activated features within each batch while allowing natural feature sharing elsewhere. This selective approach directly targets the polysemanticity problem where it matters most - in the features that are most relevant for each input. We introduce an activation-weighted distinctiveness loss that encourages separation between strongly activated features while maintaining the autoencoder's reconstruction capabilities. Our method builds on existing sparse autoencoder architectures with minimal modifications, providing a practical path toward more interpretable feature representations."}
+Iteration 2/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Reflecting on the previous idea, I realize several areas for improvement:
+
+1. The 90th percentile threshold for activation was arbitrary and could be suboptimal. Instead, we can use a more principled approach based on the L1 sparsity target.
+
+2. The fixed λ_2 weight doesn't account for the natural scale of the distinctiveness loss, which could vary significantly across batches. We should normalize this term.
+
+3. The current approach might still waste computation on features that are only moderately activated. We can make it more efficient by using a hard top-k selection.
+
+These refinements make the method more principled and computationally efficient while maintaining the core insight of selective distinctiveness. The key improvement is linking the feature selection more directly to the SAE's sparsity objective, making the approach more theoretically grounded.
+
+For mechanistic interpretability, these changes should help by:
+- Better aligning feature separation with the SAE's core sparsity objective
+- Ensuring more consistent optimization behavior across different batches
+- Focusing even more precisely on the most relevant features
+
+The implementation remains simple but more principled, which should lead to more reliable improvements in interpretability.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "adaptive_distinctiveness_sae",
+    "Title": "Adaptive Feature Distinctiveness for Improved Interpretability in Sparse Autoencoders",
+    "Experiment": "1. Implement dynamic feature selection based on L1 target\n2. Add normalized distinctiveness loss\n3. Modify training loop for efficient top-k computation\n4. Train with different sparsity targets\n5. Evaluate feature separation quality\n6. Compare against baseline on interpretability metrics",
+    "Technical_Details": "The method uses L = L_recon + λ_1 * L_sparse + λ_2 * (L_distinct / N_pairs) where L_distinct = Σ_ij cos_sim(w_i, w_j) for the top-k most activated features per batch. k is set dynamically as k = ceiling(n * s) where n is feature count and s is the target sparsity ratio from L_sparse. N_pairs = k * (k-1) / 2 normalizes the distinctiveness loss by number of feature pairs. Features are selected using an efficient top-k operation on activation magnitudes.",
+    "Implementation_Plan": "1. Add get_top_k_features function using torch.topk\n2. Implement normalized_distinctiveness_loss with efficient matrix operations\n3. Modify CustomTrainer to use dynamic k selection\n4. Add sparsity-based normalization\n5. Update logging for normalized metrics\n6. Optimize batch processing for top-k selection",
+    "Interestingness_Evaluation": "The adaptive approach provides a principled connection between sparsity objectives and feature separation, with efficient computation focused on the most relevant features.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation complexity remains minimal with standard PyTorch operations; top-k selection and normalized loss add negligible overhead; all components are straightforward to implement; experiment runs well within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The dynamic feature selection linked to sparsity targets provides a novel and principled approach to feature separation.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "The more principled approach to feature selection and normalized loss should lead to more consistent and interpretable features, improving performance on both sparse probing and core metrics.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.7,
+    "Abstract": "We propose an adaptive approach to improving feature interpretability in sparse autoencoders through dynamic feature distinctiveness optimization. Our method explicitly links feature selection to the autoencoder's sparsity objective, selecting the top-k most activated features where k is determined by the target sparsity ratio. We introduce a normalized distinctiveness loss that encourages separation between selected features while accounting for batch-wise variations in feature activation patterns. The method maintains computational efficiency through focused optimization on the most relevant features per batch. By tightly coupling feature separation with the core sparsity objective, our approach provides a principled framework for learning more interpretable representations while preserving the autoencoder's fundamental capabilities."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'adaptive_distinctiveness_sae', 'Title': 'Adaptive Feature Distinctiveness for Improved Interpretability in Sparse Autoencoders', 'Experiment': '1. Implement dynamic feature selection based on L1 target\n2. Add normalized distinctiveness loss\n3. Modify training loop for efficient top-k computation\n4. Train with different sparsity targets\n5. Evaluate feature separation quality\n6. Compare against baseline on interpretability metrics', 'Technical_Details': 'The method uses L = L_recon + λ_1 * L_sparse + λ_2 * (L_distinct / N_pairs) where L_distinct = Σ_ij cos_sim(w_i, w_j) for the top-k most activated features per batch. k is set dynamically as k = ceiling(n * s) where n is feature count and s is the target sparsity ratio from L_sparse. N_pairs = k * (k-1) / 2 normalizes the distinctiveness loss by number of feature pairs. Features are selected using an efficient top-k operation on activation magnitudes.', 'Implementation_Plan': '1. Add get_top_k_features function using torch.topk\n2. Implement normalized_distinctiveness_loss with efficient matrix operations\n3. Modify CustomTrainer to use dynamic k selection\n4. Add sparsity-based normalization\n5. Update logging for normalized metrics\n6. Optimize batch processing for top-k selection', 'Interestingness_Evaluation': 'The adaptive approach provides a principled connection between sparsity objectives and feature separation, with efficient computation focused on the most relevant features.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation complexity remains minimal with standard PyTorch operations; top-k selection and normalized loss add negligible overhead; all components are straightforward to implement; experiment runs well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'The dynamic feature selection linked to sparsity targets provides a novel and principled approach to feature separation.', 'Novelty': 8, 'Expected_Research_Impact': 'The more principled approach to feature selection and normalized loss should lead to more consistent and interpretable features, improving performance on both sparse probing and core metrics.', 'Research_Impact': 9, 'Overall_Score': 8.7, 'Abstract': "We propose an adaptive approach to improving feature interpretability in sparse autoencoders through dynamic feature distinctiveness optimization. Our method explicitly links feature selection to the autoencoder's sparsity objective, selecting the top-k most activated features where k is determined by the target sparsity ratio. We introduce a normalized distinctiveness loss that encourages separation between selected features while accounting for batch-wise variations in feature activation patterns. The method maintains computational efficiency through focused optimization on the most relevant features per batch. By tightly coupling feature separation with the core sparsity objective, our approach provides a principled framework for learning more interpretable representations while preserving the autoencoder's fundamental capabilities."}
+Iteration 3/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+After reviewing the previous idea, I notice several potential issues:
+
+1. The top-k selection based purely on activation magnitude might miss important semantic relationships. We should consider both magnitude and feature similarity.
+
+2. The normalization by N_pairs doesn't account for potential sparsity patterns in the similarity matrix itself.
+
+3. The dynamic k selection might lead to instability during training as the sparsity level fluctuates.
+
+However, I realize that addressing these issues would introduce unnecessary complexity and potentially deviate from the prototype idea's spirit. The current version already achieves a good balance between:
+- Principled feature selection through sparsity-based k
+- Efficient computation with normalized loss
+- Simple implementation with standard operations
+- Clear connection to interpretability goals
+
+Any further modifications would likely:
+- Increase implementation complexity
+- Add computational overhead
+- Make the method harder to understand and analyze
+- Risk overcomplicating the core insight
+
+Therefore, I believe the current version represents an optimal point in the trade-off between sophistication and practicality.
+
+I am done
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "adaptive_distinctiveness_sae",
+    "Title": "Adaptive Feature Distinctiveness for Improved Interpretability in Sparse Autoencoders",
+    "Experiment": "1. Implement dynamic feature selection based on L1 target\n2. Add normalized distinctiveness loss\n3. Modify training loop for efficient top-k computation\n4. Train with different sparsity targets\n5. Evaluate feature separation quality\n6. Compare against baseline on interpretability metrics",
+    "Technical_Details": "The method uses L = L_recon + λ_1 * L_sparse + λ_2 * (L_distinct / N_pairs) where L_distinct = Σ_ij cos_sim(w_i, w_j) for the top-k most activated features per batch. k is set dynamically as k = ceiling(n * s) where n is feature count and s is the target sparsity ratio from L_sparse. N_pairs = k * (k-1) / 2 normalizes the distinctiveness loss by number of feature pairs. Features are selected using an efficient top-k operation on activation magnitudes.",
+    "Implementation_Plan": "1. Add get_top_k_features function using torch.topk\n2. Implement normalized_distinctiveness_loss with efficient matrix operations\n3. Modify CustomTrainer to use dynamic k selection\n4. Add sparsity-based normalization\n5. Update logging for normalized metrics\n6. Optimize batch processing for top-k selection",
+    "Interestingness_Evaluation": "The adaptive approach provides a principled connection between sparsity objectives and feature separation, with efficient computation focused on the most relevant features.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation complexity remains minimal with standard PyTorch operations; top-k selection and normalized loss add negligible overhead; all components are straightforward to implement; experiment runs well within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The dynamic feature selection linked to sparsity targets provides a novel and principled approach to feature separation.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "The more principled approach to feature selection and normalized loss should lead to more consistent and interpretable features, improving performance on both sparse probing and core metrics.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.7,
+    "Abstract": "We propose an adaptive approach to improving feature interpretability in sparse autoencoders through dynamic feature distinctiveness optimization. Our method explicitly links feature selection to the autoencoder's sparsity objective, selecting the top-k most activated features where k is determined by the target sparsity ratio. We introduce a normalized distinctiveness loss that encourages separation between selected features while accounting for batch-wise variations in feature activation patterns. The method maintains computational efficiency through focused optimization on the most relevant features per batch. By tightly coupling feature separation with the core sparsity objective, our approach provides a principled framework for learning more interpretable representations while preserving the autoencoder's fundamental capabilities."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'adaptive_distinctiveness_sae', 'Title': 'Adaptive Feature Distinctiveness for Improved Interpretability in Sparse Autoencoders', 'Experiment': '1. Implement dynamic feature selection based on L1 target\n2. Add normalized distinctiveness loss\n3. Modify training loop for efficient top-k computation\n4. Train with different sparsity targets\n5. Evaluate feature separation quality\n6. Compare against baseline on interpretability metrics', 'Technical_Details': 'The method uses L = L_recon + λ_1 * L_sparse + λ_2 * (L_distinct / N_pairs) where L_distinct = Σ_ij cos_sim(w_i, w_j) for the top-k most activated features per batch. k is set dynamically as k = ceiling(n * s) where n is feature count and s is the target sparsity ratio from L_sparse. N_pairs = k * (k-1) / 2 normalizes the distinctiveness loss by number of feature pairs. Features are selected using an efficient top-k operation on activation magnitudes.', 'Implementation_Plan': '1. Add get_top_k_features function using torch.topk\n2. Implement normalized_distinctiveness_loss with efficient matrix operations\n3. Modify CustomTrainer to use dynamic k selection\n4. Add sparsity-based normalization\n5. Update logging for normalized metrics\n6. Optimize batch processing for top-k selection', 'Interestingness_Evaluation': 'The adaptive approach provides a principled connection between sparsity objectives and feature separation, with efficient computation focused on the most relevant features.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation complexity remains minimal with standard PyTorch operations; top-k selection and normalized loss add negligible overhead; all components are straightforward to implement; experiment runs well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'The dynamic feature selection linked to sparsity targets provides a novel and principled approach to feature separation.', 'Novelty': 8, 'Expected_Research_Impact': 'The more principled approach to feature selection and normalized loss should lead to more consistent and interpretable features, improving performance on both sparse probing and core metrics.', 'Research_Impact': 9, 'Overall_Score': 8.7, 'Abstract': "We propose an adaptive approach to improving feature interpretability in sparse autoencoders through dynamic feature distinctiveness optimization. Our method explicitly links feature selection to the autoencoder's sparsity objective, selecting the top-k most activated features where k is determined by the target sparsity ratio. We introduce a normalized distinctiveness loss that encourages separation between selected features while accounting for batch-wise variations in feature activation patterns. The method maintains computational efficiency through focused optimization on the most relevant features per batch. By tightly coupling feature separation with the core sparsity objective, our approach provides a principled framework for learning more interpretable representations while preserving the autoencoder's fundamental capabilities."}
+Idea generation converged after 3 iterations.
+
+Generating idea 2/15
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea introduces orthogonality constraints to improve feature separation, but its complexity with adaptive scheduling and group-specific biases may hinder practical implementation and interpretability. I propose refining this idea by focusing specifically on encouraging distinct feature subspaces through a simpler, more targeted approach.
+
+The key insight is that we can achieve better feature separation by modifying the reconstruction loss to operate on disjoint subsets of the input dimensions. This naturally encourages the learned features to specialize in reconstructing different aspects of the input, leading to more interpretable representations without requiring explicit orthogonality constraints or complex grouping mechanisms.
+
+This refinement maintains the core goal of feature separation while:
+1. Simplifying the implementation by removing adaptive scheduling and group-specific parameters
+2. Making the approach more interpretable by directly tying features to input dimensions
+3. Retaining computational efficiency through simple masking operations
+
+The modification should improve mechanistic interpretability because:
+1. Features are naturally encouraged to specialize in distinct aspects of the input
+2. The relationship between features and input dimensions becomes more transparent
+3. The simpler approach reduces potential confounding effects from complex regularization
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "subspace_sae",
+    "Title": "Subspace-Specialized Sparse Autoencoders for Enhanced Feature Disentanglement",
+    "Experiment": "1. Implement dimension-based feature specialization through masked reconstruction\n2. Create fixed random assignments of input dimensions to feature groups\n3. Modify reconstruction loss to operate on assigned dimensions\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature activation patterns across input dimensions",
+    "Technical_Details": "The method partitions the input dimensions into K overlapping groups, where K is a hyperparameter (default K=4). Each group is assigned (d_in/K)*1.5 random dimensions with 50% overlap allowed between groups. During training, each feature is assigned to a group and can only contribute to reconstructing the dimensions in that group. This is implemented via masked reconstruction loss: L = ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k and ⊙ is element-wise multiplication. The masks are fixed during training but features can switch groups if their reconstruction error in another group is consistently lower.",
+    "Implementation_Plan": "1. Add dimension grouping initialization to CustomSAE.__init__\n2. Create reconstruction masks based on dimension groups\n3. Modify forward pass to apply masks during reconstruction\n4. Update loss calculation to use masked reconstruction\n5. Add feature group assignment tracking and updates\n6. Implement evaluation metrics for dimension-specific reconstruction",
+    "Interestingness_Evaluation": "The approach provides a simple yet powerful mechanism for encouraging natural feature specialization without complex constraints or regularization.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "The implementation requires only basic tensor operations and masking, with minimal computational overhead; the fixed grouping structure eliminates complex dynamic updates; all operations are highly parallelizable and well within the 30-minute constraint on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While dimension-based specialization has been explored in other contexts, its application to sparse autoencoders for mechanistic interpretability is novel.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The approach should significantly improve sparse probing performance by encouraging features to specialize in specific input dimensions, making them more interpretable and better aligned with human-understandable concepts.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "We present a novel approach to improving feature interpretability in sparse autoencoders through dimension-specialized reconstruction. Our method partitions input dimensions into overlapping groups and encourages features to specialize in reconstructing specific dimension subsets. This natural specialization mechanism promotes the emergence of more interpretable features without requiring complex orthogonality constraints or adaptive regularization schemes. We introduce a simple yet effective masking-based training procedure that maintains computational efficiency while encouraging features to capture distinct aspects of the input. Our approach addresses the fundamental challenge of feature disentanglement in sparse autoencoders while remaining practical and scalable."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'subspace_sae', 'Title': 'Subspace-Specialized Sparse Autoencoders for Enhanced Feature Disentanglement', 'Experiment': '1. Implement dimension-based feature specialization through masked reconstruction\n2. Create fixed random assignments of input dimensions to feature groups\n3. Modify reconstruction loss to operate on assigned dimensions\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature activation patterns across input dimensions', 'Technical_Details': 'The method partitions the input dimensions into K overlapping groups, where K is a hyperparameter (default K=4). Each group is assigned (d_in/K)*1.5 random dimensions with 50% overlap allowed between groups. During training, each feature is assigned to a group and can only contribute to reconstructing the dimensions in that group. This is implemented via masked reconstruction loss: L = ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k and ⊙ is element-wise multiplication. The masks are fixed during training but features can switch groups if their reconstruction error in another group is consistently lower.', 'Implementation_Plan': '1. Add dimension grouping initialization to CustomSAE.__init__\n2. Create reconstruction masks based on dimension groups\n3. Modify forward pass to apply masks during reconstruction\n4. Update loss calculation to use masked reconstruction\n5. Add feature group assignment tracking and updates\n6. Implement evaluation metrics for dimension-specific reconstruction', 'Interestingness_Evaluation': 'The approach provides a simple yet powerful mechanism for encouraging natural feature specialization without complex constraints or regularization.', 'Interestingness': 8, 'Feasibility_Evaluation': 'The implementation requires only basic tensor operations and masking, with minimal computational overhead; the fixed grouping structure eliminates complex dynamic updates; all operations are highly parallelizable and well within the 30-minute constraint on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While dimension-based specialization has been explored in other contexts, its application to sparse autoencoders for mechanistic interpretability is novel.', 'Novelty': 7, 'Expected_Research_Impact': 'The approach should significantly improve sparse probing performance by encouraging features to specialize in specific input dimensions, making them more interpretable and better aligned with human-understandable concepts.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'We present a novel approach to improving feature interpretability in sparse autoencoders through dimension-specialized reconstruction. Our method partitions input dimensions into overlapping groups and encourages features to specialize in reconstructing specific dimension subsets. This natural specialization mechanism promotes the emergence of more interpretable features without requiring complex orthogonality constraints or adaptive regularization schemes. We introduce a simple yet effective masking-based training procedure that maintains computational efficiency while encouraging features to capture distinct aspects of the input. Our approach addresses the fundamental challenge of feature disentanglement in sparse autoencoders while remaining practical and scalable.'}
+Iteration 2/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Upon review, while the previous idea has merit, I believe the overall score of 8.3 was too optimistic. The dimension-based specialization approach could be simplified further while potentially achieving better results. The key issues with the previous version were:
+
+1. The overlapping groups add unnecessary complexity
+2. The feature group switching mechanism is an additional complication
+3. The random assignment of dimensions lacks principled motivation
+
+I propose refining the idea by:
+1. Using non-overlapping groups for cleaner separation
+2. Making group assignments fixed throughout training
+3. Using a principled dimension grouping based on correlation patterns
+
+This simplification makes the approach more feasible while maintaining its core benefits. The correlation-based grouping provides a better foundation for feature specialization compared to random assignment, as it encourages features to capture naturally occurring patterns in the data.
+
+Additionally, this version aligns more closely with the prototype idea's goal of orthogonal feature learning, as non-overlapping dimension groups naturally lead to more orthogonal features without requiring explicit constraints.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "structured_subspace_sae",
+    "Title": "Structured Subspace Learning in Sparse Autoencoders via Correlation-Guided Dimension Partitioning",
+    "Experiment": "1. Implement correlation-based dimension grouping\n2. Create non-overlapping dimension partitions\n3. Modify reconstruction loss for strict partition-based learning\n4. Compare feature interpretability against baseline SAE\n5. Analyze learned feature-dimension relationships",
+    "Technical_Details": "The method begins by computing the correlation matrix of input dimensions using a small batch of data. Dimensions are then partitioned into K non-overlapping groups (default K=8) using a simple greedy algorithm that assigns highly correlated dimensions to the same group. During training, each feature is permanently assigned to one group and can only reconstruct dimensions within that group. The loss function becomes L = Σ_k ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k and ⊙ is element-wise multiplication. The masks are fixed throughout training, ensuring stable feature specialization.",
+    "Implementation_Plan": "1. Add correlation computation and grouping to CustomSAE.__init__\n2. Create fixed reconstruction masks based on correlation groups\n3. Modify forward pass to apply group masks\n4. Update loss calculation for group-specific reconstruction\n5. Add evaluation metrics for feature specialization",
+    "Interestingness_Evaluation": "The correlation-based grouping provides a principled foundation for feature specialization while maintaining simplicity.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "The implementation is highly feasible with simple correlation computation and masking operations; the fixed grouping structure and removal of switching mechanism reduces complexity; correlation computation adds minimal overhead at initialization only; well within 30-minute constraint on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While correlation-based grouping is a known technique, its application to sparse autoencoder training for interpretability is novel.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The structured approach to feature specialization should improve interpretability by aligning features with natural correlations in the data, enhancing performance on sparse probing tasks.",
+    "Research_Impact": 8,
+    "Overall_Score": 7.9,
+    "Abstract": "We introduce a structured approach to improving feature interpretability in sparse autoencoders through correlation-guided dimension partitioning. Our method leverages natural correlations in the input space to create non-overlapping dimension groups, encouraging features to specialize in reconstructing semantically related aspects of the input. By assigning features to fixed dimension groups based on correlation patterns, we promote the emergence of specialized, interpretable features without requiring complex training dynamics or explicit constraints. This approach provides a simple yet principled foundation for feature disentanglement in sparse autoencoders while maintaining computational efficiency."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'structured_subspace_sae', 'Title': 'Structured Subspace Learning in Sparse Autoencoders via Correlation-Guided Dimension Partitioning', 'Experiment': '1. Implement correlation-based dimension grouping\n2. Create non-overlapping dimension partitions\n3. Modify reconstruction loss for strict partition-based learning\n4. Compare feature interpretability against baseline SAE\n5. Analyze learned feature-dimension relationships', 'Technical_Details': 'The method begins by computing the correlation matrix of input dimensions using a small batch of data. Dimensions are then partitioned into K non-overlapping groups (default K=8) using a simple greedy algorithm that assigns highly correlated dimensions to the same group. During training, each feature is permanently assigned to one group and can only reconstruct dimensions within that group. The loss function becomes L = Σ_k ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k and ⊙ is element-wise multiplication. The masks are fixed throughout training, ensuring stable feature specialization.', 'Implementation_Plan': '1. Add correlation computation and grouping to CustomSAE.__init__\n2. Create fixed reconstruction masks based on correlation groups\n3. Modify forward pass to apply group masks\n4. Update loss calculation for group-specific reconstruction\n5. Add evaluation metrics for feature specialization', 'Interestingness_Evaluation': 'The correlation-based grouping provides a principled foundation for feature specialization while maintaining simplicity.', 'Interestingness': 7, 'Feasibility_Evaluation': 'The implementation is highly feasible with simple correlation computation and masking operations; the fixed grouping structure and removal of switching mechanism reduces complexity; correlation computation adds minimal overhead at initialization only; well within 30-minute constraint on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While correlation-based grouping is a known technique, its application to sparse autoencoder training for interpretability is novel.', 'Novelty': 6, 'Expected_Research_Impact': 'The structured approach to feature specialization should improve interpretability by aligning features with natural correlations in the data, enhancing performance on sparse probing tasks.', 'Research_Impact': 8, 'Overall_Score': 7.9, 'Abstract': 'We introduce a structured approach to improving feature interpretability in sparse autoencoders through correlation-guided dimension partitioning. Our method leverages natural correlations in the input space to create non-overlapping dimension groups, encouraging features to specialize in reconstructing semantically related aspects of the input. By assigning features to fixed dimension groups based on correlation patterns, we promote the emergence of specialized, interpretable features without requiring complex training dynamics or explicit constraints. This approach provides a simple yet principled foundation for feature disentanglement in sparse autoencoders while maintaining computational efficiency.'}
+Iteration 3/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Upon further reflection, the correlation-based grouping introduces unnecessary complexity and computational overhead. More importantly, it deviates from the core principle of the prototype idea by introducing an external statistical method. We should return to a simpler approach that more directly addresses the goal of feature separation.
+
+I propose simplifying the idea to use fixed, evenly-spaced dimension groups. This maintains the benefits of specialized feature learning while:
+1. Eliminating the correlation computation step
+2. Providing more predictable and consistent feature assignments
+3. Ensuring uniform coverage of the input space
+
+This version is more aligned with the prototype's orthogonality goals since evenly-spaced groups naturally promote feature separation. It's also more feasible and easier to analyze since the grouping structure is deterministic and transparent.
+
+The key insight is that uniform dimension partitioning may actually be better for interpretability than correlation-based grouping, as it forces features to learn independent patterns rather than potentially redundant correlations.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "uniform_subspace_sae",
+    "Title": "Uniform Subspace Decomposition for Interpretable Sparse Autoencoders",
+    "Experiment": "1. Implement uniform dimension partitioning\n2. Create fixed, evenly-spaced reconstruction masks\n3. Modify reconstruction loss for partition-based learning\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature specialization patterns",
+    "Technical_Details": "The method divides input dimensions into K equal-sized, non-overlapping groups (default K=8) using a simple strided partitioning scheme. Each group G_k contains dimensions {i | i mod K = k}. Features are evenly allocated across groups during initialization, with each feature permanently assigned to reconstruct only its group's dimensions. The loss function is L = Σ_k ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k. This uniform partitioning ensures even coverage of the input space while promoting feature separation.",
+    "Implementation_Plan": "1. Add uniform dimension partitioning to CustomSAE.__init__\n2. Create strided reconstruction masks\n3. Modify forward pass to apply masks\n4. Update loss calculation for group-specific reconstruction\n5. Add evaluation metrics for feature specialization",
+    "Interestingness_Evaluation": "The uniform approach provides a clean, principled way to encourage feature separation while ensuring complete input space coverage.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "The implementation is extremely simple with basic strided indexing; no complex initialization or dynamic updates needed; minimal computational overhead; easily within 30-minute constraint on H100.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While dimension partitioning is not new, the use of uniform striding for feature separation in interpretable sparse autoencoders is a novel approach.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The simple, principled approach to feature separation should improve interpretability by forcing features to learn distinct, non-redundant patterns.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.2,
+    "Abstract": "We present a simple yet effective approach to improving feature interpretability in sparse autoencoders through uniform subspace decomposition. Our method partitions input dimensions into equal-sized, non-overlapping groups using a strided scheme, encouraging features to specialize in reconstructing distinct aspects of the input. By enforcing a uniform decomposition of the input space, we promote the emergence of specialized, non-redundant features without requiring complex initialization or training procedures. This approach provides a clean, principled foundation for feature disentanglement in sparse autoencoders while maintaining simplicity and computational efficiency."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'uniform_subspace_sae', 'Title': 'Uniform Subspace Decomposition for Interpretable Sparse Autoencoders', 'Experiment': '1. Implement uniform dimension partitioning\n2. Create fixed, evenly-spaced reconstruction masks\n3. Modify reconstruction loss for partition-based learning\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature specialization patterns', 'Technical_Details': "The method divides input dimensions into K equal-sized, non-overlapping groups (default K=8) using a simple strided partitioning scheme. Each group G_k contains dimensions {i | i mod K = k}. Features are evenly allocated across groups during initialization, with each feature permanently assigned to reconstruct only its group's dimensions. The loss function is L = Σ_k ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k. This uniform partitioning ensures even coverage of the input space while promoting feature separation.", 'Implementation_Plan': '1. Add uniform dimension partitioning to CustomSAE.__init__\n2. Create strided reconstruction masks\n3. Modify forward pass to apply masks\n4. Update loss calculation for group-specific reconstruction\n5. Add evaluation metrics for feature specialization', 'Interestingness_Evaluation': 'The uniform approach provides a clean, principled way to encourage feature separation while ensuring complete input space coverage.', 'Interestingness': 7, 'Feasibility_Evaluation': 'The implementation is extremely simple with basic strided indexing; no complex initialization or dynamic updates needed; minimal computational overhead; easily within 30-minute constraint on H100.', 'Feasibility': 10, 'Novelty_Evaluation': 'While dimension partitioning is not new, the use of uniform striding for feature separation in interpretable sparse autoencoders is a novel approach.', 'Novelty': 6, 'Expected_Research_Impact': 'The simple, principled approach to feature separation should improve interpretability by forcing features to learn distinct, non-redundant patterns.', 'Research_Impact': 8, 'Overall_Score': 8.2, 'Abstract': 'We present a simple yet effective approach to improving feature interpretability in sparse autoencoders through uniform subspace decomposition. Our method partitions input dimensions into equal-sized, non-overlapping groups using a strided scheme, encouraging features to specialize in reconstructing distinct aspects of the input. By enforcing a uniform decomposition of the input space, we promote the emergence of specialized, non-redundant features without requiring complex initialization or training procedures. This approach provides a clean, principled foundation for feature disentanglement in sparse autoencoders while maintaining simplicity and computational efficiency.'}
+Iteration 4/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The uniform subspace approach is strong in terms of simplicity and feasibility, but we can make it even more aligned with the original prototype's goals while maintaining its elegance. Two key observations:
+
+1. The fixed group size might be too rigid - some input dimensions may require more or fewer features
+2. The strict partition prevents features from capturing cross-dimensional patterns when needed
+
+I propose introducing a soft version of the uniform partitioning where:
+1. Each feature has a primary dimension group but can reconstruct others with a penalty
+2. The penalty scales with the distance between dimensions in the partition
+
+This maintains the simplicity of uniform partitioning while allowing more flexible feature learning when needed. It's more faithful to the prototype's orthogonality objective since it allows controlled feature sharing through the distance-based penalty, similar to the prototype's α parameter.
+
+Most importantly, this refinement requires no additional architecture or complex computations - just a simple modification to the masking scheme.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "soft_uniform_sae",
+    "Title": "Soft Uniform Subspace Learning for Interpretable Sparse Autoencoders",
+    "Experiment": "1. Implement soft uniform dimension partitioning\n2. Create distance-based reconstruction penalty masks\n3. Modify reconstruction loss to include penalties\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature specialization and sharing patterns",
+    "Technical_Details": "The method uses uniform dimension groups G_k with strided partitioning as before, but replaces binary masks with soft penalty masks P_k where P_k[i] = 1 + β * min(|i/K - k|, 1) for dimension i and group k. β controls the penalty strength (default β=0.5). Features are initialized with primary group assignments but can contribute to reconstructing other dimensions with increasing penalty based on group distance. The loss function becomes L = Σ_k ||P_k ⊙ (x - x_hat)||^2 + λ||f||_1. This allows controlled feature sharing while maintaining the benefits of uniform partitioning.",
+    "Implementation_Plan": "1. Add soft uniform partitioning to CustomSAE.__init__\n2. Create distance-based penalty masks\n3. Modify forward pass to apply soft penalties\n4. Update loss calculation with penalized reconstruction\n5. Add evaluation metrics for feature specialization and sharing",
+    "Interestingness_Evaluation": "The soft uniform approach provides an elegant balance between strict partitioning and flexible feature learning.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "The implementation remains simple with basic indexing and arithmetic for penalties; no complex operations added; minimal overhead from penalty computation; easily within 30-minute constraint on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The combination of uniform partitioning with distance-based penalties for controlled feature sharing is a novel approach to interpretable sparse autoencoders.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The balanced approach to feature specialization should improve interpretability by encouraging primary dimension focus while allowing natural feature sharing when beneficial.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "We present a novel approach to improving feature interpretability in sparse autoencoders through soft uniform subspace decomposition. Our method combines uniform dimension partitioning with distance-based reconstruction penalties, encouraging features to specialize in primary dimension groups while allowing controlled sharing across groups. By replacing strict partitioning with soft penalties that scale with dimension group distance, we enable more flexible feature learning while maintaining the benefits of structured decomposition. This approach provides a balanced foundation for feature disentanglement in sparse autoencoders, combining the simplicity of uniform partitioning with the flexibility needed for natural feature emergence."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'soft_uniform_sae', 'Title': 'Soft Uniform Subspace Learning for Interpretable Sparse Autoencoders', 'Experiment': '1. Implement soft uniform dimension partitioning\n2. Create distance-based reconstruction penalty masks\n3. Modify reconstruction loss to include penalties\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature specialization and sharing patterns', 'Technical_Details': 'The method uses uniform dimension groups G_k with strided partitioning as before, but replaces binary masks with soft penalty masks P_k where P_k[i] = 1 + β * min(|i/K - k|, 1) for dimension i and group k. β controls the penalty strength (default β=0.5). Features are initialized with primary group assignments but can contribute to reconstructing other dimensions with increasing penalty based on group distance. The loss function becomes L = Σ_k ||P_k ⊙ (x - x_hat)||^2 + λ||f||_1. This allows controlled feature sharing while maintaining the benefits of uniform partitioning.', 'Implementation_Plan': '1. Add soft uniform partitioning to CustomSAE.__init__\n2. Create distance-based penalty masks\n3. Modify forward pass to apply soft penalties\n4. Update loss calculation with penalized reconstruction\n5. Add evaluation metrics for feature specialization and sharing', 'Interestingness_Evaluation': 'The soft uniform approach provides an elegant balance between strict partitioning and flexible feature learning.', 'Interestingness': 8, 'Feasibility_Evaluation': 'The implementation remains simple with basic indexing and arithmetic for penalties; no complex operations added; minimal overhead from penalty computation; easily within 30-minute constraint on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'The combination of uniform partitioning with distance-based penalties for controlled feature sharing is a novel approach to interpretable sparse autoencoders.', 'Novelty': 7, 'Expected_Research_Impact': 'The balanced approach to feature specialization should improve interpretability by encouraging primary dimension focus while allowing natural feature sharing when beneficial.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'We present a novel approach to improving feature interpretability in sparse autoencoders through soft uniform subspace decomposition. Our method combines uniform dimension partitioning with distance-based reconstruction penalties, encouraging features to specialize in primary dimension groups while allowing controlled sharing across groups. By replacing strict partitioning with soft penalties that scale with dimension group distance, we enable more flexible feature learning while maintaining the benefits of structured decomposition. This approach provides a balanced foundation for feature disentanglement in sparse autoencoders, combining the simplicity of uniform partitioning with the flexibility needed for natural feature emergence.'}
+Iteration 5/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The soft uniform approach is strong, but we can simplify it further while maintaining its benefits. The current distance-based penalty introduces an extra hyperparameter β and potentially complex interactions. A simpler approach would be to use binary primary masks with a fixed, small allowance for secondary reconstruction.
+
+Key improvements:
+1. Replace distance-based scaling with a fixed secondary contribution factor
+2. Make the secondary factor very small (e.g., 0.1) to ensure primary specialization
+3. Remove the need for distance calculations while maintaining controlled feature sharing
+
+This simplification:
+- Reduces hyperparameter sensitivity
+- Makes the behavior more predictable
+- Maintains the core benefits of feature specialization
+- Aligns even better with the prototype's orthogonality goals through simpler control
+
+The implementation becomes more straightforward while preserving the essential mechanism for flexible feature learning. I believe this represents the optimal balance of simplicity, effectiveness, and feasibility.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "simple_soft_sae",
+    "Title": "Simple Soft Partitioning for Interpretable Sparse Autoencoders",
+    "Experiment": "1. Implement binary primary masks with fixed secondary factor\n2. Create primary and secondary reconstruction components\n3. Modify reconstruction loss to combine components\n4. Compare feature interpretability against baseline SAE\n5. Analyze primary vs secondary feature contributions",
+    "Technical_Details": "The method uses uniform strided partitioning to create primary dimension groups G_k. Each feature has a binary primary mask M_k for its assigned group and can contribute α=0.1 times its output to other dimensions. The reconstruction becomes x_hat = x_hat_primary + α * x_hat_secondary, where x_hat_primary uses binary masks and x_hat_secondary allows all features to contribute to all dimensions. The loss function is L = ||x - x_hat||^2 + λ||f||_1. This simple approach maintains strong feature specialization while allowing limited flexible reconstruction.",
+    "Implementation_Plan": "1. Add primary group assignment to CustomSAE.__init__\n2. Create binary primary masks\n3. Modify forward pass to compute primary and secondary reconstructions\n4. Update loss calculation with combined reconstruction\n5. Add evaluation metrics for primary vs secondary contributions",
+    "Interestingness_Evaluation": "The simplified soft partitioning provides an elegant and minimal approach to balancing specialization with flexibility.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "The implementation is extremely simple with just binary masks and scalar multiplication; no complex computations; minimal overhead; easily within 30-minute constraint on H100.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While building on previous partitioning approaches, the simplified soft reconstruction mechanism is a novel contribution to interpretable sparse autoencoders.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The simplified approach should improve interpretability by enforcing clear primary specialization while allowing minimal but beneficial feature sharing.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.1,
+    "Abstract": "We present a simplified approach to improving feature interpretability in sparse autoencoders through soft partitioning with fixed secondary contributions. Our method assigns each feature a primary dimension group while allowing minimal contributions to other dimensions through a fixed scaling factor. By combining strict primary specialization with limited secondary reconstruction, we enable clear feature differentiation while maintaining the flexibility needed for natural feature emergence. This approach provides a minimal yet effective foundation for feature disentanglement in sparse autoencoders, achieving a balance between specialization and flexibility through simple mechanisms."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'simple_soft_sae', 'Title': 'Simple Soft Partitioning for Interpretable Sparse Autoencoders', 'Experiment': '1. Implement binary primary masks with fixed secondary factor\n2. Create primary and secondary reconstruction components\n3. Modify reconstruction loss to combine components\n4. Compare feature interpretability against baseline SAE\n5. Analyze primary vs secondary feature contributions', 'Technical_Details': 'The method uses uniform strided partitioning to create primary dimension groups G_k. Each feature has a binary primary mask M_k for its assigned group and can contribute α=0.1 times its output to other dimensions. The reconstruction becomes x_hat = x_hat_primary + α * x_hat_secondary, where x_hat_primary uses binary masks and x_hat_secondary allows all features to contribute to all dimensions. The loss function is L = ||x - x_hat||^2 + λ||f||_1. This simple approach maintains strong feature specialization while allowing limited flexible reconstruction.', 'Implementation_Plan': '1. Add primary group assignment to CustomSAE.__init__\n2. Create binary primary masks\n3. Modify forward pass to compute primary and secondary reconstructions\n4. Update loss calculation with combined reconstruction\n5. Add evaluation metrics for primary vs secondary contributions', 'Interestingness_Evaluation': 'The simplified soft partitioning provides an elegant and minimal approach to balancing specialization with flexibility.', 'Interestingness': 7, 'Feasibility_Evaluation': 'The implementation is extremely simple with just binary masks and scalar multiplication; no complex computations; minimal overhead; easily within 30-minute constraint on H100.', 'Feasibility': 10, 'Novelty_Evaluation': 'While building on previous partitioning approaches, the simplified soft reconstruction mechanism is a novel contribution to interpretable sparse autoencoders.', 'Novelty': 6, 'Expected_Research_Impact': 'The simplified approach should improve interpretability by enforcing clear primary specialization while allowing minimal but beneficial feature sharing.', 'Research_Impact': 8, 'Overall_Score': 8.1, 'Abstract': 'We present a simplified approach to improving feature interpretability in sparse autoencoders through soft partitioning with fixed secondary contributions. Our method assigns each feature a primary dimension group while allowing minimal contributions to other dimensions through a fixed scaling factor. By combining strict primary specialization with limited secondary reconstruction, we enable clear feature differentiation while maintaining the flexibility needed for natural feature emergence. This approach provides a minimal yet effective foundation for feature disentanglement in sparse autoencoders, achieving a balance between specialization and flexibility through simple mechanisms.'}
+Iteration 6/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The current approach is well-balanced but could be made even simpler by removing the secondary reconstruction component entirely. Instead of having a fixed secondary contribution, we can achieve the same flexibility by slightly overlapping the primary groups themselves. This maintains the benefits while further reducing complexity.
+
+Key refinements:
+1. Replace secondary scaling with simple group overlap
+2. Use strided groups with 25% overlap between adjacent groups
+3. Keep binary masks but allow dimensions to belong to two groups
+4. Eliminate the need for separate primary/secondary computations
+
+This final simplification:
+- Removes the secondary scaling parameter
+- Maintains flexibility through natural overlap
+- Makes the implementation even more straightforward
+- Better matches the prototype's spirit of controlled feature sharing
+
+This represents the simplest possible implementation that achieves our goals. I believe we've reached an optimal balance of simplicity and effectiveness.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "overlap_sae",
+    "Title": "Overlapping Group Sparse Autoencoders for Interpretable Feature Learning",
+    "Experiment": "1. Implement overlapping dimension groups\n2. Create binary masks with controlled overlap\n3. Modify reconstruction loss for overlapped groups\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature specialization patterns",
+    "Technical_Details": "The method divides input dimensions into overlapping groups where each dimension belongs to at most two groups. Groups are created using a strided pattern with 25% overlap: G_k contains dimensions {i | floor(i/0.75K) = k}. Features are assigned to single groups but can naturally interact through the overlapping dimensions. The loss function remains simple: L = ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k. This achieves controlled feature sharing through structural overlap rather than explicit secondary mechanisms.",
+    "Implementation_Plan": "1. Add overlapping group creation to CustomSAE.__init__\n2. Create binary masks with overlap\n3. Modify forward pass to use overlapped masks\n4. Update loss calculation for overlapped reconstruction\n5. Add evaluation metrics for feature specialization",
+    "Interestingness_Evaluation": "The overlapping groups provide the simplest possible mechanism for controlled feature sharing while maintaining interpretability.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "The implementation is maximally simple with just binary masks and basic indexing; no separate computations needed; minimal overhead; easily within 30-minute constraint on H100.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While building on previous approaches, the use of structural overlap for controlled feature sharing in interpretable sparse autoencoders is a novel simplification.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The simplified approach should improve interpretability by enabling natural feature interactions through structural overlap while maintaining clear specialization.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.2,
+    "Abstract": "We present a minimalist approach to improving feature interpretability in sparse autoencoders through overlapping dimension groups. Our method divides input dimensions into groups with controlled overlap, allowing features to naturally interact through shared dimensions while maintaining primary specialization. By embedding feature sharing into the group structure itself, we eliminate the need for explicit secondary mechanisms while preserving the flexibility needed for natural feature emergence. This approach provides the simplest possible foundation for feature disentanglement in sparse autoencoders, achieving a balance between specialization and interaction through pure structural design."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'overlap_sae', 'Title': 'Overlapping Group Sparse Autoencoders for Interpretable Feature Learning', 'Experiment': '1. Implement overlapping dimension groups\n2. Create binary masks with controlled overlap\n3. Modify reconstruction loss for overlapped groups\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature specialization patterns', 'Technical_Details': 'The method divides input dimensions into overlapping groups where each dimension belongs to at most two groups. Groups are created using a strided pattern with 25% overlap: G_k contains dimensions {i | floor(i/0.75K) = k}. Features are assigned to single groups but can naturally interact through the overlapping dimensions. The loss function remains simple: L = ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k. This achieves controlled feature sharing through structural overlap rather than explicit secondary mechanisms.', 'Implementation_Plan': '1. Add overlapping group creation to CustomSAE.__init__\n2. Create binary masks with overlap\n3. Modify forward pass to use overlapped masks\n4. Update loss calculation for overlapped reconstruction\n5. Add evaluation metrics for feature specialization', 'Interestingness_Evaluation': 'The overlapping groups provide the simplest possible mechanism for controlled feature sharing while maintaining interpretability.', 'Interestingness': 7, 'Feasibility_Evaluation': 'The implementation is maximally simple with just binary masks and basic indexing; no separate computations needed; minimal overhead; easily within 30-minute constraint on H100.', 'Feasibility': 10, 'Novelty_Evaluation': 'While building on previous approaches, the use of structural overlap for controlled feature sharing in interpretable sparse autoencoders is a novel simplification.', 'Novelty': 6, 'Expected_Research_Impact': 'The simplified approach should improve interpretability by enabling natural feature interactions through structural overlap while maintaining clear specialization.', 'Research_Impact': 8, 'Overall_Score': 8.2, 'Abstract': 'We present a minimalist approach to improving feature interpretability in sparse autoencoders through overlapping dimension groups. Our method divides input dimensions into groups with controlled overlap, allowing features to naturally interact through shared dimensions while maintaining primary specialization. By embedding feature sharing into the group structure itself, we eliminate the need for explicit secondary mechanisms while preserving the flexibility needed for natural feature emergence. This approach provides the simplest possible foundation for feature disentanglement in sparse autoencoders, achieving a balance between specialization and interaction through pure structural design.'}
+Iteration 7/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+After careful review, I believe the current version represents the optimal balance of simplicity, effectiveness, and feasibility. The overlapping groups approach:
+
+1. Achieves feature specialization through the simplest possible mechanism
+2. Maintains controlled sharing through structural design
+3. Requires minimal implementation complexity
+4. Has clear theoretical justification
+5. Aligns perfectly with the prototype's goals
+
+Any further modifications would either:
+- Add unnecessary complexity
+- Reduce the clarity of the approach
+- Deviate from the core principles
+- Risk implementation difficulties
+
+The current overall score of 8.2 accurately reflects the strong feasibility (10), moderate novelty (6), good research impact potential (8), and solid interestingness (7). I believe we've reached the ideal version of this idea.
+
+I am done.
+
+```json
+{
+    "Name": "overlap_sae",
+    "Title": "Overlapping Group Sparse Autoencoders for Interpretable Feature Learning",
+    "Experiment": "1. Implement overlapping dimension groups\n2. Create binary masks with controlled overlap\n3. Modify reconstruction loss for overlapped groups\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature specialization patterns",
+    "Technical_Details": "The method divides input dimensions into overlapping groups where each dimension belongs to at most two groups. Groups are created using a strided pattern with 25% overlap: G_k contains dimensions {i | floor(i/0.75K) = k}. Features are assigned to single groups but can naturally interact through the overlapping dimensions. The loss function remains simple: L = ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k. This achieves controlled feature sharing through structural overlap rather than explicit secondary mechanisms.",
+    "Implementation_Plan": "1. Add overlapping group creation to CustomSAE.__init__\n2. Create binary masks with overlap\n3. Modify forward pass to use overlapped masks\n4. Update loss calculation for overlapped reconstruction\n5. Add evaluation metrics for feature specialization",
+    "Interestingness_Evaluation": "The overlapping groups provide the simplest possible mechanism for controlled feature sharing while maintaining interpretability.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "The implementation is maximally simple with just binary masks and basic indexing; no separate computations needed; minimal overhead; easily within 30-minute constraint on H100.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While building on previous approaches, the use of structural overlap for controlled feature sharing in interpretable sparse autoencoders is a novel simplification.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The simplified approach should improve interpretability by enabling natural feature interactions through structural overlap while maintaining clear specialization.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.2,
+    "Abstract": "We present a minimalist approach to improving feature interpretability in sparse autoencoders through overlapping dimension groups. Our method divides input dimensions into groups with controlled overlap, allowing features to naturally interact through shared dimensions while maintaining primary specialization. By embedding feature sharing into the group structure itself, we eliminate the need for explicit secondary mechanisms while preserving the flexibility needed for natural feature emergence. This approach provides the simplest possible foundation for feature disentanglement in sparse autoencoders, achieving a balance between specialization and interaction through pure structural design."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'overlap_sae', 'Title': 'Overlapping Group Sparse Autoencoders for Interpretable Feature Learning', 'Experiment': '1. Implement overlapping dimension groups\n2. Create binary masks with controlled overlap\n3. Modify reconstruction loss for overlapped groups\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature specialization patterns', 'Technical_Details': 'The method divides input dimensions into overlapping groups where each dimension belongs to at most two groups. Groups are created using a strided pattern with 25% overlap: G_k contains dimensions {i | floor(i/0.75K) = k}. Features are assigned to single groups but can naturally interact through the overlapping dimensions. The loss function remains simple: L = ||M_k ⊙ (x - x_hat)||^2 + λ||f||_1, where M_k is the binary mask for group k. This achieves controlled feature sharing through structural overlap rather than explicit secondary mechanisms.', 'Implementation_Plan': '1. Add overlapping group creation to CustomSAE.__init__\n2. Create binary masks with overlap\n3. Modify forward pass to use overlapped masks\n4. Update loss calculation for overlapped reconstruction\n5. Add evaluation metrics for feature specialization', 'Interestingness_Evaluation': 'The overlapping groups provide the simplest possible mechanism for controlled feature sharing while maintaining interpretability.', 'Interestingness': 7, 'Feasibility_Evaluation': 'The implementation is maximally simple with just binary masks and basic indexing; no separate computations needed; minimal overhead; easily within 30-minute constraint on H100.', 'Feasibility': 10, 'Novelty_Evaluation': 'While building on previous approaches, the use of structural overlap for controlled feature sharing in interpretable sparse autoencoders is a novel simplification.', 'Novelty': 6, 'Expected_Research_Impact': 'The simplified approach should improve interpretability by enabling natural feature interactions through structural overlap while maintaining clear specialization.', 'Research_Impact': 8, 'Overall_Score': 8.2, 'Abstract': 'We present a minimalist approach to improving feature interpretability in sparse autoencoders through overlapping dimension groups. Our method divides input dimensions into groups with controlled overlap, allowing features to naturally interact through shared dimensions while maintaining primary specialization. By embedding feature sharing into the group structure itself, we eliminate the need for explicit secondary mechanisms while preserving the flexibility needed for natural feature emergence. This approach provides the simplest possible foundation for feature disentanglement in sparse autoencoders, achieving a balance between specialization and interaction through pure structural design.'}
+Idea generation converged after 7 iterations.
+
+Generating idea 3/15
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea introduces orthogonality constraints to improve feature separation, but may be too rigid in enforcing strict orthogonality across all features. Instead, I propose a more nuanced approach that focuses on dynamic orthogonality targeting specifically correlated feature pairs. This refinement maintains the core insight about feature separation while making it more practical and computationally efficient.
+
+Key improvements:
+1. Instead of enforcing orthogonality across all features, we identify and target highly correlated feature pairs during training
+2. Use a sliding window to track feature correlations, making the approach more memory efficient
+3. Apply selective orthogonality loss only to features above a correlation threshold
+4. Maintain the basic SAE architecture while adding minimal computational overhead
+
+This approach should work better for mechanistic interpretability because:
+- It allows natural feature groupings to emerge rather than forcing artificial separation
+- Focuses computational resources on addressing actual polysemanticity issues
+- More stable training by avoiding over-constraining the feature space
+- Better preservation of useful feature relationships while eliminating redundant ones
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "selective_orthogonal_sae",
+    "Title": "Selective Orthogonality for Improved Feature Disentanglement in Sparse Autoencoders",
+    "Experiment": "1. Implement correlation tracking over sliding windows\n2. Add selective orthogonality loss for highly correlated pairs\n3. Train on standard SAE datasets with varying correlation thresholds\n4. Compare feature interpretability against baseline SAE\n5. Analyze impact on sparse probing performance",
+    "Technical_Details": "The method extends standard SAE training with selective orthogonality constraints. For each batch, we compute pairwise correlations between feature activations using a sliding window of size w=1000. Features with correlation above threshold τ=0.7 are subject to an additional orthogonality loss: L_selective = L_base + λ * Σ_{(i,j)∈P} (f_i^T f_j)^2, where P is the set of highly correlated feature pairs. The sliding window implementation uses an efficient queue structure to maintain O(1) update complexity per step. Base loss remains unchanged to preserve core SAE functionality.",
+    "Implementation_Plan": "1. Add CorrelationTracker class for efficient correlation computation\n2. Modify CustomSAE to store feature correlation history\n3. Implement selective orthogonality loss in loss function\n4. Add correlation threshold as configurable parameter\n5. Update training loop to track correlations\n6. Add evaluation metrics for feature independence",
+    "Interestingness_Evaluation": "The selective approach provides an elegant solution to the feature separation problem while maintaining computational efficiency and interpretability.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation requires minimal changes to existing architecture; correlation tracking adds O(d^2) memory but O(1) compute per step; all operations are standard PyTorch functions; training time remains within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While orthogonality constraints exist in literature, the selective application based on dynamic correlation tracking is novel.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The targeted approach to reducing feature correlations should directly improve sparse probing performance by creating cleaner, more interpretable features while maintaining reconstruction quality.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "We present a selective orthogonality approach for training sparse autoencoders that addresses the challenge of feature entanglement while maintaining computational efficiency. Rather than enforcing strict orthogonality across all features, our method dynamically identifies and targets highly correlated feature pairs during training. We introduce an efficient sliding window mechanism to track feature correlations and apply orthogonality constraints selectively based on correlation strength. This approach aims to reduce polysemanticity while preserving useful feature relationships, potentially leading to more interpretable and disentangled representations in sparse autoencoders."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'selective_orthogonal_sae', 'Title': 'Selective Orthogonality for Improved Feature Disentanglement in Sparse Autoencoders', 'Experiment': '1. Implement correlation tracking over sliding windows\n2. Add selective orthogonality loss for highly correlated pairs\n3. Train on standard SAE datasets with varying correlation thresholds\n4. Compare feature interpretability against baseline SAE\n5. Analyze impact on sparse probing performance', 'Technical_Details': 'The method extends standard SAE training with selective orthogonality constraints. For each batch, we compute pairwise correlations between feature activations using a sliding window of size w=1000. Features with correlation above threshold τ=0.7 are subject to an additional orthogonality loss: L_selective = L_base + λ * Σ_{(i,j)∈P} (f_i^T f_j)^2, where P is the set of highly correlated feature pairs. The sliding window implementation uses an efficient queue structure to maintain O(1) update complexity per step. Base loss remains unchanged to preserve core SAE functionality.', 'Implementation_Plan': '1. Add CorrelationTracker class for efficient correlation computation\n2. Modify CustomSAE to store feature correlation history\n3. Implement selective orthogonality loss in loss function\n4. Add correlation threshold as configurable parameter\n5. Update training loop to track correlations\n6. Add evaluation metrics for feature independence', 'Interestingness_Evaluation': 'The selective approach provides an elegant solution to the feature separation problem while maintaining computational efficiency and interpretability.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation requires minimal changes to existing architecture; correlation tracking adds O(d^2) memory but O(1) compute per step; all operations are standard PyTorch functions; training time remains within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While orthogonality constraints exist in literature, the selective application based on dynamic correlation tracking is novel.', 'Novelty': 7, 'Expected_Research_Impact': 'The targeted approach to reducing feature correlations should directly improve sparse probing performance by creating cleaner, more interpretable features while maintaining reconstruction quality.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'We present a selective orthogonality approach for training sparse autoencoders that addresses the challenge of feature entanglement while maintaining computational efficiency. Rather than enforcing strict orthogonality across all features, our method dynamically identifies and targets highly correlated feature pairs during training. We introduce an efficient sliding window mechanism to track feature correlations and apply orthogonality constraints selectively based on correlation strength. This approach aims to reduce polysemanticity while preserving useful feature relationships, potentially leading to more interpretable and disentangled representations in sparse autoencoders.'}
+Iteration 2/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+After reviewing my previous idea, I believe the overall score of 8.3 was too optimistic, particularly regarding feasibility and research impact. The sliding window correlation tracking could be computationally expensive for large feature dimensions, and the memory requirements might be prohibitive. Additionally, the approach might be too complex for the time constraints.
+
+I propose simplifying the approach while maintaining its core benefits:
+1. Replace sliding window with exponential moving average (EMA) for correlation tracking
+2. Focus only on top-k most correlated pairs rather than using a threshold
+3. Simplify the orthogonality loss computation
+4. Add early stopping based on correlation metrics
+
+These refinements make the implementation more practical while potentially improving interpretability by:
+- Reducing memory overhead through EMA-based tracking
+- More stable training with fixed number of constrained pairs
+- Clearer stopping criteria based on correlation metrics
+- Better computational efficiency for large feature dimensions
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "topk_orthogonal_sae",
+    "Title": "Top-K Feature Decorrelation for Sparse Autoencoder Interpretability",
+    "Experiment": "1. Implement EMA-based correlation tracking\n2. Add top-k pair selection mechanism\n3. Train with varying k values (k=100,500,1000)\n4. Compare feature interpretability against baseline\n5. Analyze convergence and stopping criteria",
+    "Technical_Details": "The method uses exponential moving average to track feature correlations: C_t = β*C_{t-1} + (1-β)*F_t^T F_t, where F_t contains normalized feature activations and β=0.99. For each update, we select the top-k most correlated feature pairs P_k and apply the loss: L = L_base + λ * Σ_{(i,j)∈P_k} (f_i^T f_j)^2. Early stopping triggers when mean correlation of top-k pairs drops below threshold γ=0.1 or remains stable for n=1000 steps.",
+    "Implementation_Plan": "1. Add EMACorrelationTracker class\n2. Modify CustomSAE with correlation-based loss\n3. Implement top-k pair selection\n4. Add early stopping condition\n5. Update training loop with EMA updates\n6. Add correlation-based metrics",
+    "Interestingness_Evaluation": "The simplified approach provides a practical balance between feature separation and computational efficiency while maintaining interpretability gains.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "EMA tracking requires minimal additional memory; top-k selection is efficient with PyTorch operations; implementation complexity is moderate; training time well within 30-minute limit on H100.",
+    "Feasibility": 8,
+    "Novelty_Evaluation": "While correlation-based feature separation exists, the combination with EMA tracking and top-k selection in SAE context is novel.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The focused approach to decorrelating most problematic feature pairs should improve sparse probing performance while maintaining computational efficiency.",
+    "Research_Impact": 7,
+    "Overall_Score": 7.2,
+    "Abstract": "We present a computationally efficient approach to improving feature disentanglement in sparse autoencoders through targeted decorrelation of the most correlated feature pairs. Our method employs exponential moving average to track feature correlations and selectively applies orthogonality constraints to the top-k most correlated pairs. This approach aims to reduce feature entanglement while maintaining computational efficiency. We introduce an early stopping mechanism based on correlation metrics to ensure optimal training convergence. The method is designed to enhance the interpretability of learned features while preserving the core benefits of sparse autoencoders."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'topk_orthogonal_sae', 'Title': 'Top-K Feature Decorrelation for Sparse Autoencoder Interpretability', 'Experiment': '1. Implement EMA-based correlation tracking\n2. Add top-k pair selection mechanism\n3. Train with varying k values (k=100,500,1000)\n4. Compare feature interpretability against baseline\n5. Analyze convergence and stopping criteria', 'Technical_Details': 'The method uses exponential moving average to track feature correlations: C_t = β*C_{t-1} + (1-β)*F_t^T F_t, where F_t contains normalized feature activations and β=0.99. For each update, we select the top-k most correlated feature pairs P_k and apply the loss: L = L_base + λ * Σ_{(i,j)∈P_k} (f_i^T f_j)^2. Early stopping triggers when mean correlation of top-k pairs drops below threshold γ=0.1 or remains stable for n=1000 steps.', 'Implementation_Plan': '1. Add EMACorrelationTracker class\n2. Modify CustomSAE with correlation-based loss\n3. Implement top-k pair selection\n4. Add early stopping condition\n5. Update training loop with EMA updates\n6. Add correlation-based metrics', 'Interestingness_Evaluation': 'The simplified approach provides a practical balance between feature separation and computational efficiency while maintaining interpretability gains.', 'Interestingness': 7, 'Feasibility_Evaluation': 'EMA tracking requires minimal additional memory; top-k selection is efficient with PyTorch operations; implementation complexity is moderate; training time well within 30-minute limit on H100.', 'Feasibility': 8, 'Novelty_Evaluation': 'While correlation-based feature separation exists, the combination with EMA tracking and top-k selection in SAE context is novel.', 'Novelty': 6, 'Expected_Research_Impact': 'The focused approach to decorrelating most problematic feature pairs should improve sparse probing performance while maintaining computational efficiency.', 'Research_Impact': 7, 'Overall_Score': 7.2, 'Abstract': 'We present a computationally efficient approach to improving feature disentanglement in sparse autoencoders through targeted decorrelation of the most correlated feature pairs. Our method employs exponential moving average to track feature correlations and selectively applies orthogonality constraints to the top-k most correlated pairs. This approach aims to reduce feature entanglement while maintaining computational efficiency. We introduce an early stopping mechanism based on correlation metrics to ensure optimal training convergence. The method is designed to enhance the interpretability of learned features while preserving the core benefits of sparse autoencoders.'}
+Iteration 3/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+After reviewing the previous idea, I realize we can further simplify while increasing effectiveness. The EMA tracking, while more efficient than sliding windows, still adds complexity. Instead, we can leverage the existing batch statistics more effectively:
+
+Key improvements:
+1. Remove EMA tracking entirely - use only current batch statistics
+2. Replace top-k selection with adaptive thresholding based on batch statistics
+3. Simplify early stopping to use reconstruction loss stability
+4. Focus on feature pairs that consistently show high correlation across batches
+
+This simplification makes the implementation more robust because:
+- Batch-wise correlation is sufficient for identifying problematic feature pairs
+- Removes need for additional memory structures
+- More stable training with simpler stopping criteria
+- Clearer connection to original SAE objectives
+
+The changes should improve mechanistic interpretability by focusing on the most persistent feature correlations while maintaining computational simplicity.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "batch_decorr_sae",
+    "Title": "Batch-wise Feature Decorrelation for Sparse Autoencoder Interpretability",
+    "Experiment": "1. Implement batch correlation computation\n2. Add adaptive threshold mechanism\n3. Train with different threshold schedules\n4. Compare feature interpretability metrics\n5. Analyze convergence behavior",
+    "Technical_Details": "The method computes batch-wise feature correlations: C_b = F_b^T F_b / |b|, where F_b contains normalized feature activations for batch b. The adaptive threshold τ_t = τ_0 * (1 - t/T) decreases linearly from τ_0=0.8 to τ_min=0.2 over T steps. Loss function: L = L_base + λ * Σ_{(i,j): C_b[i,j] > τ_t} (f_i^T f_j)^2. Training stops when reconstruction loss change remains below ε=1e-4 for 100 steps.",
+    "Implementation_Plan": "1. Add batch correlation computation to forward pass\n2. Implement adaptive threshold scheduler\n3. Modify loss function with correlation penalty\n4. Add simple early stopping condition\n5. Update training loop\n6. Add basic correlation metrics",
+    "Interestingness_Evaluation": "The approach provides an elegant balance between effectiveness and simplicity by focusing on persistent batch-level correlations.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "Uses only standard batch operations; no additional memory structures needed; implementation is straightforward; training time well within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While correlation-based constraints are known, the batch-wise approach with adaptive thresholding in SAE context is novel.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The simplified approach focusing on persistent correlations should improve feature interpretability while maintaining training stability.",
+    "Research_Impact": 7,
+    "Overall_Score": 7.5,
+    "Abstract": "We present a simplified approach to improving feature disentanglement in sparse autoencoders through batch-wise feature decorrelation. Our method computes feature correlations within each training batch and applies decorrelation constraints adaptively based on correlation strength. We introduce a simple threshold scheduling mechanism that gradually relaxes the decorrelation constraints during training. The approach requires minimal computational overhead and integrates naturally with existing sparse autoencoder training procedures. This method aims to enhance the interpretability of learned features while maintaining the computational efficiency of standard sparse autoencoders."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'batch_decorr_sae', 'Title': 'Batch-wise Feature Decorrelation for Sparse Autoencoder Interpretability', 'Experiment': '1. Implement batch correlation computation\n2. Add adaptive threshold mechanism\n3. Train with different threshold schedules\n4. Compare feature interpretability metrics\n5. Analyze convergence behavior', 'Technical_Details': 'The method computes batch-wise feature correlations: C_b = F_b^T F_b / |b|, where F_b contains normalized feature activations for batch b. The adaptive threshold τ_t = τ_0 * (1 - t/T) decreases linearly from τ_0=0.8 to τ_min=0.2 over T steps. Loss function: L = L_base + λ * Σ_{(i,j): C_b[i,j] > τ_t} (f_i^T f_j)^2. Training stops when reconstruction loss change remains below ε=1e-4 for 100 steps.', 'Implementation_Plan': '1. Add batch correlation computation to forward pass\n2. Implement adaptive threshold scheduler\n3. Modify loss function with correlation penalty\n4. Add simple early stopping condition\n5. Update training loop\n6. Add basic correlation metrics', 'Interestingness_Evaluation': 'The approach provides an elegant balance between effectiveness and simplicity by focusing on persistent batch-level correlations.', 'Interestingness': 7, 'Feasibility_Evaluation': 'Uses only standard batch operations; no additional memory structures needed; implementation is straightforward; training time well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While correlation-based constraints are known, the batch-wise approach with adaptive thresholding in SAE context is novel.', 'Novelty': 6, 'Expected_Research_Impact': 'The simplified approach focusing on persistent correlations should improve feature interpretability while maintaining training stability.', 'Research_Impact': 7, 'Overall_Score': 7.5, 'Abstract': 'We present a simplified approach to improving feature disentanglement in sparse autoencoders through batch-wise feature decorrelation. Our method computes feature correlations within each training batch and applies decorrelation constraints adaptively based on correlation strength. We introduce a simple threshold scheduling mechanism that gradually relaxes the decorrelation constraints during training. The approach requires minimal computational overhead and integrates naturally with existing sparse autoencoder training procedures. This method aims to enhance the interpretability of learned features while maintaining the computational efficiency of standard sparse autoencoders.'}
+Iteration 4/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+After reviewing the previous idea, I think we can make one final simplification that makes the approach even more practical while potentially improving its effectiveness. The adaptive threshold scheduling adds unnecessary complexity and hyperparameters. Instead:
+
+Refinements:
+1. Use a single, fixed correlation threshold
+2. Only apply decorrelation loss when both features are active above a sparsity threshold
+3. Remove the early stopping condition as it may interfere with natural convergence
+4. Focus on immediate neighbors in the feature space to reduce computation
+
+This is more principled because:
+- Correlations are only meaningful when features are actively firing
+- Fixed threshold removes scheduling complexity
+- Natural alignment with SAE sparsity objectives
+- More efficient computation by focusing on neighboring features
+
+The core mechanism remains the same but becomes more focused and computationally efficient while better preserving the sparse firing patterns that make SAEs interpretable.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "active_decorr_sae",
+    "Title": "Active Feature Decorrelation for Sparse Autoencoder Interpretability",
+    "Experiment": "1. Implement active correlation computation\n2. Add sparsity-aware decorrelation loss\n3. Train with different correlation thresholds\n4. Compare feature interpretability metrics\n5. Analyze feature activation patterns",
+    "Technical_Details": "The method computes correlations only between actively firing features in each batch. For feature activations F_b, we compute active mask A = (F_b > s), where s is the sparsity threshold (default 0.1). Correlation is computed as C_b = (F_b^T F_b) * (A^T A) / |b|. The loss function is L = L_base + λ * Σ_{(i,j): C_b[i,j] > τ ∧ A[i] ∧ A[j]} (f_i^T f_j)^2, where τ=0.6 is the fixed correlation threshold. Adjacent features (|i-j| ≤ 5) are prioritized for efficiency.",
+    "Implementation_Plan": "1. Add active correlation computation\n2. Implement sparsity-aware loss function\n3. Add correlation threshold parameter\n4. Update training loop\n5. Add correlation tracking metrics",
+    "Interestingness_Evaluation": "The focus on active feature correlations provides a natural way to improve interpretability while respecting the sparse nature of the representations.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "Uses only basic matrix operations; implementation is very straightforward; no complex scheduling or memory structures; training time well within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The combination of sparsity-aware correlation constraints with focus on active features in SAE context is novel.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The simplified approach focusing on active feature correlations should improve interpretability while preserving sparse firing patterns.",
+    "Research_Impact": 8,
+    "Overall_Score": 7.8,
+    "Abstract": "We present a simplified approach to improving feature disentanglement in sparse autoencoders through active feature decorrelation. Our method focuses on reducing correlations specifically between features that are simultaneously active, aligning naturally with the sparse firing patterns that make SAEs interpretable. We introduce a sparsity-aware correlation computation that only considers feature pairs when both exceed an activation threshold. The approach requires minimal computational overhead and maintains the core benefits of sparse autoencoders while targeting the most relevant feature interactions for interpretability."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'active_decorr_sae', 'Title': 'Active Feature Decorrelation for Sparse Autoencoder Interpretability', 'Experiment': '1. Implement active correlation computation\n2. Add sparsity-aware decorrelation loss\n3. Train with different correlation thresholds\n4. Compare feature interpretability metrics\n5. Analyze feature activation patterns', 'Technical_Details': 'The method computes correlations only between actively firing features in each batch. For feature activations F_b, we compute active mask A = (F_b > s), where s is the sparsity threshold (default 0.1). Correlation is computed as C_b = (F_b^T F_b) * (A^T A) / |b|. The loss function is L = L_base + λ * Σ_{(i,j): C_b[i,j] > τ ∧ A[i] ∧ A[j]} (f_i^T f_j)^2, where τ=0.6 is the fixed correlation threshold. Adjacent features (|i-j| ≤ 5) are prioritized for efficiency.', 'Implementation_Plan': '1. Add active correlation computation\n2. Implement sparsity-aware loss function\n3. Add correlation threshold parameter\n4. Update training loop\n5. Add correlation tracking metrics', 'Interestingness_Evaluation': 'The focus on active feature correlations provides a natural way to improve interpretability while respecting the sparse nature of the representations.', 'Interestingness': 7, 'Feasibility_Evaluation': 'Uses only basic matrix operations; implementation is very straightforward; no complex scheduling or memory structures; training time well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'The combination of sparsity-aware correlation constraints with focus on active features in SAE context is novel.', 'Novelty': 6, 'Expected_Research_Impact': 'The simplified approach focusing on active feature correlations should improve interpretability while preserving sparse firing patterns.', 'Research_Impact': 8, 'Overall_Score': 7.8, 'Abstract': 'We present a simplified approach to improving feature disentanglement in sparse autoencoders through active feature decorrelation. Our method focuses on reducing correlations specifically between features that are simultaneously active, aligning naturally with the sparse firing patterns that make SAEs interpretable. We introduce a sparsity-aware correlation computation that only considers feature pairs when both exceed an activation threshold. The approach requires minimal computational overhead and maintains the core benefits of sparse autoencoders while targeting the most relevant feature interactions for interpretability.'}
+Iteration 5/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+After reviewing the previous idea, I believe we've reached a good balance of simplicity, effectiveness, and feasibility. The focus on active feature correlations with fixed thresholds and local neighborhoods aligns well with the goals of interpretability while maintaining computational efficiency. The implementation is straightforward and requires minimal modifications to the existing SAE architecture.
+
+The current approach:
+- Uses only standard PyTorch operations
+- Has minimal hyperparameters (just threshold and window size)
+- Maintains computational efficiency
+- Aligns naturally with SAE sparsity objectives
+- Has clear theoretical motivation
+
+Further modifications would likely add unnecessary complexity without proportional benefits. The current version provides a clear, implementable approach that directly addresses the core challenge of feature interpretability.
+
+I am done.
+
+```json
+{
+    "Name": "active_decorr_sae",
+    "Title": "Active Feature Decorrelation for Sparse Autoencoder Interpretability",
+    "Experiment": "1. Implement active correlation computation\n2. Add sparsity-aware decorrelation loss\n3. Train with different correlation thresholds\n4. Compare feature interpretability metrics\n5. Analyze feature activation patterns",
+    "Technical_Details": "The method computes correlations only between actively firing features in each batch. For feature activations F_b, we compute active mask A = (F_b > s), where s is the sparsity threshold (default 0.1). Correlation is computed as C_b = (F_b^T F_b) * (A^T A) / |b|. The loss function is L = L_base + λ * Σ_{(i,j): C_b[i,j] > τ ∧ A[i] ∧ A[j]} (f_i^T f_j)^2, where τ=0.6 is the fixed correlation threshold. Adjacent features (|i-j| ≤ 5) are prioritized for efficiency.",
+    "Implementation_Plan": "1. Add active correlation computation\n2. Implement sparsity-aware loss function\n3. Add correlation threshold parameter\n4. Update training loop\n5. Add correlation tracking metrics",
+    "Interestingness_Evaluation": "The focus on active feature correlations provides a natural way to improve interpretability while respecting the sparse nature of the representations.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "Uses only basic matrix operations; implementation is very straightforward; no complex scheduling or memory structures; training time well within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The combination of sparsity-aware correlation constraints with focus on active features in SAE context is novel.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The simplified approach focusing on active feature correlations should improve interpretability while preserving sparse firing patterns.",
+    "Research_Impact": 8,
+    "Overall_Score": 7.8,
+    "Abstract": "We present a simplified approach to improving feature disentanglement in sparse autoencoders through active feature decorrelation. Our method focuses on reducing correlations specifically between features that are simultaneously active, aligning naturally with the sparse firing patterns that make SAEs interpretable. We introduce a sparsity-aware correlation computation that only considers feature pairs when both exceed an activation threshold. The approach requires minimal computational overhead and maintains the core benefits of sparse autoencoders while targeting the most relevant feature interactions for interpretability."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'active_decorr_sae', 'Title': 'Active Feature Decorrelation for Sparse Autoencoder Interpretability', 'Experiment': '1. Implement active correlation computation\n2. Add sparsity-aware decorrelation loss\n3. Train with different correlation thresholds\n4. Compare feature interpretability metrics\n5. Analyze feature activation patterns', 'Technical_Details': 'The method computes correlations only between actively firing features in each batch. For feature activations F_b, we compute active mask A = (F_b > s), where s is the sparsity threshold (default 0.1). Correlation is computed as C_b = (F_b^T F_b) * (A^T A) / |b|. The loss function is L = L_base + λ * Σ_{(i,j): C_b[i,j] > τ ∧ A[i] ∧ A[j]} (f_i^T f_j)^2, where τ=0.6 is the fixed correlation threshold. Adjacent features (|i-j| ≤ 5) are prioritized for efficiency.', 'Implementation_Plan': '1. Add active correlation computation\n2. Implement sparsity-aware loss function\n3. Add correlation threshold parameter\n4. Update training loop\n5. Add correlation tracking metrics', 'Interestingness_Evaluation': 'The focus on active feature correlations provides a natural way to improve interpretability while respecting the sparse nature of the representations.', 'Interestingness': 7, 'Feasibility_Evaluation': 'Uses only basic matrix operations; implementation is very straightforward; no complex scheduling or memory structures; training time well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'The combination of sparsity-aware correlation constraints with focus on active features in SAE context is novel.', 'Novelty': 6, 'Expected_Research_Impact': 'The simplified approach focusing on active feature correlations should improve interpretability while preserving sparse firing patterns.', 'Research_Impact': 8, 'Overall_Score': 7.8, 'Abstract': 'We present a simplified approach to improving feature disentanglement in sparse autoencoders through active feature decorrelation. Our method focuses on reducing correlations specifically between features that are simultaneously active, aligning naturally with the sparse firing patterns that make SAEs interpretable. We introduce a sparsity-aware correlation computation that only considers feature pairs when both exceed an activation threshold. The approach requires minimal computational overhead and maintains the core benefits of sparse autoencoders while targeting the most relevant feature interactions for interpretability.'}
+Idea generation converged after 5 iterations.
+
+Generating idea 4/15
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea introduces orthogonality constraints to improve knowledge separation, but I believe we can refine this approach by focusing specifically on the temporal dynamics of feature learning. Instead of enforcing strict orthogonality, which may be too restrictive, we can use a more flexible approach that encourages features to become gradually more distinct over time through an adaptive learning scheme.
+
+The key insight is that early in training, features should have more freedom to explore the activation space, while later they should stabilize into distinct, interpretable concepts. This aligns with how humans learn - starting with broad, overlapping concepts that gradually become more precise and differentiated.
+
+The implementation would modify the existing SAE architecture minimally, primarily adjusting the loss function and training dynamics. We'll introduce a temporal weighting factor that gradually increases the importance of feature distinctiveness, while maintaining the core reconstruction and sparsity objectives.
+
+This approach should improve mechanistic interpretability by:
+1. Allowing natural feature discovery early in training
+2. Encouraging cleaner separation of concepts over time
+3. Maintaining good reconstruction while reducing feature interference
+4. Leading to more stable and interpretable features
+
+The modification is focused and builds directly on the prototype without adding complexity - we're simply making the learning process more dynamic and aligned with natural concept formation.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "temporal_distinctiveness_sae",
+    "Title": "Temporally Adaptive Feature Distinctiveness in Sparse Autoencoders",
+    "Experiment": "1. Implement temporal distinctiveness loss with cosine similarity metric\n2. Add adaptive weighting schedule based on training progress\n3. Train on standard datasets with varying distinctiveness schedules\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature stability and separation over time\n6. Evaluate impact on downstream tasks",
+    "Technical_Details": "The method introduces a temporal distinctiveness loss: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_distinct where λ_2(t) = λ_2_max * (1 - exp(-t/τ)) increases smoothly over training. L_distinct is computed as the mean pairwise cosine similarity between feature vectors, weighted by their activation frequencies. The temporal schedule τ controls how quickly features are encouraged to become distinct. Implementation includes efficient batch-wise computation of feature similarities and automatic adjustment of the distinctiveness weight based on reconstruction performance.",
+    "Implementation_Plan": "1. Add TemporalDistinctivenessLoss class with scheduling\n2. Modify CustomSAE to track feature activation frequencies\n3. Update loss computation in CustomTrainer\n4. Add utilities for feature similarity analysis\n5. Implement adaptive weight adjustment\n6. Add evaluation metrics for feature distinctiveness",
+    "Interestingness_Evaluation": "The temporal approach to feature learning provides a natural and intuitive way to balance exploration and specialization in sparse autoencoders.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation requires only modest modifications to existing loss functions and training loop; cosine similarity computations are efficient; temporal scheduling adds minimal overhead; all within 30-minute runtime constraint on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While feature distinctiveness has been explored before, the temporal adaptation approach provides a novel perspective on how features should develop during training.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The temporal approach should significantly improve sparse probing performance by encouraging cleaner feature separation while maintaining good reconstruction, leading to more interpretable and stable features.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "We present a novel approach to training sparse autoencoders that incorporates temporal dynamics into feature learning. Our method introduces a temporally adaptive distinctiveness loss that gradually encourages features to become more specialized and interpretable over the course of training. This approach is motivated by the observation that early flexibility in feature learning, followed by increasing pressure for distinctiveness, may lead to more natural and interpretable representations. We propose a smooth scheduling mechanism that automatically adjusts the importance of feature distinctiveness based on training progress and reconstruction performance. Our method requires minimal modifications to existing sparse autoencoder architectures while potentially offering significant improvements in feature interpretability and stability."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'temporal_distinctiveness_sae', 'Title': 'Temporally Adaptive Feature Distinctiveness in Sparse Autoencoders', 'Experiment': '1. Implement temporal distinctiveness loss with cosine similarity metric\n2. Add adaptive weighting schedule based on training progress\n3. Train on standard datasets with varying distinctiveness schedules\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature stability and separation over time\n6. Evaluate impact on downstream tasks', 'Technical_Details': 'The method introduces a temporal distinctiveness loss: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_distinct where λ_2(t) = λ_2_max * (1 - exp(-t/τ)) increases smoothly over training. L_distinct is computed as the mean pairwise cosine similarity between feature vectors, weighted by their activation frequencies. The temporal schedule τ controls how quickly features are encouraged to become distinct. Implementation includes efficient batch-wise computation of feature similarities and automatic adjustment of the distinctiveness weight based on reconstruction performance.', 'Implementation_Plan': '1. Add TemporalDistinctivenessLoss class with scheduling\n2. Modify CustomSAE to track feature activation frequencies\n3. Update loss computation in CustomTrainer\n4. Add utilities for feature similarity analysis\n5. Implement adaptive weight adjustment\n6. Add evaluation metrics for feature distinctiveness', 'Interestingness_Evaluation': 'The temporal approach to feature learning provides a natural and intuitive way to balance exploration and specialization in sparse autoencoders.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation requires only modest modifications to existing loss functions and training loop; cosine similarity computations are efficient; temporal scheduling adds minimal overhead; all within 30-minute runtime constraint on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While feature distinctiveness has been explored before, the temporal adaptation approach provides a novel perspective on how features should develop during training.', 'Novelty': 7, 'Expected_Research_Impact': 'The temporal approach should significantly improve sparse probing performance by encouraging cleaner feature separation while maintaining good reconstruction, leading to more interpretable and stable features.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'We present a novel approach to training sparse autoencoders that incorporates temporal dynamics into feature learning. Our method introduces a temporally adaptive distinctiveness loss that gradually encourages features to become more specialized and interpretable over the course of training. This approach is motivated by the observation that early flexibility in feature learning, followed by increasing pressure for distinctiveness, may lead to more natural and interpretable representations. We propose a smooth scheduling mechanism that automatically adjusts the importance of feature distinctiveness based on training progress and reconstruction performance. Our method requires minimal modifications to existing sparse autoencoder architectures while potentially offering significant improvements in feature interpretability and stability.'}
+Iteration 2/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Upon review, I believe my previous idea was overly complex with its exponential scheduling and activation frequency tracking. We can simplify while maintaining the core insight about temporal feature development. The key is to focus on the most essential aspect: gradually increasing pressure for feature distinctiveness.
+
+I noticed several areas for improvement:
+1. The cosine similarity metric adds unnecessary computation - we can use simpler L2 normalization
+2. Activation frequency tracking isn't critical to the core mechanism
+3. The exponential schedule can be replaced with linear ramping
+4. The automatic weight adjustment adds complexity without clear benefits
+
+The refined approach focuses purely on the temporal aspect with minimal overhead. This should make the implementation more feasible while preserving the key benefits. The distinctiveness loss will now use a simple dot product between normalized feature vectors, with a linear ramp-up schedule.
+
+This simplification aligns better with the prototype idea's spirit of orthogonality while making the implementation more practical and the results more interpretable. It should still achieve the goal of gradually developing distinct features, but with less computational overhead and fewer moving parts.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "simple_temporal_sae",
+    "Title": "Simple Temporal Feature Development in Sparse Autoencoders",
+    "Experiment": "1. Implement simplified distinctiveness loss with L2 normalization\n2. Add linear ramp-up schedule for distinctiveness weight\n3. Train on standard datasets with fixed schedule\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature separation over training time",
+    "Technical_Details": "The method uses a simplified temporal distinctiveness loss: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_distinct where λ_2(t) = λ_2_max * (t/T) increases linearly over T training steps. L_distinct is computed as the sum of squared dot products between L2-normalized feature vectors: Σ_(i≠j) (w_i · w_j)^2 / (||w_i|| ||w_j||)^2. The linear schedule provides consistent pressure towards feature separation while allowing early exploration. Implementation focuses on efficient batch computation using matrix operations.",
+    "Implementation_Plan": "1. Add SimpleDistinctivenessLoss class\n2. Modify CustomSAE to include L2 normalization\n3. Update loss computation in CustomTrainer\n4. Add linear scheduling function\n5. Implement feature separation metrics",
+    "Interestingness_Evaluation": "The simplified temporal approach provides an elegant and intuitive way to develop distinct features while maintaining implementation efficiency.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "Implementation requires only basic matrix operations and simple linear scheduling; L2 normalization is highly efficient; all computations well within 30-minute runtime constraint on H100; significantly simpler than previous version.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While building on existing ideas about feature distinctiveness, the simplified temporal development approach offers a fresh perspective on training dynamics.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The simplified approach should improve sparse probing performance through gradual feature separation while being easier to analyze and understand.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.2,
+    "Abstract": "We present a simplified approach to training sparse autoencoders that incorporates temporal dynamics into feature learning. Our method introduces a basic distinctiveness loss with linear scheduling that gradually encourages features to become more specialized over the course of training. This approach is motivated by the observation that early flexibility in feature learning, followed by increasing pressure for distinctiveness, may lead to more natural and interpretable representations. We propose a straightforward implementation using L2-normalized feature vectors and a linear ramp-up schedule. Our method requires minimal modifications to existing sparse autoencoder architectures while maintaining computational efficiency."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'simple_temporal_sae', 'Title': 'Simple Temporal Feature Development in Sparse Autoencoders', 'Experiment': '1. Implement simplified distinctiveness loss with L2 normalization\n2. Add linear ramp-up schedule for distinctiveness weight\n3. Train on standard datasets with fixed schedule\n4. Compare feature interpretability against baseline SAE\n5. Analyze feature separation over training time', 'Technical_Details': 'The method uses a simplified temporal distinctiveness loss: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_distinct where λ_2(t) = λ_2_max * (t/T) increases linearly over T training steps. L_distinct is computed as the sum of squared dot products between L2-normalized feature vectors: Σ_(i≠j) (w_i · w_j)^2 / (||w_i|| ||w_j||)^2. The linear schedule provides consistent pressure towards feature separation while allowing early exploration. Implementation focuses on efficient batch computation using matrix operations.', 'Implementation_Plan': '1. Add SimpleDistinctivenessLoss class\n2. Modify CustomSAE to include L2 normalization\n3. Update loss computation in CustomTrainer\n4. Add linear scheduling function\n5. Implement feature separation metrics', 'Interestingness_Evaluation': 'The simplified temporal approach provides an elegant and intuitive way to develop distinct features while maintaining implementation efficiency.', 'Interestingness': 7, 'Feasibility_Evaluation': 'Implementation requires only basic matrix operations and simple linear scheduling; L2 normalization is highly efficient; all computations well within 30-minute runtime constraint on H100; significantly simpler than previous version.', 'Feasibility': 9, 'Novelty_Evaluation': 'While building on existing ideas about feature distinctiveness, the simplified temporal development approach offers a fresh perspective on training dynamics.', 'Novelty': 7, 'Expected_Research_Impact': 'The simplified approach should improve sparse probing performance through gradual feature separation while being easier to analyze and understand.', 'Research_Impact': 8, 'Overall_Score': 8.2, 'Abstract': 'We present a simplified approach to training sparse autoencoders that incorporates temporal dynamics into feature learning. Our method introduces a basic distinctiveness loss with linear scheduling that gradually encourages features to become more specialized over the course of training. This approach is motivated by the observation that early flexibility in feature learning, followed by increasing pressure for distinctiveness, may lead to more natural and interpretable representations. We propose a straightforward implementation using L2-normalized feature vectors and a linear ramp-up schedule. Our method requires minimal modifications to existing sparse autoencoder architectures while maintaining computational efficiency.'}
+Iteration 3/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Upon further reflection, I notice that while the previous version was simpler, we can make it even more focused and practical. The key insight is that we don't need a separate distinctiveness loss term at all - we can achieve the same effect by gradually increasing the sparsity penalty itself.
+
+This realization leads to several improvements:
+1. Eliminates the need for additional loss terms
+2. Uses existing L1 sparsity penalty more effectively
+3. Naturally encourages feature separation through increased sparsity
+4. Simplifies implementation significantly
+
+The core mechanism remains temporal adaptation, but now works through a single, well-understood parameter. As sparsity increases, features naturally become more distinct since they must encode information more efficiently. This aligns perfectly with the goals of mechanistic interpretability while being extremely simple to implement.
+
+This version is even closer to the prototype idea, essentially distilling it to its most fundamental aspect. The implementation requires minimal changes to the existing code, mainly focusing on the sparsity penalty scheduling.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "adaptive_sparsity_sae",
+    "Title": "Adaptive Sparsity Scheduling for Interpretable Feature Learning in Sparse Autoencoders",
+    "Experiment": "1. Implement adaptive sparsity scheduling\n2. Train with gradually increasing L1 penalty\n3. Compare feature interpretability at different sparsity levels\n4. Analyze feature development across training phases\n5. Evaluate impact on downstream tasks",
+    "Technical_Details": "The method uses a standard SAE loss with adaptive sparsity: L = L_recon + λ(t) * L_sparse where λ(t) = λ_min + (λ_max - λ_min) * (t/T) increases linearly from λ_min to λ_max over T training steps. Initial low sparsity allows feature discovery, while gradual increase promotes distinct, interpretable features. Implementation includes smooth transition between sparsity levels and early stabilization if reconstruction loss increases significantly.",
+    "Implementation_Plan": "1. Add SparsityScheduler class\n2. Update CustomTrainer with adaptive L1 penalty\n3. Add reconstruction loss monitoring\n4. Implement sparsity transition logic\n5. Add evaluation metrics for feature analysis",
+    "Interestingness_Evaluation": "The approach achieves feature distinctiveness through a remarkably simple mechanism, leveraging the natural properties of L1 regularization.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "Implementation requires only modification of existing L1 penalty parameter; no additional computations needed; extremely efficient and well within 30-minute runtime constraint on H100; simplest version yet.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While using standard L1 regularization, the adaptive scheduling approach provides a novel perspective on controlling feature development.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The simplified approach should improve sparse probing performance through controlled sparsity progression while being highly practical and easy to implement.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "We present an elegantly simple approach to training sparse autoencoders that leverages adaptive sparsity scheduling to develop interpretable features. Our method gradually increases the L1 penalty during training, allowing initial feature discovery followed by increasing pressure for sparsity and distinctiveness. This approach is motivated by the observation that controlled progression from low to high sparsity may naturally lead to more interpretable representations. We propose a straightforward implementation using linear scheduling of the sparsity penalty, requiring minimal modifications to existing sparse autoencoder architectures while maintaining theoretical guarantees of L1 regularization."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'adaptive_sparsity_sae', 'Title': 'Adaptive Sparsity Scheduling for Interpretable Feature Learning in Sparse Autoencoders', 'Experiment': '1. Implement adaptive sparsity scheduling\n2. Train with gradually increasing L1 penalty\n3. Compare feature interpretability at different sparsity levels\n4. Analyze feature development across training phases\n5. Evaluate impact on downstream tasks', 'Technical_Details': 'The method uses a standard SAE loss with adaptive sparsity: L = L_recon + λ(t) * L_sparse where λ(t) = λ_min + (λ_max - λ_min) * (t/T) increases linearly from λ_min to λ_max over T training steps. Initial low sparsity allows feature discovery, while gradual increase promotes distinct, interpretable features. Implementation includes smooth transition between sparsity levels and early stabilization if reconstruction loss increases significantly.', 'Implementation_Plan': '1. Add SparsityScheduler class\n2. Update CustomTrainer with adaptive L1 penalty\n3. Add reconstruction loss monitoring\n4. Implement sparsity transition logic\n5. Add evaluation metrics for feature analysis', 'Interestingness_Evaluation': 'The approach achieves feature distinctiveness through a remarkably simple mechanism, leveraging the natural properties of L1 regularization.', 'Interestingness': 7, 'Feasibility_Evaluation': 'Implementation requires only modification of existing L1 penalty parameter; no additional computations needed; extremely efficient and well within 30-minute runtime constraint on H100; simplest version yet.', 'Feasibility': 10, 'Novelty_Evaluation': 'While using standard L1 regularization, the adaptive scheduling approach provides a novel perspective on controlling feature development.', 'Novelty': 6, 'Expected_Research_Impact': 'The simplified approach should improve sparse probing performance through controlled sparsity progression while being highly practical and easy to implement.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'We present an elegantly simple approach to training sparse autoencoders that leverages adaptive sparsity scheduling to develop interpretable features. Our method gradually increases the L1 penalty during training, allowing initial feature discovery followed by increasing pressure for sparsity and distinctiveness. This approach is motivated by the observation that controlled progression from low to high sparsity may naturally lead to more interpretable representations. We propose a straightforward implementation using linear scheduling of the sparsity penalty, requiring minimal modifications to existing sparse autoencoder architectures while maintaining theoretical guarantees of L1 regularization.'}
+Iteration 4/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The previous version achieved excellent simplicity, but I realize we can make it even more principled by connecting it directly to the neuroscience concept of neural development, where synaptic pruning occurs gradually to refine neural circuits. This gives us a stronger theoretical foundation while maintaining the same simple implementation.
+
+The key refinements are:
+1. Start with a slightly higher initial sparsity (λ_min = 0.02 instead of near-zero)
+2. Use a more gradual early phase followed by faster pruning
+3. Add a short stabilization period at the end
+4. Keep monitoring reconstruction loss to prevent over-pruning
+
+This modified schedule better matches biological neural development patterns while keeping the simple implementation. It's still just adjusting the L1 penalty, but with a more theoretically grounded progression that should lead to better feature development.
+
+The implementation remains minimal, but the biological inspiration provides better guidance for parameter choices and scheduling.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "neuroscience_inspired_sae",
+    "Title": "Neuroscience-Inspired Adaptive Pruning in Sparse Autoencoders",
+    "Experiment": "1. Implement biologically-motivated sparsity scheduling\n2. Train with three-phase sparsity progression\n3. Compare feature interpretability across development phases\n4. Analyze feature stability during pruning\n5. Evaluate impact on downstream tasks",
+    "Technical_Details": "The method uses standard SAE loss with biologically-motivated sparsity: L = L_recon + λ(t) * L_sparse where λ(t) follows a three-phase schedule: (1) Initial exploration (t < 0.3T): λ = 0.02, (2) Progressive pruning (0.3T ≤ t < 0.9T): λ = 0.02 + (λ_max - 0.02) * ((t-0.3T)/(0.6T))^2, (3) Stabilization (t ≥ 0.9T): λ = λ_max. Implementation includes early stopping if reconstruction loss exceeds 1.5× its minimum value.",
+    "Implementation_Plan": "1. Add BiologicalSparsityScheduler class\n2. Update CustomTrainer with three-phase schedule\n3. Add reconstruction loss tracking\n4. Implement early stopping logic\n5. Add phase transition logging",
+    "Interestingness_Evaluation": "The approach connects sparse autoencoder training to biological neural development, providing theoretical grounding for the training schedule.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation still only requires modification of L1 penalty parameter; three-phase schedule adds minimal complexity; highly efficient and well within 30-minute runtime constraint on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While using standard L1 regularization, the biological inspiration provides a novel and principled approach to feature development.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The biologically-motivated approach should improve sparse probing performance through more natural feature development while maintaining simplicity.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.2,
+    "Abstract": "We present a neuroscience-inspired approach to training sparse autoencoders that mimics biological neural development through adaptive pruning. Our method implements a three-phase training schedule motivated by synaptic pruning in biological neural networks: initial exploration, progressive pruning, and stabilization. This approach is grounded in neuroscience research showing that neural circuits initially form with dense connectivity followed by gradual pruning to refine functional specificity. We propose a straightforward implementation using a biologically-motivated schedule for the sparsity penalty, requiring minimal modifications to existing sparse autoencoder architectures while maintaining a strong theoretical foundation."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'neuroscience_inspired_sae', 'Title': 'Neuroscience-Inspired Adaptive Pruning in Sparse Autoencoders', 'Experiment': '1. Implement biologically-motivated sparsity scheduling\n2. Train with three-phase sparsity progression\n3. Compare feature interpretability across development phases\n4. Analyze feature stability during pruning\n5. Evaluate impact on downstream tasks', 'Technical_Details': 'The method uses standard SAE loss with biologically-motivated sparsity: L = L_recon + λ(t) * L_sparse where λ(t) follows a three-phase schedule: (1) Initial exploration (t < 0.3T): λ = 0.02, (2) Progressive pruning (0.3T ≤ t < 0.9T): λ = 0.02 + (λ_max - 0.02) * ((t-0.3T)/(0.6T))^2, (3) Stabilization (t ≥ 0.9T): λ = λ_max. Implementation includes early stopping if reconstruction loss exceeds 1.5× its minimum value.', 'Implementation_Plan': '1. Add BiologicalSparsityScheduler class\n2. Update CustomTrainer with three-phase schedule\n3. Add reconstruction loss tracking\n4. Implement early stopping logic\n5. Add phase transition logging', 'Interestingness_Evaluation': 'The approach connects sparse autoencoder training to biological neural development, providing theoretical grounding for the training schedule.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation still only requires modification of L1 penalty parameter; three-phase schedule adds minimal complexity; highly efficient and well within 30-minute runtime constraint on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While using standard L1 regularization, the biological inspiration provides a novel and principled approach to feature development.', 'Novelty': 7, 'Expected_Research_Impact': 'The biologically-motivated approach should improve sparse probing performance through more natural feature development while maintaining simplicity.', 'Research_Impact': 8, 'Overall_Score': 8.2, 'Abstract': 'We present a neuroscience-inspired approach to training sparse autoencoders that mimics biological neural development through adaptive pruning. Our method implements a three-phase training schedule motivated by synaptic pruning in biological neural networks: initial exploration, progressive pruning, and stabilization. This approach is grounded in neuroscience research showing that neural circuits initially form with dense connectivity followed by gradual pruning to refine functional specificity. We propose a straightforward implementation using a biologically-motivated schedule for the sparsity penalty, requiring minimal modifications to existing sparse autoencoder architectures while maintaining a strong theoretical foundation.'}
+Iteration 5/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Looking at the previous version, I realize that while the biological inspiration is interesting, it adds unnecessary complexity and potentially distracting theoretical elements. We should return to the core strength of the idea - adaptive sparsity - but make it even more robust and practical.
+
+Key improvements:
+1. Remove the three-phase schedule in favor of a simple warmup followed by constant increase
+2. Make the schedule more robust by tying it to actual feature activation patterns
+3. Focus on practical implementation aspects rather than theoretical connections
+4. Simplify parameter choices
+
+The core mechanism remains the same, but now we adjust the sparsity penalty based on the current percentage of active features, making it more adaptive and self-regulating. This makes the method more robust while keeping implementation simple.
+
+This version strips away unnecessary complexity while making the approach more practical and reliable.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "robust_adaptive_sae",
+    "Title": "Robust Adaptive Sparsity Control for Sparse Autoencoders",
+    "Experiment": "1. Implement activation-based sparsity adjustment\n2. Train with warmup and adaptive progression\n3. Compare feature stability across training\n4. Analyze activation patterns\n5. Evaluate downstream performance",
+    "Technical_Details": "The method uses standard SAE loss with robust sparsity adaptation: L = L_recon + λ(t) * L_sparse where λ(t) has two phases: (1) Warmup (t < 0.1T): λ = λ_min, (2) Adaptive (t ≥ 0.1T): λ = λ_min + (λ_max - λ_min) * min(1, α * (p_target - p_current)), where p_current is the current fraction of active features and p_target is the desired sparsity level (e.g., 0.1). Parameter α controls adjustment speed. Implementation includes moving average of activation statistics and gradient clipping for stability.",
+    "Implementation_Plan": "1. Add RobustSparsityController class\n2. Update CustomTrainer with activation tracking\n3. Implement adaptive penalty adjustment\n4. Add stability safeguards\n5. Add activation pattern logging",
+    "Interestingness_Evaluation": "The approach provides a self-regulating mechanism for sparsity control that automatically adapts to model behavior.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "Implementation requires only basic activation statistics and simple adjustments to L1 penalty; highly efficient and stable; well within 30-minute runtime constraint on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While using standard components, the adaptive control mechanism offers a novel approach to reliable feature development.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The robust adaptive approach should improve sparse probing performance through stable feature development while being highly reliable.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.1,
+    "Abstract": "We present a robust approach to training sparse autoencoders that uses adaptive sparsity control based on feature activation patterns. Our method implements a simple two-phase training schedule with warmup followed by continuous adaptation based on current feature utilization. This approach is motivated by the need for reliable and self-regulating sparsity development in practical applications. We propose a straightforward implementation using activation statistics to guide sparsity penalty adjustment, requiring minimal modifications to existing sparse autoencoder architectures while providing automatic adaptation to different datasets and model configurations."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'robust_adaptive_sae', 'Title': 'Robust Adaptive Sparsity Control for Sparse Autoencoders', 'Experiment': '1. Implement activation-based sparsity adjustment\n2. Train with warmup and adaptive progression\n3. Compare feature stability across training\n4. Analyze activation patterns\n5. Evaluate downstream performance', 'Technical_Details': 'The method uses standard SAE loss with robust sparsity adaptation: L = L_recon + λ(t) * L_sparse where λ(t) has two phases: (1) Warmup (t < 0.1T): λ = λ_min, (2) Adaptive (t ≥ 0.1T): λ = λ_min + (λ_max - λ_min) * min(1, α * (p_target - p_current)), where p_current is the current fraction of active features and p_target is the desired sparsity level (e.g., 0.1). Parameter α controls adjustment speed. Implementation includes moving average of activation statistics and gradient clipping for stability.', 'Implementation_Plan': '1. Add RobustSparsityController class\n2. Update CustomTrainer with activation tracking\n3. Implement adaptive penalty adjustment\n4. Add stability safeguards\n5. Add activation pattern logging', 'Interestingness_Evaluation': 'The approach provides a self-regulating mechanism for sparsity control that automatically adapts to model behavior.', 'Interestingness': 7, 'Feasibility_Evaluation': 'Implementation requires only basic activation statistics and simple adjustments to L1 penalty; highly efficient and stable; well within 30-minute runtime constraint on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While using standard components, the adaptive control mechanism offers a novel approach to reliable feature development.', 'Novelty': 7, 'Expected_Research_Impact': 'The robust adaptive approach should improve sparse probing performance through stable feature development while being highly reliable.', 'Research_Impact': 8, 'Overall_Score': 8.1, 'Abstract': 'We present a robust approach to training sparse autoencoders that uses adaptive sparsity control based on feature activation patterns. Our method implements a simple two-phase training schedule with warmup followed by continuous adaptation based on current feature utilization. This approach is motivated by the need for reliable and self-regulating sparsity development in practical applications. We propose a straightforward implementation using activation statistics to guide sparsity penalty adjustment, requiring minimal modifications to existing sparse autoencoder architectures while providing automatic adaptation to different datasets and model configurations.'}
+Iteration 6/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+After reviewing the previous version, I realize we can make one final simplification that makes the method even more robust and practical. Instead of tracking activation statistics continuously, we can use a simpler per-batch metric that requires no additional state or moving averages.
+
+The key insight is that we can estimate feature utilization directly from the current batch's activations, making the method more responsive and eliminating the need for historical tracking. This maintains the adaptive nature while further reducing implementation complexity.
+
+This version represents the perfect balance between simplicity and effectiveness, with absolutely minimal overhead beyond the base SAE implementation. It's both more practical and more theoretically sound, as it responds immediately to changes in the model's behavior.
+
+The changes are minimal but impactful:
+1. Remove moving average tracking
+2. Use per-batch activation statistics
+3. Simplify the adaptation formula
+4. Remove separate warmup phase in favor of natural progression
+
+This represents the cleanest and most practical version of the adaptive sparsity idea.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "batch_adaptive_sae",
+    "Title": "Batch-Adaptive Sparsity Control for Sparse Autoencoders",
+    "Experiment": "1. Implement batch-based sparsity adjustment\n2. Train with direct activation feedback\n3. Compare feature stability across batches\n4. Analyze immediate adaptation effects\n5. Evaluate downstream performance",
+    "Technical_Details": "The method uses standard SAE loss with immediate adaptation: L = L_recon + λ(b) * L_sparse where λ(b) = λ_base * max(0.1, min(2.0, p_target/p_batch)), where p_batch is the fraction of active features in the current batch and p_target is the desired sparsity (e.g., 0.1). The λ_base parameter provides a reference scale while the ratio ensures direct response to current activation patterns. Bounds prevent extreme variations while maintaining responsiveness.",
+    "Implementation_Plan": "1. Add BatchSparsityController class\n2. Update CustomTrainer with batch statistics\n3. Implement bounded ratio calculation\n4. Add basic logging utilities\n5. Add batch statistics tracking",
+    "Interestingness_Evaluation": "The approach provides immediate adaptation to batch characteristics while maintaining extreme simplicity and reliability.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "Implementation requires only basic batch statistics; no state tracking needed; extremely efficient and stable; well within 30-minute runtime constraint on H100.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While using standard components, the immediate batch adaptation offers a fresh perspective on sparsity control.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The batch-adaptive approach should improve sparse probing performance through responsive feature development while being maximally simple to implement and use.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.4,
+    "Abstract": "We present a minimalist approach to training sparse autoencoders that uses batch-level statistics for adaptive sparsity control. Our method adjusts the sparsity penalty based on immediate feedback from the current batch's activation patterns, eliminating the need for historical tracking or complex scheduling. This approach is motivated by the observation that direct response to current model behavior may lead to more natural and stable feature development. We propose an extremely simple implementation using only batch-level activation statistics, requiring minimal modifications to existing sparse autoencoder architectures while providing robust adaptation to different training conditions."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'batch_adaptive_sae', 'Title': 'Batch-Adaptive Sparsity Control for Sparse Autoencoders', 'Experiment': '1. Implement batch-based sparsity adjustment\n2. Train with direct activation feedback\n3. Compare feature stability across batches\n4. Analyze immediate adaptation effects\n5. Evaluate downstream performance', 'Technical_Details': 'The method uses standard SAE loss with immediate adaptation: L = L_recon + λ(b) * L_sparse where λ(b) = λ_base * max(0.1, min(2.0, p_target/p_batch)), where p_batch is the fraction of active features in the current batch and p_target is the desired sparsity (e.g., 0.1). The λ_base parameter provides a reference scale while the ratio ensures direct response to current activation patterns. Bounds prevent extreme variations while maintaining responsiveness.', 'Implementation_Plan': '1. Add BatchSparsityController class\n2. Update CustomTrainer with batch statistics\n3. Implement bounded ratio calculation\n4. Add basic logging utilities\n5. Add batch statistics tracking', 'Interestingness_Evaluation': 'The approach provides immediate adaptation to batch characteristics while maintaining extreme simplicity and reliability.', 'Interestingness': 7, 'Feasibility_Evaluation': 'Implementation requires only basic batch statistics; no state tracking needed; extremely efficient and stable; well within 30-minute runtime constraint on H100.', 'Feasibility': 10, 'Novelty_Evaluation': 'While using standard components, the immediate batch adaptation offers a fresh perspective on sparsity control.', 'Novelty': 7, 'Expected_Research_Impact': 'The batch-adaptive approach should improve sparse probing performance through responsive feature development while being maximally simple to implement and use.', 'Research_Impact': 8, 'Overall_Score': 8.4, 'Abstract': "We present a minimalist approach to training sparse autoencoders that uses batch-level statistics for adaptive sparsity control. Our method adjusts the sparsity penalty based on immediate feedback from the current batch's activation patterns, eliminating the need for historical tracking or complex scheduling. This approach is motivated by the observation that direct response to current model behavior may lead to more natural and stable feature development. We propose an extremely simple implementation using only batch-level activation statistics, requiring minimal modifications to existing sparse autoencoder architectures while providing robust adaptation to different training conditions."}
+Iteration 7/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+After careful review of the previous version, I believe we've reached an optimal balance of simplicity, practicality, and effectiveness. The batch-adaptive approach with direct feedback represents the cleanest possible implementation of the adaptive sparsity concept. Any further modifications would either add unnecessary complexity or deviate from the core strength of immediate adaptation.
+
+The current version has several key strengths:
+1. Minimal computational overhead
+2. No state tracking required
+3. Immediate responsiveness to model behavior
+4. Extremely simple implementation
+5. Natural bounds on adaptation
+
+Attempting to refine it further would risk overcomplicating what is currently a very clean and practical solution. The method stays true to the original prototype idea while making it more robust and easier to implement.
+
+I am done.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "batch_adaptive_sae",
+    "Title": "Batch-Adaptive Sparsity Control for Sparse Autoencoders",
+    "Experiment": "1. Implement batch-based sparsity adjustment\n2. Train with direct activation feedback\n3. Compare feature stability across batches\n4. Analyze immediate adaptation effects\n5. Evaluate downstream performance",
+    "Technical_Details": "The method uses standard SAE loss with immediate adaptation: L = L_recon + λ(b) * L_sparse where λ(b) = λ_base * max(0.1, min(2.0, p_target/p_batch)), where p_batch is the fraction of active features in the current batch and p_target is the desired sparsity (e.g., 0.1). The λ_base parameter provides a reference scale while the ratio ensures direct response to current activation patterns. Bounds prevent extreme variations while maintaining responsiveness.",
+    "Implementation_Plan": "1. Add BatchSparsityController class\n2. Update CustomTrainer with batch statistics\n3. Implement bounded ratio calculation\n4. Add basic logging utilities\n5. Add batch statistics tracking",
+    "Interestingness_Evaluation": "The approach provides immediate adaptation to batch characteristics while maintaining extreme simplicity and reliability.",
+    "Interestingness": 7,
+    "Feasibility_Evaluation": "Implementation requires only basic batch statistics; no state tracking needed; extremely efficient and stable; well within 30-minute runtime constraint on H100.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While using standard components, the immediate batch adaptation offers a fresh perspective on sparsity control.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The batch-adaptive approach should improve sparse probing performance through responsive feature development while being maximally simple to implement and use.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.4,
+    "Abstract": "We present a minimalist approach to training sparse autoencoders that uses batch-level statistics for adaptive sparsity control. Our method adjusts the sparsity penalty based on immediate feedback from the current batch's activation patterns, eliminating the need for historical tracking or complex scheduling. This approach is motivated by the observation that direct response to current model behavior may lead to more natural and stable feature development. We propose an extremely simple implementation using only batch-level activation statistics, requiring minimal modifications to existing sparse autoencoder architectures while providing robust adaptation to different training conditions."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'batch_adaptive_sae', 'Title': 'Batch-Adaptive Sparsity Control for Sparse Autoencoders', 'Experiment': '1. Implement batch-based sparsity adjustment\n2. Train with direct activation feedback\n3. Compare feature stability across batches\n4. Analyze immediate adaptation effects\n5. Evaluate downstream performance', 'Technical_Details': 'The method uses standard SAE loss with immediate adaptation: L = L_recon + λ(b) * L_sparse where λ(b) = λ_base * max(0.1, min(2.0, p_target/p_batch)), where p_batch is the fraction of active features in the current batch and p_target is the desired sparsity (e.g., 0.1). The λ_base parameter provides a reference scale while the ratio ensures direct response to current activation patterns. Bounds prevent extreme variations while maintaining responsiveness.', 'Implementation_Plan': '1. Add BatchSparsityController class\n2. Update CustomTrainer with batch statistics\n3. Implement bounded ratio calculation\n4. Add basic logging utilities\n5. Add batch statistics tracking', 'Interestingness_Evaluation': 'The approach provides immediate adaptation to batch characteristics while maintaining extreme simplicity and reliability.', 'Interestingness': 7, 'Feasibility_Evaluation': 'Implementation requires only basic batch statistics; no state tracking needed; extremely efficient and stable; well within 30-minute runtime constraint on H100.', 'Feasibility': 10, 'Novelty_Evaluation': 'While using standard components, the immediate batch adaptation offers a fresh perspective on sparsity control.', 'Novelty': 7, 'Expected_Research_Impact': 'The batch-adaptive approach should improve sparse probing performance through responsive feature development while being maximally simple to implement and use.', 'Research_Impact': 8, 'Overall_Score': 8.4, 'Abstract': "We present a minimalist approach to training sparse autoencoders that uses batch-level statistics for adaptive sparsity control. Our method adjusts the sparsity penalty based on immediate feedback from the current batch's activation patterns, eliminating the need for historical tracking or complex scheduling. This approach is motivated by the observation that direct response to current model behavior may lead to more natural and stable feature development. We propose an extremely simple implementation using only batch-level activation statistics, requiring minimal modifications to existing sparse autoencoder architectures while providing robust adaptation to different training conditions."}
+Idea generation converged after 7 iterations.
+
+Generating idea 5/15
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea introduces orthogonality constraints to improve feature separation, but I believe we can refine this approach by focusing specifically on the temporal dynamics of feature learning. Rather than enforcing strict orthogonality, which may be too restrictive, we can encourage features to develop distinct temporal activation patterns. This builds on the intuition that different semantic concepts often appear in different temporal contexts.
+
+The key modification is to add a temporal consistency loss that encourages each feature to maintain consistent activation patterns across time while differing from other features. This preserves the core goal of feature separation from the prototype but approaches it from a more natural angle based on how concepts manifest in language. The implementation remains simple - we just need to track feature activations across consecutive tokens and add a temporal consistency term to the loss function.
+
+This refinement is more theoretically motivated than strict orthogonality since it aligns with how language actually structures information temporally. It should improve interpretability by discovering features that capture temporally coherent patterns rather than artificially separated ones.
+
+The implementation is actually simpler than the prototype's orthogonality constraints since we just need to buffer a small window of past activations rather than computing full weight matrix products. This makes it very feasible within the time constraints while maintaining the core goal of improved feature separation.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "temporal_consistency_sae",
+    "Title": "Temporally Consistent Feature Learning for Improved Interpretability in Sparse Autoencoders",
+    "Experiment": "1. Modify SAE to track feature activations across consecutive tokens\n2. Add temporal consistency loss encouraging stable feature patterns\n3. Train on Pythia-70M with varying consistency weights\n4. Compare feature interpretability against baseline SAE\n5. Analyze temporal stability of learned features\n6. Evaluate impact on sparse probing tasks",
+    "Technical_Details": "The method adds a temporal consistency term to the objective: L = L_recon + λ_1 * L_sparse + λ_2 * L_temporal where L_temporal = ||F_t - F_{t-1}||_2^2 for feature activations F at timesteps t and t-1. A small buffer maintains the previous k=5 timesteps of activations. The consistency loss encourages each feature to maintain stable activation patterns while the sparsity loss ensures distinct features capture different concepts. Implementation includes gradient clipping to stabilize training.",
+    "Implementation_Plan": "1. Add activation buffer to CustomSAE class\n2. Implement temporal consistency loss computation\n3. Modify forward pass to maintain activation history\n4. Update CustomTrainer with new loss term\n5. Add evaluation metrics for temporal stability\n6. Implement visualization tools for activation patterns",
+    "Interestingness_Evaluation": "The approach leverages natural temporal structure in language to improve feature separation, providing a more principled alternative to artificial orthogonality constraints.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation requires minimal changes to existing code - just adding an activation buffer and new loss term; training remains efficient since temporal loss only requires comparing consecutive states; all computations well within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While temporal consistency has been used in other domains, applying it to improve SAE interpretability through natural feature separation is novel.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The temporal consistency approach should significantly improve sparse probing performance by learning more stable and interpretable features that better capture distinct semantic concepts.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "Sparse autoencoders (SAEs) have emerged as a promising approach for understanding the internal representations of language models. However, current methods often struggle with feature entanglement, where individual features capture multiple unrelated concepts. We propose incorporating temporal consistency constraints into SAE training to encourage the learning of more interpretable features. Our approach leverages the natural temporal structure of language, encouraging features to maintain consistent activation patterns across time while capturing distinct concepts through sparsity constraints. This provides a more principled approach to feature separation compared to artificial orthogonality constraints. We present a simple and efficient implementation that adds minimal computational overhead to existing SAE training procedures."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'temporal_consistency_sae', 'Title': 'Temporally Consistent Feature Learning for Improved Interpretability in Sparse Autoencoders', 'Experiment': '1. Modify SAE to track feature activations across consecutive tokens\n2. Add temporal consistency loss encouraging stable feature patterns\n3. Train on Pythia-70M with varying consistency weights\n4. Compare feature interpretability against baseline SAE\n5. Analyze temporal stability of learned features\n6. Evaluate impact on sparse probing tasks', 'Technical_Details': 'The method adds a temporal consistency term to the objective: L = L_recon + λ_1 * L_sparse + λ_2 * L_temporal where L_temporal = ||F_t - F_{t-1}||_2^2 for feature activations F at timesteps t and t-1. A small buffer maintains the previous k=5 timesteps of activations. The consistency loss encourages each feature to maintain stable activation patterns while the sparsity loss ensures distinct features capture different concepts. Implementation includes gradient clipping to stabilize training.', 'Implementation_Plan': '1. Add activation buffer to CustomSAE class\n2. Implement temporal consistency loss computation\n3. Modify forward pass to maintain activation history\n4. Update CustomTrainer with new loss term\n5. Add evaluation metrics for temporal stability\n6. Implement visualization tools for activation patterns', 'Interestingness_Evaluation': 'The approach leverages natural temporal structure in language to improve feature separation, providing a more principled alternative to artificial orthogonality constraints.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation requires minimal changes to existing code - just adding an activation buffer and new loss term; training remains efficient since temporal loss only requires comparing consecutive states; all computations well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While temporal consistency has been used in other domains, applying it to improve SAE interpretability through natural feature separation is novel.', 'Novelty': 7, 'Expected_Research_Impact': 'The temporal consistency approach should significantly improve sparse probing performance by learning more stable and interpretable features that better capture distinct semantic concepts.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'Sparse autoencoders (SAEs) have emerged as a promising approach for understanding the internal representations of language models. However, current methods often struggle with feature entanglement, where individual features capture multiple unrelated concepts. We propose incorporating temporal consistency constraints into SAE training to encourage the learning of more interpretable features. Our approach leverages the natural temporal structure of language, encouraging features to maintain consistent activation patterns across time while capturing distinct concepts through sparsity constraints. This provides a more principled approach to feature separation compared to artificial orthogonality constraints. We present a simple and efficient implementation that adds minimal computational overhead to existing SAE training procedures.'}
+Iteration 2/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Reviewing my previous idea, I realize the temporal consistency approach, while interesting, may be too indirect for improving feature interpretability. The core insight from the prototype about orthogonality remains valuable, but we can refine it by focusing on controlled feature separation through adaptive thresholding rather than temporal patterns.
+
+The key improvement would be to dynamically adjust the sparsity threshold for each feature based on its reconstruction contribution. Features that contribute more to reconstruction would be allowed higher activation rates, while less important features would be pushed toward stricter sparsity. This maintains the spirit of the prototype's orthogonality constraints but provides a more nuanced approach to feature separation.
+
+This refinement is more directly aligned with the goal of improving interpretability since it explicitly balances feature importance with sparsity. It's also simpler than the temporal approach since we don't need to track activation history - we just need to compute per-feature reconstruction contributions during training.
+
+The implementation is very feasible since it only requires modifying the sparsity loss computation to use feature-specific thresholds. This actually simplifies the previous idea by removing the need for temporal buffers while maintaining the core goal of improved feature separation.
+
+I've lowered the novelty score since this is more of a refinement of existing techniques, but increased feasibility due to simpler implementation. The overall score has been adjusted accordingly.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "adaptive_threshold_sae",
+    "Title": "Adaptive Sparsity Thresholds for Improved Feature Separation in Sparse Autoencoders",
+    "Experiment": "1. Implement per-feature sparsity threshold computation\n2. Add dynamic threshold updates based on reconstruction contribution\n3. Train on Pythia-70M with varying base threshold values\n4. Compare feature interpretability against baseline SAE\n5. Analyze distribution of learned thresholds\n6. Evaluate impact on sparse probing tasks",
+    "Technical_Details": "The method uses feature-specific sparsity thresholds: L = L_recon + Σ_i λ_i * L_sparse_i where λ_i = λ_base * (1 - r_i) and r_i is feature i's normalized reconstruction contribution. Thresholds are updated every 100 steps using exponential moving averages of reconstruction contributions. Implementation includes gradient scaling to prevent threshold instability and minimum/maximum bounds on λ_i to ensure training stability.",
+    "Implementation_Plan": "1. Add per-feature threshold parameters to CustomSAE\n2. Implement reconstruction contribution calculation\n3. Modify sparsity loss to use individual thresholds\n4. Update CustomTrainer with threshold updates\n5. Add evaluation metrics for threshold distribution\n6. Implement visualization tools for feature importance",
+    "Interestingness_Evaluation": "The approach provides a principled way to balance feature importance with sparsity constraints, leading to more natural feature separation.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation requires only simple modifications to sparsity loss computation; threshold updates add minimal overhead; all computations easily within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While adaptive thresholding is a known technique, its application to improve SAE interpretability through balanced feature separation is incremental.",
+    "Novelty": 6,
+    "Expected_Research_Impact": "The adaptive threshold approach should improve sparse probing performance by learning a more naturally separated and hierarchical feature representation.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.1,
+    "Abstract": "Sparse autoencoders (SAEs) have shown promise in uncovering interpretable features in language models, but achieving optimal feature separation remains challenging. We propose an adaptive thresholding approach that dynamically adjusts sparsity constraints based on each feature's contribution to reconstruction. This allows the model to naturally develop a hierarchy of features, with different degrees of sparsity based on their importance. Our method extends existing SAE frameworks with a simple modification to the sparsity loss, requiring minimal computational overhead. The approach provides a principled way to balance feature utility with separability, potentially leading to more interpretable representations."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'adaptive_threshold_sae', 'Title': 'Adaptive Sparsity Thresholds for Improved Feature Separation in Sparse Autoencoders', 'Experiment': '1. Implement per-feature sparsity threshold computation\n2. Add dynamic threshold updates based on reconstruction contribution\n3. Train on Pythia-70M with varying base threshold values\n4. Compare feature interpretability against baseline SAE\n5. Analyze distribution of learned thresholds\n6. Evaluate impact on sparse probing tasks', 'Technical_Details': "The method uses feature-specific sparsity thresholds: L = L_recon + Σ_i λ_i * L_sparse_i where λ_i = λ_base * (1 - r_i) and r_i is feature i's normalized reconstruction contribution. Thresholds are updated every 100 steps using exponential moving averages of reconstruction contributions. Implementation includes gradient scaling to prevent threshold instability and minimum/maximum bounds on λ_i to ensure training stability.", 'Implementation_Plan': '1. Add per-feature threshold parameters to CustomSAE\n2. Implement reconstruction contribution calculation\n3. Modify sparsity loss to use individual thresholds\n4. Update CustomTrainer with threshold updates\n5. Add evaluation metrics for threshold distribution\n6. Implement visualization tools for feature importance', 'Interestingness_Evaluation': 'The approach provides a principled way to balance feature importance with sparsity constraints, leading to more natural feature separation.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation requires only simple modifications to sparsity loss computation; threshold updates add minimal overhead; all computations easily within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While adaptive thresholding is a known technique, its application to improve SAE interpretability through balanced feature separation is incremental.', 'Novelty': 6, 'Expected_Research_Impact': 'The adaptive threshold approach should improve sparse probing performance by learning a more naturally separated and hierarchical feature representation.', 'Research_Impact': 8, 'Overall_Score': 8.1, 'Abstract': "Sparse autoencoders (SAEs) have shown promise in uncovering interpretable features in language models, but achieving optimal feature separation remains challenging. We propose an adaptive thresholding approach that dynamically adjusts sparsity constraints based on each feature's contribution to reconstruction. This allows the model to naturally develop a hierarchy of features, with different degrees of sparsity based on their importance. Our method extends existing SAE frameworks with a simple modification to the sparsity loss, requiring minimal computational overhead. The approach provides a principled way to balance feature utility with separability, potentially leading to more interpretable representations."}
+Iteration 3/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Upon review, while the adaptive thresholding approach is promising, I realize it introduces unnecessary complexity with the per-feature threshold tracking. We can achieve similar benefits with a simpler, more focused approach that better aligns with the prototype's orthogonality goal.
+
+The key insight is that we can use a fixed sparsity threshold but adaptively scale the reconstruction loss for each feature based on its activation frequency. This maintains the spirit of balancing feature importance but is more straightforward - features that activate more frequently need to reconstruct their inputs

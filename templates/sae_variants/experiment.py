@@ -1,5 +1,7 @@
-import torch
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+import torch
 import torch.nn as nn
 import numpy as np
 from collections import namedtuple
@@ -324,7 +326,7 @@ def run_sae_training(
     num_tokens: int,
     out_dir: str,  # Changed from save_dir to out_dir for consistency
     device: str,
-    model_name: str = "google/gemma-2b",
+    model_name: str = "google/gemma-2-2b",
     context_length: int = 128,
     buffer_size: int = 2048,
     llm_batch_size: int = 24,
