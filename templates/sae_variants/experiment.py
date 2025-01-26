@@ -1,5 +1,6 @@
 import sys
 import os
+#sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 import torch
 import torch.nn as nn
@@ -13,7 +14,7 @@ from nnsight import LanguageModel
 from dictionary_learning.utils import hf_dataset_to_generator
 from dictionary_learning.buffer import ActivationBuffer
 import argparse
-
+import time
 
 
 
@@ -70,8 +71,12 @@ class CustomSAE(nn.Module):
         super().__init__()
         self.W_enc = nn.Parameter(torch.zeros(d_in, d_sae))
         self.W_dec = nn.Parameter(torch.zeros(d_sae, d_in))
+        nn.init.kaiming_uniform_(self.W_enc, nonlinearity='relu')
+        nn.init.kaiming_uniform_(self.W_dec, nonlinearity='relu')
         self.b_enc = nn.Parameter(torch.zeros(d_sae))
         self.b_dec = nn.Parameter(torch.zeros(d_in))
+        nn.init.uniform_(self.b_enc, -0.01, 0.01)
+        nn.init.uniform_(self.b_dec, -0.01, 0.01)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.dtype = torch.float32
         
@@ -97,6 +102,7 @@ class CustomSAE(nn.Module):
     def encode(self, input_acts):
         pre_acts = (input_acts - self.b_dec) @ self.W_enc + self.b_enc
         acts = torch.relu(pre_acts)
+
         return acts
 
     def decode(self, acts):
@@ -192,6 +198,7 @@ class CustomTrainer(SAETrainer):
             torch.cuda.manual_seed_all(seed)
 
         # Initialize autoencoder
+
         self.ae = CustomSAE(d_in=activation_dim, d_sae=dict_size, hook_layer=layer, model_name=lm_name)
 
         self.lr = lr
@@ -236,7 +243,7 @@ class CustomTrainer(SAETrainer):
 
             # Compute loss for each activation
             losses = (activations - self.ae(activations)).norm(dim=-1)
-
+            
             # Sample input to create encoder/decoder weights from
             n_resample = min([deads.sum(), losses.shape[0]])
             indices = torch.multinomial(losses, num_samples=n_resample, replacement=False)
@@ -276,7 +283,7 @@ class CustomTrainer(SAETrainer):
             self.steps_since_active[~deads] = 0
         
         loss = l2_loss + self.l1_penalty * l1_loss
-
+        return {"loss_for_backward": loss, "loss" : loss.cpu().item(), "l1_loss" : l1_loss.cpu().item(), "l2_loss" : l2_loss.cpu().item()}
         if not logging:
             return loss
         else:
@@ -292,15 +299,17 @@ class CustomTrainer(SAETrainer):
 
     def update(self, step, activations):
         activations = activations.to(self.device)
-
         self.optimizer.zero_grad()
-        loss = self.loss(activations)
+        loss_dict = self.loss(activations)
+        loss = loss_dict["loss_for_backward"]
         loss.backward()
         self.optimizer.step()
         self.scheduler.step()
 
         if self.resample_steps is not None and step % self.resample_steps == 0:
             self.resample_neurons(self.steps_since_active > self.resample_steps / 2, activations)
+        del loss_dict["loss_for_backward"]
+        return loss_dict
 
     @property
     def config(self):
@@ -318,7 +327,19 @@ class CustomTrainer(SAETrainer):
             'wandb_name': self.wandb_name,
             'submodule_name': self.submodule_name,
         }
+def special_slice(list1, m=5, num_k=20):
+    # Compute N
+    N = (len(list1) - m) // num_k
 
+    # Create dictionary with step indices
+    result = {}
+    for k in range(num_k):
+        for i in range(m):
+            idx = k * N + i
+            if idx < len(list1):
+                result[f"step {idx}"] = list1[idx]
+    
+    return result
 
 def run_sae_training(
     layer: int,
@@ -392,7 +413,6 @@ def run_sae_training(
         lm_name=model_name,
         submodule_name=submodule_name
     )
-
     training_log = []
     
     # Training loop
@@ -400,14 +420,13 @@ def run_sae_training(
         activations = next(activation_buffer)
         loss_dict = trainer.update(step, activations)
         training_log.append(loss_dict)
-        
+
         if step % 100 == 0:
             print(f"Step {step}: {loss_dict}")
-            
             if wandb_logging and wandb_entity and wandb_project:
                 import wandb
                 wandb.log(loss_dict, step=step)
-
+    print("\n training complete! \n")
     # Prepare final results
     final_info = {
         "training_steps": steps,
@@ -424,10 +443,10 @@ def run_sae_training(
         "optimizer_state_dict": trainer.optimizer.state_dict(),
     }
     torch.save(checkpoint, os.path.join(out_dir, "autoencoder_checkpoint.pt"))
-
+    
     # Save all results and metrics
     results = {
-        "training_log": training_log,
+        "training_log": special_slice(training_log, m = 2, num_k= 4),
         "config": trainer.config,
         "final_info": final_info
     }
@@ -442,9 +461,10 @@ def run_sae_training(
             existing_data = json.load(f)
     else:
         existing_data = {}
-    existing_data.update(final_info)
+    existing_data.update({f"training results for layer {layer}" : results})
     with open(all_info_path, "w") as f:
-        json.dump(existing_data, indent=2, fp=f)   
+        json.dump(existing_data, indent=2, fp=f)
+    print(f"all info: {all_info_path}") 
     return trainer.ae
 
 import os
@@ -473,7 +493,7 @@ RANDOM_SEED = 42
 
 
 MODEL_CONFIGS = {
-    # "EleutherAI/pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3, 4], "d_model": 512},
+    # "EleutherAI/pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3], "d_model": 512},
     "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
 }
 
@@ -570,21 +590,7 @@ def evaluate_trained_sae(
                 dtype=llm_dtype,
             )
         ),
-        "scr": (
-            lambda: scr_and_tpp.run_eval(
-                scr_and_tpp.ScrAndTppEvalConfig(
-                    model_name=model_name,
-                    random_seed=RANDOM_SEED,
-                    llm_batch_size=llm_batch_size,
-                    llm_dtype=llm_dtype,
-                ),
-                selected_saes,
-                device,
-                out_dir,
-                force_rerun,
-            )
-        ),
-        "tpp": (
+        "scr_and_tpp": (
             lambda: scr_and_tpp.run_eval(
                 scr_and_tpp.ScrAndTppEvalConfig(
                     model_name=model_name,
@@ -667,31 +673,31 @@ if __name__ == "__main__":
     llm_dtype = MODEL_CONFIGS[model_name]["dtype"]
     # Initialize variables that were previously args
     layers = MODEL_CONFIGS[model_name]["layers"]
-    num_tokens = 1000 # Set default number of tokens
+    num_tokens = 10_000_000 # Set default number of tokens, can be increased by a factor of up to 10 but takes much longer. Note training steps = num_tokens/sae_batch_size, so you can increase training be increasing num_of_tokens
     device = "cuda" if torch.cuda.is_available() else "cpu"
     no_wandb_logging = False # Set default wandb logging flag
     
     saes = []
     for layer in layers:
         saes.append(run_sae_training(
-            layer=layer,
-            dict_size=d_model,
-            num_tokens=num_tokens,
-            out_dir=save_dir,
-            device=device,
-            model_name=model_name,
-            context_length=128,
-            buffer_size=2048,
-            llm_batch_size=llm_batch_size,
-            sae_batch_size=2048,
-            learning_rate=3e-4,
-            sparsity_penalty=0.04,
-            warmup_steps=1000,
-            seed=42,
-            wandb_logging=not no_wandb_logging,
-            wandb_entity=None,
-            wandb_project=None
-            ))        
+  layer=layer,
+   dict_size=d_model,
+  num_tokens=num_tokens,
+  out_dir=save_dir,
+ device=device,
+ model_name=model_name,
+ context_length=128,
+  buffer_size=2048,
+   llm_batch_size=llm_batch_size,
+  sae_batch_size=2048,
+ learning_rate=3e-4,
+ sparsity_penalty=0.04,
+ warmup_steps=1000,
+  seed=42,
+    wandb_logging=not no_wandb_logging,
+    wandb_entity=None,
+    wandb_project=None
+    )) 
 
 
 
@@ -703,20 +709,20 @@ if __name__ == "__main__":
     # Absorption not recommended for models < 2B parameters
 
     # Select your eval types here.
+
+    # "autointerp", AUTOINTERP NOT AVAILABLE
+    # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
+
     eval_types = [
-        # "absorption",
-        # "autointerp",
-        # "core",
-        # "scr",
-        # "tpp",
-        # "sparse_probing",
-        "unlearning",
+        "absorption", 
+        "core",
+        "scr_and_tpp",
+        "sparse_probing",
     ]
 
     if "autointerp" in eval_types:
         try:
-            with open("openai_api_key.txt") as f:
-                api_key = f.read().strip()
+            api_key = os.environ["OPENAI_API_KEY"]
         except FileNotFoundError:
             raise Exception("Please create openai_api_key.txt with your API key")
     else:

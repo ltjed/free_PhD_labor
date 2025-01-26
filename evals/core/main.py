@@ -1003,15 +1003,16 @@ def multiple_evals(
             existing_data = {}
         # eval_results already be a dictionary
         # existing_data.update(asdict(eval_results[-1]))
-        existing_data.update(eval_results[-1])
+        existing_data.update({ "core evaluation results" : eval_results[-1]})
         # print("asdict clause runned.")
         # print(f"eval_results[-1] = {eval_results[-1]}")
         # print(f"eval_results[-1] = {type(eval_results[-1])}")
         # Convert the eval_config to dict before saving
-        if isinstance(existing_data['eval_cfg'], CoreEvalConfig):
-            existing_data['eval_cfg'] = asdict(existing_data['eval_cfg'])
+        if isinstance(existing_data["core evaluation results"]['eval_cfg'], CoreEvalConfig):
+            existing_data["core evaluation results"]['eval_cfg'] = asdict(existing_data["core evaluation results"]['eval_cfg'])
         with open(all_info_path, "w") as f:
-            json.dump(existing_data, indent=2, fp=f)   
+            json.dump(existing_data, indent=2, fp=f)
+
     return eval_results
 
 

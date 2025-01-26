@@ -345,8 +345,14 @@ def run_eval(
             sae_cfg_dict=asdict(sae.cfg),
         )
         all_info_path = os.path.join(output_path, "final_info.json")
+        if os.path.exists(all_info_path):
+            with open(all_info_path, 'r') as f:
+                existing_data = json.load(f)
+        else:
+            existing_data = {}
+        existing_data.update({ "sparse probing evaluation results" : asdict(eval_output)})
         with open(all_info_path, "w") as f:
-            json.dump(asdict(eval_output), indent=2, fp=f)
+            json.dump(existing_data, indent=2, fp=f)
         results_dict[f"{sae_release}_{sae_id}"] = asdict(eval_output)
 
         eval_output.to_json_file(sae_result_path, indent=2)

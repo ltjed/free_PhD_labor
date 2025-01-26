@@ -717,7 +717,7 @@ def run_eval(
         eval_type = EVAL_TYPE_ID_SCR
     else:
         eval_type = EVAL_TYPE_ID_TPP
-    output_path = os.path.join(output_path, eval_type)
+    #output_path = os.path.join(output_path, eval_type)
     os.makedirs(output_path, exist_ok=True)
 
     artifacts_base_folder = "artifacts"
@@ -815,7 +815,7 @@ def run_eval(
                 existing_data = json.load(f)
         else:
             existing_data = {}
-        existing_data.update(asdict(eval_output))
+        existing_data.update({"scr and tpp evaluations results":asdict(eval_output)})
         with open(all_info_path, "w") as f:
             json.dump(existing_data, indent=2, fp=f)        
             

@@ -305,6 +305,9 @@ if __name__ == "__main__":
 
     # Create client
     client, client_model = create_client(args.model)
+    #client, client_model = create_client("deepseek-reasoner")
+    #coding_client, coding_client_model = create_client("claude-3-5-sonnet-20241022")
+
 
     base_dir = osp.join("templates", args.experiment)
     results_dir = osp.join("results", args.experiment)

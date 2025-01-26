@@ -6,13 +6,15 @@ import subprocess
 import sys
 from subprocess import TimeoutExpired
 
-MAX_ITERS = 10 # originally 10
+MAX_ITERS = 30 # originally 10
 MAX_RUNS = 10 # originally 5
 MAX_STDERR_OUTPUT = 1500
 
-coder_prompt = """Your goal is to implement the following idea: {title}.
+coder_prompt = """Your goal is to implement the following idea: {title}. Pay attention to the following details from the idea:
 The proposed experiment is as follows: {idea}.
 The implementation plan is as follows: {implementation_plan}.
+
+You can also refer to other information in the idea: {context_information}
 
 You are given a total of up to {max_runs} runs to complete the necessary experiments. You do not need to use all {max_runs}.
 
@@ -128,6 +130,7 @@ def perform_experiments(idea, folder_name, coder, baseline_results) -> bool:
         title=idea["Title"],
         idea=idea["Experiment"],
         implementation_plan = idea["Implementation_Plan"],
+        context_information = idea,
         max_runs=MAX_RUNS,
         baseline_results=baseline_results,
     )
@@ -157,7 +160,7 @@ def perform_experiments(idea, folder_name, coder, baseline_results) -> bool:
 
     current_iter = 0
     next_prompt = """
-Great job! Please modify `plot.py` to generate the most relevant plots for the final writeup. 
+Great job! Please modify `plot.py` to generate relevant plots for the final writeup. These plots should be relevant and insightful. You should take data from the results obtained earlier in the experiments.
 
 In particular, be sure to fill in the "labels" dictionary with the correct names for each run that you want to plot.
 
@@ -172,7 +175,7 @@ We will be running the command `python plot.py` to generate the plots.
         if return_code == 0 or current_iter >= MAX_ITERS:
             break
     next_prompt = """
-Please modify `notes.txt` with a description of what each plot shows along with the filename of the figure. Please do so in-depth.
+Please modify `notes.txt` with a description of what each plot shows along with the filename of the figure. Please do so in-depth. For example, explain the significance of these figures, what is as expected, what is remarkably unexpected, etc.
 
 Somebody else will be using `notes.txt` to write a report on this in the future.
 """

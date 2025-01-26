@@ -155,7 +155,7 @@ def run_eval(
                 existing_data = json.load(f)
         else:
             existing_data = {}
-        existing_data.update(asdict(eval_output))
+        existing_data.update({"absorption evaluation results":asdict(eval_output)})
         with open(all_info_path, "w") as f:
             json.dump(existing_data, indent=2, fp=f)   
         results_dict[f"{sae_release}_{sae_id}"] = asdict(eval_output)

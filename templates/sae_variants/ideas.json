@@ -1,20 +1,21 @@
 [
     {
-        "Name": "adaptive_orthogonal_sae",
-        "Title": "Instantaneous Top-k Orthogonality Constraints for Feature Disentanglement",
-        "Experiment": "1. Select top 0.1% f_i*f_j pairs per batch\n2. Apply orthogonality loss to selected pairs\n3. Use L2 weight normalization on W_dec\n4. Compare fixed vs adaptive τ values\n5. Measure absorption reduction efficiency\n6. Analyze pair selection stability\n7. Ablate top-k threshold impact",
-        "Technical_Details": "Loss: L = L_recon + λ_1||f||_1 + λ_2Σ_{(i,j)∈TopK(batch)} |w_i·w_j|. Top pairs selected via torch.topk on (f @ f.T).flatten(). L2 normalization: W_dec = W / ||W||_2. Fixed τ=0.2. No history tracking - pure batch-level selection. Orthogonality loss applied only to top 0.1% of non-diagonal pairs each batch.",
-        "Implementation_Plan": "1. Add batch_topk_pair_selector using torch.topk\n2. Modify loss to use instantaneous top pairs\n3. Implement L2 weight normalization via hook\n4. Add τ as fixed config parameter\n5. Integrate pair stability analysis\n6. Add top-k percentage parameter\n7. Update config with normalization type",
-        "Interestingness_Evaluation": "Pure batch-level targeting maximizes simplicity while maintaining absorption resistance.",
-        "Interestingness": 8,
-        "Feasibility_Evaluation": "torch.topk is O(n log k) and native. L2 norm via vectorized ops. Entire implementation adds <50 lines. Runs in 20 mins/H100.",
+        "Name": "temporal_sae",
+        "Title": "Structured Positional Masking for Adaptive Temporal Feature Specialization",
+        "Experiment": "1. Initialize position-specific weight masks\n\n2. Train with masked gradient updates\n\n3. Compare to static slicing\n\n4. Evaluate:\n\n   - Position specialization retention\n\n   - Sparse_probing on order-sensitive tasks\n\n   - Feature activation positional fidelity\n\n5. Ablation on mask strictness (hard vs soft)",
+        "Technical_Details": "Architecture:\n\n1. Positional weight masking:\n\n   W_enc[:,g] initialized to zero except for 1/G-th slice per group\n\n   Mask remains fixed during training\n\n2. Groups G=4 correspond to 4-token window\n\n3. No parameter increase vs baseline SAE\n\n\nOptimizations:\n\n- Mask applied via gradient masking\n\n- Efficient sparse matrix operations\n\n- Maintains original SAE parameter count\n\n\nHyperparameters:\n\n- Window size=4\n\n- Learning rate=3e-4\n\n- L1 penalty=0.1\n\n- Mask strictness=hard",
+        "Implementation_Plan": "1. Modify CustomSAE.__init__ with masked weight init\n\n2. Add gradient masking in backward pass\n\n3. Update evaluation to track position specialization\n\n4. Benchmark against positional group and baseline SAEs",
+        "Interestingness_Evaluation": "Combines learnable adaptation with structured positional focus through innovative weight masking, enhancing monosemanticity.",
+        "Interestingness": 9,
+        "Feasibility_Evaluation": "Uses existing init patterns and gradient masking; no new parameters; runtime under 16min on H100 due to sparse ops.",
         "Feasibility": 10,
-        "Novelty_Evaluation": "Instantaneous top-k constraints without history provide novel middle ground between fixed and adaptive methods.",
-        "Novelty": 7,
-        "Expected_Research_Impact": "Focused batch-level constraints directly prevent feature merging, improving sparse_probing through better feature isolation.",
+        "Novelty_Evaluation": "Novel integration of structured weight masking for position-aware feature learning in SAEs.",
+        "Novelty": 9,
+        "Expected_Research_Impact": "Directly targets sparse_probing by enforcing position-specific feature learning through masked weights, reducing polysemanticity via structured adaptation.",
         "Research_Impact": 9,
-        "Overall_Score": 9.0,
-        "Abstract": "Deep representation learning often encounters polysemantic features—single dimensions that encode multiple, unrelated concepts—complicating both interpretability and downstream usage. To address this challenge, we propose an orthogonal sparse autoencoder that enforces feature separation in a simple, batch-level fashion. During each training step, our method targets only a small fraction of the most strongly co-activated feature pairs and applies an orthogonality penalty to them, preventing the merging of unrelated representations. By focusing on the most problematic interactions as they happen rather than tracking them over the entire training history, we reduce computational overhead and maintain a streamlined implementation. We assess the effectiveness of both fixed and adaptive strategies for selecting top pairs based on activations from models with up to 2 billion parameters. Our evaluation encompasses metrics that measure debiasing and the unlearning of dangerous knowledge, highlighting improvements in interpretability and reduced feature overlap without compromising reconstruction fidelity. Overall, our approach provides a flexible and efficient solution for mitigating polysemanticity while maintaining the simplicity and speed of batch-level updates, taking another step toward preventing the harmful use of state-of-the-art language models.",
-        "novel": true
+        "Overall_Score": 9.6,
+        "Abstract": "Sparse Autoencoders (SAEs) are a cornerstone for capturing high-level features while minimizing redundancy in AI safety research. However, a persistent challenge lies in ensuring that learned features are both position-specific and interpretable, particularly in temporal tasks where the order of input elements is critical. We propose TemporalSAE (T-SAE), a sparse autoencoder variant that enforces position-specific feature learning through structured weight masking. By initializing each encoder group's weights to focus on distinct positions in an n-token window and freezing these masks during training, latent features naturally specialize in temporal patterns at specific offsets. This approach maintains the original SAE's parameter count while incorporating positional awareness through carefully designed weight initialization. It also preserves interpretability by constraining features to particular context positions yet allows adaptation within those bounds. We benchmark T-SAE on tasks requiring strict ordering and positional awareness, showing that it surpasses both conventional SAEs and simpler slicing-based baselines. Beyond quantitative gains, our results also highlight enhanced coherence in how features map to temporal offsets, improving model transparency. These findings highlight  T-SAE’s potential to serve as a position-aware yet adaptable architecture for various time-sensitive or sequence-based problems in modern machine learning.",
+        "novel": true,
+        "NOTE": "IGNORE the benchmark 'UNLEARNING'"
     }
 ]
