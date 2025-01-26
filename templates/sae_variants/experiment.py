@@ -1,6 +1,6 @@
 import sys
 import os
-#sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 import torch
 import torch.nn as nn
@@ -446,7 +446,7 @@ def run_sae_training(
     
     # Save all results and metrics
     results = {
-        "training_log": special_slice(training_log, m = 2, num_k= 4),
+        # "training_log": special_slice(training_log, m = 2, num_k= 4),
         "config": trainer.config,
         "final_info": final_info
     }
@@ -494,7 +494,8 @@ RANDOM_SEED = 42
 
 MODEL_CONFIGS = {
     # "EleutherAI/pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3], "d_model": 512},
-    "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
+    # "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
+    "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [19], "d_model": 2304},
 }
 
 
@@ -635,6 +636,11 @@ def evaluate_trained_sae(
         ),
     }
     
+    # Create required directories                                                                                                                                                                                                    
+    os.makedirs("artifacts/autointerp/google", exist_ok=True)                                                                                                                                                                        
+    os.makedirs("artifacts/absorption", exist_ok=True)                                                                                                                                                                               
+    os.makedirs("artifacts/scr_and_tpp", exist_ok=True)                                                                                                                                                                              
+    os.makedirs("artifacts/sparse_probing", exist_ok=True)
     
     # Run selected evaluations
     for eval_type in eval_types:
@@ -714,10 +720,12 @@ if __name__ == "__main__":
     # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
 
     eval_types = [
-        "absorption", 
-        "core",
-        "scr_and_tpp",
-        "sparse_probing",
+        # "absorption",
+        # "autointerp",
+        # "core",
+        # "scr_and_tpp",
+        # "sparse_probing",
+        "unlearning",
     ]
 
     if "autointerp" in eval_types:
