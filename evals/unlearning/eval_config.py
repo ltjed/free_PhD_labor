@@ -27,11 +27,13 @@ class UnlearningEvalConfig(BaseEvalConfig):
 
     retain_thresholds: list[float] = Field(
         default_factory=lambda: [0.001, 0.01],
+        # default_factory=lambda: [0.001, 0.01, 0.1, 0.5],
         title="Retain Thresholds",
         description="We ignore features that activate more than this threshold on the retain dataset",
     )
     n_features_list: list[int] = Field(
         default_factory=lambda: [10, 20],
+        # default_factory=lambda: [100, 200],
         title="N Features List",
         description="Each N is the number of features we select and clamp to a negative value",
     )

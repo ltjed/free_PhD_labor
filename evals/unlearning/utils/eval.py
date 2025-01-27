@@ -26,11 +26,11 @@ def run_metrics_calculation(
     dataset_names = config.dataset_names
     print(f"running on datasets: {dataset_names}")
     for retain_threshold in config.retain_thresholds:
-        print(f"for retain_threshold = {retain_threshold}")
+        print("Calculating metrics for retain threshold:", retain_threshold)
         top_features_custom = get_top_features(
             forget_sparsity, retain_sparsity, retain_threshold=retain_threshold
         )
-        print(f"top_features_custom = {top_features_custom}")
+        print("Top features for ablation:", top_features_custom)
         main_ablate_params = {
             "intervention_method": config.intervention_method,
         }
@@ -45,6 +45,8 @@ def run_metrics_calculation(
 
         save_metrics_dir = os.path.join(artifacts_folder, sae_name, "results/metrics")
 
+        print("Calculating metrics list with parameters:", main_ablate_params, sweep)
+        
         metrics_lst = calculate_metrics_list(
             model,
             (
@@ -63,7 +65,6 @@ def run_metrics_calculation(
             save_metrics_dir=save_metrics_dir,
             retain_threshold=retain_threshold,
         )
-        print(f"metrics_lst = {metrics_lst}")
     return metrics_lst
 
 
@@ -76,7 +77,7 @@ def run_eval_single_sae(
     force_rerun: bool,
 ):
     """sae_release_and_id: str is the name used when saving data for this SAE. This data will be reused at various points in the evaluation."""
-
+    print("Running evaluation for SAE:", sae_release_and_id)
     os.makedirs(artifacts_folder, exist_ok=True)
 
     torch.set_grad_enabled(False)
@@ -93,9 +94,17 @@ def run_eval_single_sae(
     )
     forget_sparsity, retain_sparsity = load_sparsity_data(artifacts_folder, sae_release_and_id)
 
+    print("Forget sparsity:", forget_sparsity)
+    print(forget_sparsity.shape)
+    print("Retain sparsity:", retain_sparsity)
+    print(retain_sparsity.shape)
+
     # do intervention and calculate eval metrics
     # activation_store = setup_activation_store(sae, model)
     activation_store = None
+
+    print("Starting metrics calculation...")
+
     results = run_metrics_calculation(
         model,
         sae,

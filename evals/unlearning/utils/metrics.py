@@ -695,6 +695,8 @@ def calculate_metrics_list(
         )
         metrics_list.append(ablated_metrics)
 
+        print("ablated_metrics calculated:", ablated_metrics)
+
         if save_metrics:
             modified_ablate_metrics = ablated_metrics.copy()
             modified_ablate_metrics["ablate_params"] = ablate_params
