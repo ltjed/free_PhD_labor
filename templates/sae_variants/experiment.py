@@ -720,12 +720,12 @@ if __name__ == "__main__":
     # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
 
     eval_types = [
-        # "absorption",
+        "absorption",
         # "autointerp",
-        # "core",
-        # "scr_and_tpp",
-        # "sparse_probing",
-        "unlearning",
+        "core",
+        "scr_and_tpp",
+        "sparse_probing",
+        # "unlearning",
     ]
 
     if "autointerp" in eval_types:

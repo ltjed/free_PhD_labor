@@ -1,0 +1,188 @@
+# Title: Adaptive Resolution Hash Orthogonal SAEs with Momentum Feature Prioritization
+# Experiment description: 1. Track feature importance via EMA activation frequency
+2. Adjust LSH precision dynamically per feature
+3. Gate JL projections with periodic exact checks
+4. Train on Gemma-2B with importance-aware hashing
+5. Compare adaptive vs fixed resolution
+6. Measure approximation drift
+7. Profile priority hashing benefits
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'sparse_probing'...}
+Description: Baseline results showing initial sparse probing performance.
+
+## Run 1: Initial Adaptive Hash Implementation
+Results: Core evaluation metrics show:
+- Very poor reconstruction (explained_variance: -0.78515625)
+- Zero sparsity (l0: 0.0, l1: 0.0)
+- Complete loss of output signal (l2_norm_out: 0.0)
+- High KL divergence (15.375) and CE loss (18.0) compared to original model
+
+Analysis: The initial implementation is failing to learn useful representations:
+1. Zero l2_norm_out indicates the network is producing no output
+2. Zero sparsity metrics suggest the ReLU activations are not firing
+3. Negative explained variance shows worse-than-random reconstruction
+4. High KL divergence indicates significant deviation from original model behavior
+
+Next steps:
+1. Fix initialization to ensure non-zero activations
+2. Add gradient clipping to prevent training instability
+3. Implement proper LSH table updates
+4. Add monitoring of feature importance statistics
+
+## Run 2: Kaiming Initialization and Gradient Clipping
+Results: Core evaluation metrics show:
+- Worse reconstruction (explained_variance: -3.578125, down from -0.785)
+- High but inefficient sparsity (l0: 1581.59, l1: 6016.0)
+- Excessive output magnitude (l2_norm_out: 376.0 vs l2_norm_in: 308.0)
+- Still high KL divergence (14.375) and CE loss (17.0)
+
+Analysis: While the network is now producing non-zero outputs, the representation quality has degraded:
+1. The negative explained variance has worsened significantly
+2. The l2_ratio > 1 indicates the network is amplifying rather than compressing signals
+3. High sparsity metrics suggest many features are active but not contributing meaningfully
+4. Model behavior deviation remains severe based on KL/CE metrics
+
+The Kaiming initialization and gradient clipping helped activate the network but revealed deeper architectural issues. The next step should focus on the LSH mechanism which may be corrupting the learned representations.
+
+Next steps:
+1. Implement proper LSH table updates with periodic exact checks
+2. Add feature importance-based pruning
+3. Introduce adaptive bit depth based on feature statistics
+4. Consider adding skip connections to preserve signal fidelity
+
+## Run 3: LSH Table Updates and Feature Importance
+Results: Core evaluation metrics show:
+- Further degradation in reconstruction (explained_variance: -3.578125)
+- Still high sparsity (l0: 1581.59, l1: 6016.0)
+- Continued signal amplification (l2_ratio: 1.21875)
+- Persistent high KL divergence (14.375) and CE loss (17.0)
+
+Analysis: The addition of LSH table updates and feature importance tracking has not improved performance:
+1. The reconstruction quality remains poor with high negative explained variance
+2. The l2_ratio still shows signal amplification rather than compression
+3. The sparsity metrics indicate inefficient feature utilization
+4. Model behavior deviation (KL/CE) remains high
+5. The relative_reconstruction_bias of -59.5 suggests systematic underestimation
+
+Key insights:
+1. LSH updates may be too infrequent or not properly synchronized with training
+2. Feature importance tracking isn't effectively guiding the representation learning
+3. The high sparsity combined with poor reconstruction suggests feature interference
+
+Next steps:
+1. Add skip connections to preserve signal fidelity
+2. Implement residual learning to help with the reconstruction bias
+3. Adjust the LSH update frequency based on training dynamics
+4. Consider reducing model capacity until stable learning is achieved
+
+## Run 4: Skip Connections and Residual Learning
+Results: Core evaluation metrics show:
+- Reconstruction remains poor (explained_variance: -3.578125)
+- High sparsity metrics (l0: 1581.59, l1: 6016.0)
+- Signal amplification issue (l2_ratio: 1.21875)
+- High KL divergence (14.375) and CE loss (17.0)
+- Significant reconstruction bias (-59.5)
+
+Analysis: The current implementation continues to struggle with representation quality:
+1. Negative explained variance indicates worse-than-random reconstruction
+2. The l2_ratio > 1 shows continued signal amplification issues
+3. High sparsity metrics suggest inefficient feature utilization
+4. Large negative reconstruction bias (-59.5) indicates systematic underestimation
+5. Model behavior deviation remains high (KL: 14.375, CE: 17.0)
+
+Key insights:
+1. The LSH mechanism may be introducing too much approximation error
+2. Feature importance tracking isn't effectively guiding the learning process
+3. The high sparsity combined with poor reconstruction suggests feature interference
+4. The skip connection implementation needs verification
+5. The residual learning component may need tuning
+
+Next steps:
+1. Verify and debug skip connection implementation
+2. Tune residual learning parameters
+3. Reduce LSH approximation error with more frequent updates
+4. Add monitoring of skip connection usage
+
+## Run 5: Improved Skip Connection Monitoring
+Results: Core evaluation metrics show:
+- No improvement in reconstruction (explained_variance: -3.578125)
+- Persistent high sparsity (l0: 1581.59, l1: 6016.0)
+- Continued signal amplification (l2_ratio: 1.21875)
+- High model deviation (KL: 14.375, CE: 17.0)
+- Large reconstruction bias (-59.5)
+
+Analysis: The addition of skip connection monitoring reveals:
+1. Skip connections are not effectively preserving the input signal
+2. The reconstruction quality remains at previous poor levels
+3. Model behavior continues to deviate significantly from the original
+4. The LSH mechanism may be introducing too much noise
+5. Feature interference patterns persist
+
+Key insights:
+1. Skip connection usage monitoring shows inadequate signal preservation
+2. The high l2_ratio indicates the residual pathway isn't properly regulated
+3. LSH updates may need to be more frequent to reduce approximation error
+4. The feature importance mechanism isn't effectively guiding learning
+
+Next steps:
+1. Increase LSH update frequency to reduce approximation error
+2. Add gradient scaling based on feature importance
+3. Implement adaptive learning rates per feature
+4. Consider reducing model capacity if stability issues persist
+
+## Run 6: Increased LSH Update Frequency
+Results: Core evaluation metrics show:
+- Reconstruction remains poor (explained_variance: -3.59375)
+- Slightly increased sparsity (l0: 1648.17, l1: 6048.0)
+- Persistent signal amplification (l2_ratio: 1.227)
+- Higher model deviation (KL: 14.81, CE: 17.375)
+- Worse reconstruction bias (-59.75)
+
+Analysis: The increased LSH update frequency has not improved performance:
+1. Explained variance remains strongly negative, indicating poor reconstruction
+2. L2 ratio shows continued signal amplification issues
+3. KL divergence and CE loss have actually increased
+4. Sparsity metrics show slightly higher but still inefficient feature usage
+5. Reconstruction bias has worsened marginally
+
+Key insights:
+1. More frequent LSH updates may be introducing additional noise
+2. The fundamental representation learning issues persist
+3. Feature interference patterns continue
+4. The skip connection pathway isn't effectively preserving signal
+5. Current architecture may be too complex for stable training
+
+Next steps:
+1. Implement per-feature adaptive learning rates
+2. Add gradient scaling based on feature importance
+3. Reduce model capacity by 50%
+4. Consider simpler LSH mechanism with fixed bit depth
+
+## Run 7: Adaptive Learning Rates and Feature Importance
+Results: Core evaluation metrics show:
+- Slight improvement in reconstruction (explained_variance: -0.785 vs previous -3.59)
+- Full but inefficient sparsity (l0: 2304.0, l1: 23.0)
+- Severe signal suppression (l2_ratio: 0.00221)
+- High model deviation (KL: 13.25, CE: 15.875)
+- Improved but still negative reconstruction bias (-0.149)
+
+Analysis: The implementation of adaptive learning rates and feature importance tracking shows mixed results:
+1. Reconstruction quality improved but remains poor (negative explained variance)
+2. The network is now severely suppressing signals (very low l2_ratio) rather than amplifying
+3. All features are active (l0 = dict_size) but with very low magnitude (low l1)
+4. Model behavior deviation remains high but slightly improved
+5. Reconstruction bias improved significantly but is still negative
+
+Key insights:
+1. Adaptive learning rates helped stabilize training somewhat
+2. Feature importance tracking may be too aggressive in suppressing signals
+3. The network is now underconfident rather than overconfident
+4. All features are being used but very weakly
+5. The LSH mechanism may need to be simplified further
+
+Next steps:
+1. Reduce feature importance scaling factor
+2. Add minimum activation thresholds
+3. Simplify LSH to fixed bit depth
+4. Consider removing skip connections to force stronger feature learning

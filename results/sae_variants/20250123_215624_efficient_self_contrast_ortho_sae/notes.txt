@@ -1,0 +1,184 @@
+# Title: Efficient Self-Contrastive OrthoSAEs with Approximate Similarity and Adaptive Thresholds
+# Experiment description: 1. Compute reconstruction similarities via random projection (d=128)
+2. Cosine-anneal ortho threshold from 0.3 to 0.05
+3. Warmup contrastive loss weight 0→0.3 over first 1k steps
+4. Train on Gemma-2B with improved buffer management
+5. Compare runtime/memory vs SS-COSAE
+6. Ablate approximation quality
+
+## Run 0: Baseline
+Results: [Previous baseline results...]
+Description: Baseline results.
+
+## Run 1: Initial Implementation
+Configuration:
+- Model: Gemma-2B
+- Layer: 19
+- Dictionary Size: 2304
+- Learning Rate: 0.0003
+- Sparsity Penalty: 0.04
+- Random Projection Dim: 64
+- Orthogonality Threshold: 0.2 → 0.05 (cosine annealed)
+- Contrastive Loss Weight: 0 → 0.1 (linear warmup)
+
+Results:
+- Absorption evaluation shows 0.0 absorption rate across all letters
+- Mean absorption score: 0.0
+- Mean number of split features: 1.0
+
+Analysis:
+The zero absorption rates suggest the current implementation may not be effectively capturing features. Possible issues:
+1. Random projection dimension may be too small
+2. Contrastive loss weight may need to be increased
+3. Training duration may need to be extended
+
+Next Steps:
+For Run 2, we will increase the random projection dimension to 128 to potentially improve feature capture while still maintaining memory efficiency.
+
+## Run 2: Increased Projection Dimension
+Configuration:
+- Same as Run 1 but with:
+  - Random Projection Dim: 128 (increased from 64)
+
+Results:
+- Absorption evaluation still shows 0.0 absorption rate across all letters
+- Mean absorption score: 0.0
+- Mean number of split features: 1.0
+
+Analysis:
+The continued zero absorption rates even with increased projection dimension suggest that:
+1. The contrastive loss weight may be too low to effectively shape the feature space
+2. The training duration of 1000 tokens may be insufficient for feature development
+3. The orthogonality constraints might be too strict
+
+Next Steps:
+For Run 3, we will:
+1. Increase contrastive loss weight max to 0.3 (from 0.1)
+2. Increase training tokens to 10000 (from 1000)
+3. Relax initial orthogonality threshold to 0.3 (from 0.2)
+
+## Run 3: Increased Training and Modified Parameters
+Configuration:
+- Same as Run 2 but with:
+  - Training Tokens: 10000 (increased from 1000)
+  - Max Contrastive Loss Weight: 0.3 (increased from 0.1)
+  - Initial Orthogonality Threshold: 0.3 (relaxed from 0.2)
+
+Results:
+- Absorption evaluation continues to show 0.0 absorption rate across all letters
+- Mean absorption score: 0.0
+- Mean number of split features: 1.0
+- Training completed only 4 steps before evaluation
+
+Analysis:
+The extremely short training duration (4 steps) indicates a critical issue:
+1. The training loop is terminating prematurely
+2. The increased token count isn't being properly utilized
+3. Possible buffer management issues with the larger training set
+
+Next Steps:
+For Run 4, we will:
+1. Fix the training loop to ensure all tokens are processed
+2. Add progress tracking and validation checks
+3. Implement proper buffer management for larger training sets
+
+## Run 4: Training Loop and Buffer Management Fixes
+Configuration:
+- Same parameters as Run 3
+- Added tqdm progress tracking
+- Implemented token processing tracking
+- Enhanced buffer management and validation
+
+Results:
+- Training still completed only 4 steps
+- Absorption evaluation shows 0.0 absorption rate across all letters
+- Mean absorption score: 0.0
+- Mean number of split features: 1.0
+- Detailed probe results show non-zero true positives for all letters (ranging from 84 for 'x' to 2862 for 's')
+
+Analysis:
+Despite the implementation of progress tracking and buffer management improvements, the training loop is still terminating prematurely. The presence of non-zero true positives in probe results suggests that the model is capturing some letter-based features, but the extremely short training duration is preventing effective feature learning. Key issues:
+
+1. The step calculation in run_sae_training may be incorrect:
+   - Current: steps = int(num_tokens / sae_batch_size)
+   - This might be causing premature termination
+
+2. The token counting logic needs revision:
+   - Need to properly account for context length in token calculations
+   - Buffer refresh rate may need adjustment
+
+Next Steps:
+For Run 5, we will:
+1. Fix step calculation to properly account for batch size and context length
+2. Implement proper token counting that considers both batch size and sequence length
+3. Add additional validation checks for training continuation
+
+## Run 5: Step Calculation and Token Processing Fixes
+Configuration:
+- Same parameters as Run 4
+- Modified step calculation to account for batch size and context length
+- Implemented token-aware progress tracking
+- Added validation checks for training continuation
+
+Results:
+- Training completed 0 steps
+- Absorption evaluation shows 0.0 absorption rate across all letters
+- Mean absorption score: 0.0
+- Mean number of split features: 1.0
+- Detailed probe results continue to show non-zero true positives (ranging from 84 for 'x' to 2862 for 's')
+
+Analysis:
+The training loop is now failing to complete any steps at all, suggesting a more fundamental issue with the training process:
+
+1. The step calculation changes may have introduced a logic error:
+   - Need to verify the relationship between steps, batch size, and context length
+   - Current calculation may be resulting in 0 steps
+
+2. The buffer management system may be failing to initialize properly:
+   - Need to ensure proper buffer initialization
+   - May need to add debug logging for buffer state
+
+3. Token processing validation may be too strict:
+   - Current checks might be preventing any steps from executing
+   - Need to review validation thresholds
+
+Next Steps:
+For Run 6, we will:
+1. Implement detailed logging of buffer initialization and token processing
+2. Add step-by-step validation of the training loop
+3. Revert to simpler step calculation while maintaining proper token counting
+
+## Run 6: Simplified Training Loop with Enhanced Logging
+Configuration:
+- Model: Gemma-2B
+- Layer: 19
+- Dictionary Size: 2304
+- Learning Rate: 0.0003
+- Sparsity Penalty: 0.04
+- Random Projection Dim: 128
+- Initial Orthogonality Threshold: 0.3
+- Final Orthogonality Threshold: 0.05
+- Max Contrastive Loss Weight: 0.3
+- Training Tokens: 10000
+
+Results:
+- Training completed only 4 steps
+- Mean absorption score: 0.0
+- Mean number of split features: 1.0
+- Non-zero true positives across letters (84-2862 range)
+- Highest true positives: 's' (2862), 'c' (2852), 'a' (2550)
+- Lowest true positives: 'x' (84), 'y' (143), 'z' (235)
+
+Analysis:
+Despite the simplified training loop and enhanced logging, we're still seeing premature training termination. The pattern of true positives suggests the model is capturing some letter-based features (with clear bias toward common letters), but the training isn't progressing enough to develop meaningful feature absorption.
+
+Key observations:
+1. The 4-step completion suggests a fundamental issue with the training loop termination condition
+2. The consistent pattern of true positives across runs indicates the initialization is capturing some signal
+3. The buffer management changes haven't resolved the core training duration issue
+
+Next Steps:
+For Run 7, we will:
+1. Modify the training loop termination condition to be token-based rather than step-based
+2. Add safeguards against premature termination
+3. Implement exponential moving average (EMA) loss tracking to ensure training stability

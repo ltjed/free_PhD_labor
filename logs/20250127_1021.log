@@ -1,0 +1,327 @@
+Using GPUs: [0]
+Using OpenAI API with deepseek-coder.
+
+Generating idea 1/5
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea of using orthogonal feature learning in sparse autoencoders (SAEs) is promising, but it can be refined to better address the challenge of polysemanticity in latent representations. The key intuition is that while orthogonality helps separate features, it may overly constrain the model, leading to suboptimal reconstruction or interpretability. Instead, we propose a **Controlled Feature Sharing SAE (CFS-SAE)**, which introduces a more flexible approach to feature separation by allowing controlled sharing of feature directions. This is achieved through a **soft orthogonality constraint** that balances separation and reconstruction quality, rather than enforcing strict orthogonality. The idea builds on the prototype by refining the orthogonality loss to be adaptive and context-sensitive, ensuring that features are separated only when necessary, while still allowing for shared representations when beneficial.
+
+The high-level plan involves:
+1. Introducing a **soft orthogonality loss** that allows controlled sharing of feature directions through a tunable parameter α.
+2. Implementing **adaptive feature grouping** based on activation patterns, which dynamically adjusts the degree of separation between features.
+3. Evaluating the model on the **sparse_probing** and **core** benchmarks to measure improvements in interpretability and reconstruction quality.
+
+The key design choice is to replace the strict orthogonality constraint with a soft version that allows for controlled sharing. This is motivated by the observation that strict orthogonality can lead to overly sparse representations, which may harm reconstruction quality and interpretability. By allowing controlled sharing, the model can better capture hierarchical or overlapping features, which are common in real-world data.
+
+The ideal outcome is a model that achieves better interpretability (as measured by sparse_probing) and reconstruction quality (as measured by core metrics) compared to both the baseline SAE and the strict orthogonal SAE. This would demonstrate that controlled feature sharing is a more effective approach to resolving polysemanticity in SAEs.
+
+NEW IDEA JSON:
+```json
+{
+  "Name": "cfs_sae",
+  "Title": "Controlled Feature Sharing for Interpretable and Efficient Sparse Autoencoders",
+  "Experiment": "1. Implement soft orthogonality loss with controlled sharing parameter α. 2. Add adaptive feature grouping based on activation patterns. 3. Train on Pythia-70M using WikiText and WMDP-bio datasets. 4. Compare performance against baseline SAE and strict orthogonal SAE on sparse_probing and core benchmarks. 5. Analyze feature activation patterns and reconstruction quality. 6. Evaluate impact of different α values on feature separation and reconstruction.",
+  "Technical_Details": "The method uses a modified objective: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_soft_ortho, where L_soft_ortho = ||W_1^T W_2 - αI||_F. The parameter α controls the degree of feature sharing, with α=0 enforcing strict orthogonality and α>0 allowing controlled sharing. Feature grouping is updated every n=100 steps using batch statistics, and the decoder uses group-specific bias terms while sharing weights. The adaptive loss weight λ_2(t) increases linearly until step t_0, allowing the model to gradually increase feature separation during training.",
+  "Implementation_Plan": "1. Add SoftOrthogonalityLoss with controlled sharing parameter α. 2. Implement adaptive feature grouping using batch statistics. 3. Modify CustomSAE to include group-specific biases and controlled sharing. 4. Update CustomTrainer with adaptive loss weight and feature grouping. 5. Add evaluation metrics for controlled sharing and feature separation. 6. Run experiments on sparse_probing and core benchmarks.",
+  "Interestingness_Evaluation": "The idea of controlled feature sharing provides a more flexible and nuanced approach to feature separation, addressing the limitations of strict orthogonality while maintaining interpretability.",
+  "Interestingness": 9,
+  "Feasibility_Evaluation": "The implementation involves straightforward modifications to the loss function and feature grouping mechanism, with minimal computational overhead. The adaptive loss weight and controlled sharing parameter are easy to tune, and all computations can be completed within the 30-minute limit on an H100 GPU.",
+  "Feasibility": 9,
+  "Novelty_Evaluation": "The introduction of controlled feature sharing in SAEs is a novel approach that bridges the gap between strict orthogonality and practical performance, offering a more flexible solution to feature separation.",
+  "Novelty": 9,
+  "Expected_Research_Impact": "The proposed model is expected to improve performance on the sparse_probing and core benchmarks by better balancing feature separation and reconstruction quality, leading to more interpretable and efficient representations.",
+  "Research_Impact": 9,
+  "Overall_Score": 9.0,
+  "Abstract": "Sparse autoencoders (SAEs) are a powerful tool for mechanistic interpretability, but they often suffer from polysemanticity, where individual latent features represent multiple, semantically distinct concepts. This work introduces Controlled Feature Sharing Sparse Autoencoders (CFS-SAE), a novel approach that addresses this challenge by allowing controlled sharing of feature directions through a soft orthogonality constraint. Unlike strict orthogonality, which can overly constrain the model, CFS-SAE balances feature separation and reconstruction quality, leading to more interpretable and efficient representations. We evaluate CFS-SAE on the sparse_probing and core benchmarks, demonstrating its ability to improve interpretability while maintaining high reconstruction quality. Our results suggest that controlled feature sharing is a promising direction for future research in mechanistic interpretability."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'cfs_sae', 'Title': 'Controlled Feature Sharing for Interpretable and Efficient Sparse Autoencoders', 'Experiment': '1. Implement soft orthogonality loss with controlled sharing parameter α. 2. Add adaptive feature grouping based on activation patterns. 3. Train on Pythia-70M using WikiText and WMDP-bio datasets. 4. Compare performance against baseline SAE and strict orthogonal SAE on sparse_probing and core benchmarks. 5. Analyze feature activation patterns and reconstruction quality. 6. Evaluate impact of different α values on feature separation and reconstruction.', 'Technical_Details': 'The method uses a modified objective: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_soft_ortho, where L_soft_ortho = ||W_1^T W_2 - αI||_F. The parameter α controls the degree of feature sharing, with α=0 enforcing strict orthogonality and α>0 allowing controlled sharing. Feature grouping is updated every n=100 steps using batch statistics, and the decoder uses group-specific bias terms while sharing weights. The adaptive loss weight λ_2(t) increases linearly until step t_0, allowing the model to gradually increase feature separation during training.', 'Implementation_Plan': '1. Add SoftOrthogonalityLoss with controlled sharing parameter α. 2. Implement adaptive feature grouping using batch statistics. 3. Modify CustomSAE to include group-specific biases and controlled sharing. 4. Update CustomTrainer with adaptive loss weight and feature grouping. 5. Add evaluation metrics for controlled sharing and feature separation. 6. Run experiments on sparse_probing and core benchmarks.', 'Interestingness_Evaluation': 'The idea of controlled feature sharing provides a more flexible and nuanced approach to feature separation, addressing the limitations of strict orthogonality while maintaining interpretability.', 'Interestingness': 9, 'Feasibility_Evaluation': 'The implementation involves straightforward modifications to the loss function and feature grouping mechanism, with minimal computational overhead. The adaptive loss weight and controlled sharing parameter are easy to tune, and all computations can be completed within the 30-minute limit on an H100 GPU.', 'Feasibility': 9, 'Novelty_Evaluation': 'The introduction of controlled feature sharing in SAEs is a novel approach that bridges the gap between strict orthogonality and practical performance, offering a more flexible solution to feature separation.', 'Novelty': 9, 'Expected_Research_Impact': 'The proposed model is expected to improve performance on the sparse_probing and core benchmarks by better balancing feature separation and reconstruction quality, leading to more interpretable and efficient representations.', 'Research_Impact': 9, 'Overall_Score': 9.0, 'Abstract': 'Sparse autoencoders (SAEs) are a powerful tool for mechanistic interpretability, but they often suffer from polysemanticity, where individual latent features represent multiple, semantically distinct concepts. This work introduces Controlled Feature Sharing Sparse Autoencoders (CFS-SAE), a novel approach that addresses this challenge by allowing controlled sharing of feature directions through a soft orthogonality constraint. Unlike strict orthogonality, which can overly constrain the model, CFS-SAE balances feature separation and reconstruction quality, leading to more interpretable and efficient representations. We evaluate CFS-SAE on the sparse_probing and core benchmarks, demonstrating its ability to improve interpretability while maintaining high reconstruction quality. Our results suggest that controlled feature sharing is a promising direction for future research in mechanistic interpretability.'}
+Iteration 2/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The idea of Controlled Feature Sharing Sparse Autoencoders (CFS-SAE) is promising, but it can be refined further to better align with the prototype idea and improve its feasibility and clarity. The current proposal introduces a soft orthogonality constraint, which is a good step, but it could be made more concrete by explicitly linking the controlled sharing parameter α to the activation patterns of the features. This would ensure that the sharing is not arbitrary but instead guided by the data itself. Additionally, the adaptive feature grouping mechanism could be simplified to reduce implementation complexity while still maintaining its effectiveness.
+
+The high-level plan remains largely the same, but with a few key refinements:
+1. Introduce a **data-driven controlled sharing mechanism** where the parameter α is dynamically adjusted based on feature activation patterns.
+2. Simplify the feature grouping mechanism to use **k-means clustering** on activation statistics, which is easier to implement and computationally efficient.
+3. Focus the evaluation on the **sparse_probing** and **core** benchmarks, as these are the primary targets for improvement.
+
+The key design choice is to make the controlled sharing parameter α data-driven, ensuring that the degree of sharing is guided by the actual activation patterns of the features. This refinement maintains the spirit of the prototype idea while making the implementation more straightforward and the results more interpretable.
+
+The ideal outcome remains a model that achieves better interpretability and reconstruction quality compared to both the baseline SAE and the strict orthogonal SAE. This would demonstrate that data-driven controlled sharing is a more effective approach to resolving polysemanticity in SAEs.
+
+NEW IDEA JSON:
+```json
+{
+  "Name": "cfs_sae_v2",
+  "Title": "Data-Driven Controlled Feature Sharing for Interpretable Sparse Autoencoders",
+  "Experiment": "1. Implement data-driven controlled sharing mechanism with dynamic α. 2. Add simplified feature grouping using k-means clustering on activation statistics. 3. Train on Pythia-70M using WikiText and WMDP-bio datasets. 4. Compare performance against baseline SAE and strict orthogonal SAE on sparse_probing and core benchmarks. 5. Analyze feature activation patterns and reconstruction quality. 6. Evaluate impact of dynamic α on feature separation and reconstruction.",
+  "Technical_Details": "The method uses a modified objective: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_soft_ortho, where L_soft_ortho = ||W_1^T W_2 - α(t)I||_F. The parameter α(t) is dynamically adjusted based on feature activation patterns, ensuring that sharing is guided by the data. Feature grouping is updated every n=100 steps using k-means clustering on batch activation statistics. The decoder uses group-specific bias terms while sharing weights. The adaptive loss weight λ_2(t) increases linearly until step t_0, allowing the model to gradually increase feature separation during training.",
+  "Implementation_Plan": "1. Add DataDrivenSoftOrthogonalityLoss with dynamic α(t). 2. Implement simplified feature grouping using k-means clustering. 3. Modify CustomSAE to include group-specific biases and dynamic controlled sharing. 4. Update CustomTrainer with adaptive loss weight and k-means feature grouping. 5. Add evaluation metrics for dynamic controlled sharing and feature separation. 6. Run experiments on sparse_probing and core benchmarks.",
+  "Interestingness_Evaluation": "The data-driven controlled sharing mechanism provides a more principled and interpretable approach to feature separation, addressing the limitations of strict orthogonality while maintaining flexibility.",
+  "Interestingness": 9,
+  "Feasibility_Evaluation": "The implementation involves straightforward modifications to the loss function and feature grouping mechanism, with minimal computational overhead. The use of k-means clustering simplifies the feature grouping process, and all computations can be completed within the 30-minute limit on an H100 GPU.",
+  "Feasibility": 9,
+  "Novelty_Evaluation": "The introduction of data-driven controlled sharing in SAEs is a novel approach that bridges the gap between strict orthogonality and practical performance, offering a more flexible and interpretable solution to feature separation.",
+  "Novelty": 9,
+  "Expected_Research_Impact": "The proposed model is expected to improve performance on the sparse_probing and core benchmarks by better balancing feature separation and reconstruction quality, leading to more interpretable and efficient representations.",
+  "Research_Impact": 9,
+  "Overall_Score": 9.0,
+  "Abstract": "Sparse autoencoders (SAEs) are a powerful tool for mechanistic interpretability, but they often suffer from polysemanticity, where individual latent features represent multiple, semantically distinct concepts. This work introduces Data-Driven Controlled Feature Sharing Sparse Autoencoders (CFS-SAE), a novel approach that addresses this challenge by dynamically adjusting the degree of feature sharing based on activation patterns. Unlike strict orthogonality, which can overly constrain the model, CFS-SAE balances feature separation and reconstruction quality, leading to more interpretable and efficient representations. We evaluate CFS-SAE on the sparse_probing and core benchmarks, demonstrating its ability to improve interpretability while maintaining high reconstruction quality. Our results suggest that data-driven controlled sharing is a promising direction for future research in mechanistic interpretability."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'cfs_sae_v2', 'Title': 'Data-Driven Controlled Feature Sharing for Interpretable Sparse Autoencoders', 'Experiment': '1. Implement data-driven controlled sharing mechanism with dynamic α. 2. Add simplified feature grouping using k-means clustering on activation statistics. 3. Train on Pythia-70M using WikiText and WMDP-bio datasets. 4. Compare performance against baseline SAE and strict orthogonal SAE on sparse_probing and core benchmarks. 5. Analyze feature activation patterns and reconstruction quality. 6. Evaluate impact of dynamic α on feature separation and reconstruction.', 'Technical_Details': 'The method uses a modified objective: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_soft_ortho, where L_soft_ortho = ||W_1^T W_2 - α(t)I||_F. The parameter α(t) is dynamically adjusted based on feature activation patterns, ensuring that sharing is guided by the data. Feature grouping is updated every n=100 steps using k-means clustering on batch activation statistics. The decoder uses group-specific bias terms while sharing weights. The adaptive loss weight λ_2(t) increases linearly until step t_0, allowing the model to gradually increase feature separation during training.', 'Implementation_Plan': '1. Add DataDrivenSoftOrthogonalityLoss with dynamic α(t). 2. Implement simplified feature grouping using k-means clustering. 3. Modify CustomSAE to include group-specific biases and dynamic controlled sharing. 4. Update CustomTrainer with adaptive loss weight and k-means feature grouping. 5. Add evaluation metrics for dynamic controlled sharing and feature separation. 6. Run experiments on sparse_probing and core benchmarks.', 'Interestingness_Evaluation': 'The data-driven controlled sharing mechanism provides a more principled and interpretable approach to feature separation, addressing the limitations of strict orthogonality while maintaining flexibility.', 'Interestingness': 9, 'Feasibility_Evaluation': 'The implementation involves straightforward modifications to the loss function and feature grouping mechanism, with minimal computational overhead. The use of k-means clustering simplifies the feature grouping process, and all computations can be completed within the 30-minute limit on an H100 GPU.', 'Feasibility': 9, 'Novelty_Evaluation': 'The introduction of data-driven controlled sharing in SAEs is a novel approach that bridges the gap between strict orthogonality and practical performance, offering a more flexible and interpretable solution to feature separation.', 'Novelty': 9, 'Expected_Research_Impact': 'The proposed model is expected to improve performance on the sparse_probing and core benchmarks by better balancing feature separation and reconstruction quality, leading to more interpretable and efficient representations.', 'Research_Impact': 9, 'Overall_Score': 9.0, 'Abstract': 'Sparse autoencoders (SAEs) are a powerful tool for mechanistic interpretability, but they often suffer from polysemanticity, where individual latent features represent multiple, semantically distinct concepts. This work introduces Data-Driven Controlled Feature Sharing Sparse Autoencoders (CFS-SAE), a novel approach that addresses this challenge by dynamically adjusting the degree of feature sharing based on activation patterns. Unlike strict orthogonality, which can overly constrain the model, CFS-SAE balances feature separation and reconstruction quality, leading to more interpretable and efficient representations. We evaluate CFS-SAE on the sparse_probing and core benchmarks, demonstrating its ability to improve interpretability while maintaining high reconstruction quality. Our results suggest that data-driven controlled sharing is a promising direction for future research in mechanistic interpretability.'}
+Iteration 3/7
+Failed to generate idea: Expecting value: line 5 column 1 (char 4)
+
+Generating idea 2/5
+Iteration 1/7
+Failed to generate idea: Expecting value: line 5 column 1 (char 4)
+
+Generating idea 3/5
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea of using orthogonal feature learning in sparse autoencoders (SAEs) is promising, but it can be refined to better address the core challenges of polysemanticity and feature absorption. The key intuition is that while orthogonality helps separate features, it can be too rigid, leading to suboptimal reconstruction quality or over-constraining the latent space. Instead, we propose a **soft orthogonal regularization** approach that allows for controlled feature sharing while maintaining interpretability. This approach balances the trade-off between feature separation and reconstruction quality, which is critical for improving benchmarks like "sparse_probing" and "core."
+
+The high-level plan involves:
+1. Introducing a **soft orthogonal loss** that penalizes high cosine similarity between latent features but allows for some controlled overlap.
+2. Implementing **dynamic feature grouping** based on activation patterns, which adapts during training to group semantically related features.
+3. Evaluating the impact of this approach on feature absorption and polysemanticity using the proposed benchmarks.
+
+The key design choice is to use a **cosine similarity-based penalty** rather than strict orthogonality, which provides more flexibility and better aligns with the natural structure of language model activations. This modification is expected to improve interpretability by reducing feature absorption and increasing the monosemanticity of latent features, while maintaining high reconstruction quality.
+
+The ideal outcome is a significant reduction in feature absorption, as measured by the first-letter classification task, and improved performance on the "sparse_probing" and "core" benchmarks, particularly in terms of cross-entropy loss and feature density statistics.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "soft_orthogonal_sae",
+    "Title": "Soft Orthogonal Regularization for Interpretable Sparse Autoencoders",
+    "Experiment": "1. Implement soft orthogonal loss using cosine similarity penalties. 2. Add dynamic feature grouping based on activation patterns. 3. Train on Pythia-70M using WikiText and WMDP-bio datasets. 4. Compare feature absorption and polysemanticity against baseline and strict orthogonal SAE. 5. Evaluate impact on sparse_probing and core benchmarks. 6. Analyze feature density statistics and cross-entropy loss.",
+    "Technical_Details": "The method introduces a soft orthogonal loss: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_soft_ortho, where L_soft_ortho = ∑_{i≠j} max(0, cos(W_i, W_j) - α). Here, α controls the allowed feature overlap, and λ_2(t) increases linearly until step t_0. Feature groups are dynamically updated every n=100 steps using k-means clustering on activation patterns. The decoder uses shared weights but group-specific biases to balance separation and reconstruction. Early stopping is based on feature absorption metrics.",
+    "Implementation_Plan": "1. Add SoftOrthogonalLoss with cosine similarity penalties. 2. Implement dynamic feature grouping using k-means clustering. 3. Modify CustomSAE to include group-specific biases. 4. Add feature absorption evaluation utilities. 5. Update CustomTrainer with adaptive loss weights. 6. Add evaluation metrics for feature absorption and polysemanticity.",
+    "Interestingness_Evaluation": "The soft orthogonal approach provides a more flexible and interpretable alternative to strict orthogonality, addressing key challenges in feature absorption and polysemanticity.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "The implementation is efficient, relying on simple matrix operations and k-means clustering. The adaptive loss weights and dynamic grouping add minimal overhead. All computations are well within the 30-minute limit on an H100 GPU.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The use of soft orthogonal regularization with dynamic feature grouping is a novel approach to balancing feature separation and reconstruction quality.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "The proposed method is expected to significantly reduce feature absorption and improve performance on the sparse_probing and core benchmarks, particularly in terms of cross-entropy loss and feature density statistics.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.9,
+    "Abstract": "Sparse autoencoders (SAEs) are a powerful tool for interpreting neural networks, but they often suffer from polysemanticity and feature absorption, where multiple concepts are represented by a single latent feature. We propose a soft orthogonal regularization approach that balances feature separation and reconstruction quality. By introducing a cosine similarity-based penalty and dynamic feature grouping, our method reduces feature absorption while maintaining high reconstruction quality. We evaluate our approach on the Pythia-70M model using WikiText and WMDP-bio datasets, demonstrating improvements in interpretability and benchmark performance."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'soft_orthogonal_sae', 'Title': 'Soft Orthogonal Regularization for Interpretable Sparse Autoencoders', 'Experiment': '1. Implement soft orthogonal loss using cosine similarity penalties. 2. Add dynamic feature grouping based on activation patterns. 3. Train on Pythia-70M using WikiText and WMDP-bio datasets. 4. Compare feature absorption and polysemanticity against baseline and strict orthogonal SAE. 5. Evaluate impact on sparse_probing and core benchmarks. 6. Analyze feature density statistics and cross-entropy loss.', 'Technical_Details': 'The method introduces a soft orthogonal loss: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_soft_ortho, where L_soft_ortho = ∑_{i≠j} max(0, cos(W_i, W_j) - α). Here, α controls the allowed feature overlap, and λ_2(t) increases linearly until step t_0. Feature groups are dynamically updated every n=100 steps using k-means clustering on activation patterns. The decoder uses shared weights but group-specific biases to balance separation and reconstruction. Early stopping is based on feature absorption metrics.', 'Implementation_Plan': '1. Add SoftOrthogonalLoss with cosine similarity penalties. 2. Implement dynamic feature grouping using k-means clustering. 3. Modify CustomSAE to include group-specific biases. 4. Add feature absorption evaluation utilities. 5. Update CustomTrainer with adaptive loss weights. 6. Add evaluation metrics for feature absorption and polysemanticity.', 'Interestingness_Evaluation': 'The soft orthogonal approach provides a more flexible and interpretable alternative to strict orthogonality, addressing key challenges in feature absorption and polysemanticity.', 'Interestingness': 9, 'Feasibility_Evaluation': 'The implementation is efficient, relying on simple matrix operations and k-means clustering. The adaptive loss weights and dynamic grouping add minimal overhead. All computations are well within the 30-minute limit on an H100 GPU.', 'Feasibility': 9, 'Novelty_Evaluation': 'The use of soft orthogonal regularization with dynamic feature grouping is a novel approach to balancing feature separation and reconstruction quality.', 'Novelty': 8, 'Expected_Research_Impact': 'The proposed method is expected to significantly reduce feature absorption and improve performance on the sparse_probing and core benchmarks, particularly in terms of cross-entropy loss and feature density statistics.', 'Research_Impact': 9, 'Overall_Score': 8.9, 'Abstract': 'Sparse autoencoders (SAEs) are a powerful tool for interpreting neural networks, but they often suffer from polysemanticity and feature absorption, where multiple concepts are represented by a single latent feature. We propose a soft orthogonal regularization approach that balances feature separation and reconstruction quality. By introducing a cosine similarity-based penalty and dynamic feature grouping, our method reduces feature absorption while maintaining high reconstruction quality. We evaluate our approach on the Pythia-70M model using WikiText and WMDP-bio datasets, demonstrating improvements in interpretability and benchmark performance.'}
+Iteration 2/7
+Failed to generate idea: Expecting value: line 5 column 1 (char 4)
+
+Generating idea 4/5
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea of using orthogonal feature learning in sparse autoencoders (SAEs) is promising, but it can be refined to better address the specific challenges of polysemanticity and feature absorption. My intuition is that while orthogonality helps with feature separation, it may not fully resolve the issue of feature absorption, where hierarchical or overlapping concepts (e.g., "India" and "Asia") are absorbed into a single latent. To address this, I propose a **Hierarchical Orthogonal SAE (HOSAE)**, which explicitly models hierarchical relationships between features while maintaining orthogonality within each hierarchical level. This approach refines the prototype by introducing a structured hierarchy of features, which should improve interpretability and reduce feature absorption without adding significant complexity.
+
+The key design choices are:
+1. **Hierarchical Feature Grouping**: Features are grouped into hierarchical levels (e.g., "Asia" at a higher level, "India" at a lower level), with orthogonality enforced within each level.
+2. **Controlled Feature Sharing**: Features at higher levels can influence lower-level features through a controlled sharing mechanism, ensuring that hierarchical relationships are preserved without violating orthogonality.
+3. **Adaptive Loss Scheduling**: The orthogonality loss is adaptively scheduled to prioritize separation of higher-level features early in training, followed by finer-grained separation at lower levels.
+
+The ideal outcome is a more interpretable latent space where hierarchical relationships are explicitly represented, reducing feature absorption and improving performance on benchmarks like "sparse_probing" and "core". This refinement builds on the prototype idea by adding a structured hierarchy, which is a natural extension of the controlled feature sharing concept.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "hierarchical_orthogonal_sae",
+    "Title": "Hierarchical Orthogonal Feature Learning for Interpretable Sparse Autoencoders",
+    "Experiment": "1. Implement hierarchical feature grouping with adaptive orthogonality loss. 2. Add controlled feature sharing between hierarchical levels. 3. Train on Pythia-70M using WikiText and WMDP-bio datasets. 4. Compare feature absorption and interpretability against baseline and fixed orthogonal SAE. 5. Analyze hierarchical structure of learned features. 6. Evaluate impact of different hierarchical levels on benchmark performance.",
+    "Technical_Details": "The method uses a hierarchical objective: L = L_recon + λ_1 * L_sparse + λ_2(t) * Σ_i L_ortho_i, where L_ortho_i = ||W_i^T W_i - αI||_F enforces orthogonality within each hierarchical level i. Feature groups are updated every n=100 steps using efficient batch statistics. Controlled sharing between levels is achieved through a weighted projection: W_low = W_low + β * W_high, where β controls the influence of higher-level features on lower-level ones. The decoder uses level-specific bias terms while sharing weights to balance separation and reconstruction quality.",
+    "Implementation_Plan": "1. Add HierarchicalOrthogonalityLoss with adaptive scheduling. 2. Implement efficient batch-wise hierarchical feature grouping. 3. Modify CustomSAE to include level-specific biases and controlled sharing. 4. Add utilities for hierarchical structure analysis. 5. Update CustomTrainer with adaptive loss weights and hierarchical updates. 6. Add evaluation metrics for hierarchical feature absorption.",
+    "Interestingness_Evaluation": "The combination of hierarchical feature grouping with adaptive orthogonality provides a novel and practical approach to addressing feature absorption and polysemanticity.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "The implementation remains efficient with batch-wise updates and simple matrix operations; hierarchical grouping adds minimal overhead; controlled sharing through β provides easy tuning; all computations well within 30-minute limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The hierarchical approach with controlled feature sharing provides a novel theoretical framework for addressing feature absorption while maintaining interpretability.",
+    "Novelty": 9,
+    "Expected_Research_Impact": "The hierarchical structure is expected to significantly reduce feature absorption and improve interpretability, leading to better performance on the 'sparse_probing' and 'core' benchmarks.",
+    "Research_Impact": 9,
+    "Overall_Score": 9.0,
+    "Abstract": "Sparse autoencoders (SAEs) are a powerful tool for mechanistic interpretability, but they often suffer from polysemanticity and feature absorption, where hierarchical or overlapping concepts are absorbed into a single latent. We propose a Hierarchical Orthogonal Sparse Autoencoder (HOSAE) that explicitly models hierarchical relationships between features while maintaining orthogonality within each level. By enforcing orthogonality within hierarchical levels and introducing controlled feature sharing between levels, our approach reduces feature absorption and improves interpretability. We demonstrate the effectiveness of HOSAE on standard benchmarks, showing that it achieves better separation of hierarchical concepts while maintaining reconstruction quality. This work provides a scalable and practical solution to the challenge of feature absorption in SAEs, advancing the field of mechanistic interpretability."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'hierarchical_orthogonal_sae', 'Title': 'Hierarchical Orthogonal Feature Learning for Interpretable Sparse Autoencoders', 'Experiment': '1. Implement hierarchical feature grouping with adaptive orthogonality loss. 2. Add controlled feature sharing between hierarchical levels. 3. Train on Pythia-70M using WikiText and WMDP-bio datasets. 4. Compare feature absorption and interpretability against baseline and fixed orthogonal SAE. 5. Analyze hierarchical structure of learned features. 6. Evaluate impact of different hierarchical levels on benchmark performance.', 'Technical_Details': 'The method uses a hierarchical objective: L = L_recon + λ_1 * L_sparse + λ_2(t) * Σ_i L_ortho_i, where L_ortho_i = ||W_i^T W_i - αI||_F enforces orthogonality within each hierarchical level i. Feature groups are updated every n=100 steps using efficient batch statistics. Controlled sharing between levels is achieved through a weighted projection: W_low = W_low + β * W_high, where β controls the influence of higher-level features on lower-level ones. The decoder uses level-specific bias terms while sharing weights to balance separation and reconstruction quality.', 'Implementation_Plan': '1. Add HierarchicalOrthogonalityLoss with adaptive scheduling. 2. Implement efficient batch-wise hierarchical feature grouping. 3. Modify CustomSAE to include level-specific biases and controlled sharing. 4. Add utilities for hierarchical structure analysis. 5. Update CustomTrainer with adaptive loss weights and hierarchical updates. 6. Add evaluation metrics for hierarchical feature absorption.', 'Interestingness_Evaluation': 'The combination of hierarchical feature grouping with adaptive orthogonality provides a novel and practical approach to addressing feature absorption and polysemanticity.', 'Interestingness': 9, 'Feasibility_Evaluation': 'The implementation remains efficient with batch-wise updates and simple matrix operations; hierarchical grouping adds minimal overhead; controlled sharing through β provides easy tuning; all computations well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'The hierarchical approach with controlled feature sharing provides a novel theoretical framework for addressing feature absorption while maintaining interpretability.', 'Novelty': 9, 'Expected_Research_Impact': "The hierarchical structure is expected to significantly reduce feature absorption and improve interpretability, leading to better performance on the 'sparse_probing' and 'core' benchmarks.", 'Research_Impact': 9, 'Overall_Score': 9.0, 'Abstract': 'Sparse autoencoders (SAEs) are a powerful tool for mechanistic interpretability, but they often suffer from polysemanticity and feature absorption, where hierarchical or overlapping concepts are absorbed into a single latent. We propose a Hierarchical Orthogonal Sparse Autoencoder (HOSAE) that explicitly models hierarchical relationships between features while maintaining orthogonality within each level. By enforcing orthogonality within hierarchical levels and introducing controlled feature sharing between levels, our approach reduces feature absorption and improves interpretability. We demonstrate the effectiveness of HOSAE on standard benchmarks, showing that it achieves better separation of hierarchical concepts while maintaining reconstruction quality. This work provides a scalable and practical solution to the challenge of feature absorption in SAEs, advancing the field of mechanistic interpretability.'}
+Iteration 2/7
+Failed to generate idea: Expecting value: line 5 column 1 (char 4)
+
+Generating idea 5/5
+Iteration 1/7
+Failed to generate idea: Expecting value: line 5 column 1 (char 4)
+Skipping seed idea 0
+Skipping seed idea 1
+Skipping seed idea 2
+Skipping seed idea 3
+Skipping seed idea 4
+Skipping seed idea 5
+Skipping seed idea 6
+Skipping seed idea 7
+saved
+[]
+All ideas evaluated.

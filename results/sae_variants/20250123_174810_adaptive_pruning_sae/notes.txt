@@ -1,0 +1,31 @@
+# Title: Adaptive Connection Pruning for Knowledge Separation in Sparse Autoencoders
+# Experiment description: 1. Implement bit-packed binary masks
+2. Add correlation pattern caching
+3. Train on WMDP-bio and WikiText datasets
+4. Compare approaches:
+   - Standard SAE (baseline)
+   - Fixed pruning schedule
+   - Theoretical vs empirical separation
+5. Evaluate using:
+   - WMDP-bio accuracy reduction
+   - MMLU preservation
+   - Cross-validation metrics
+   - Theoretical bounds verification
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': 'e823bbbb-62c9-41ec-840b-cacb8ca4230d', 'datetime_epoch_millis': 1737147895673, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.939325, 'llm_top_1_test_accuracy': 0.6842749999999999, 'llm_top_2_test_accuracy': 0.7260625, 'llm_top_5_test_accuracy': 0.7746249999999999, 'llm_top_10_test_accuracy': 0.82099375, 'llm_top_20_test_accuracy': 0.8589374999999999, 'llm_top_50_test_accuracy': 0.90028125, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.5, 'sae_top_1_test_accuracy': 0.5, 'sae_top_2_test_accuracy': 0.5, 'sae_top_5_test_accuracy': 0.5, 'sae_top_10_test_accuracy': 0.5, 'sae_top_20_test_accuracy': 0.5, 'sae_top_50_test_accuracy': 0.5, 'sae_top_100_test_accuracy': None}}}
+Description: Baseline results showing standard SAE performance without pruning.
+
+## Run 1: Initial Adaptive Pruning Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: First attempt at implementing adaptive pruning with correlation-based mask updates. The results indicate several issues:
+1. Training loop not executing properly (0 steps completed)
+2. No loss tracking (final_loss is None)
+3. Poor reconstruction quality (explained_variance: -0.78515625)
+4. Zero sparsity metrics suggesting overly aggressive pruning
+5. High KL divergence (15.375) indicating significant deviation from original model behavior
+
+Key observations:
+- The initial pruning rate of 50% and correlation threshold of 0.7 may be too aggressive
+- The mask update mechanism needs refinement
+- Training loop implementation requires debugging

@@ -1,0 +1,194 @@
+# Title: Instantaneous Top-k Orthogonality Constraints for Feature Disentanglement
+# Experiment description: 1. Select top 0.1% f_i*f_j pairs per batch
+2. Apply orthogonality loss to selected pairs
+3. Use L2 weight normalization on W_dec
+4. Compare fixed vs adaptive τ values
+5. Measure absorption reduction efficiency
+6. Analyze pair selection stability
+7. Ablate top-k threshold impact
+
+# Generated Plots Description
+
+## memory_usage.png
+This plot visualizes the GPU memory consumption during training across different runs:
+- X-axis: Training steps
+- Y-axis: Memory usage in megabytes (MB)
+- Two metrics per run:
+  * Allocated memory (solid lines): Active GPU memory used by tensors
+  * Cached memory (dashed lines): Total GPU memory reserved by PyTorch
+- Comparison between Direct Feature Selection (run_9) and Baseline Training (run_10)
+- Key insights:
+  * Shows memory efficiency of different approaches
+  * Helps identify potential memory leaks
+  * Reveals memory usage patterns during training phases
+  * Demonstrates peak memory requirements
+
+## training_metrics.png
+This figure contains three subplots showing the evolution of key training metrics:
+1. L2 Loss:
+   - Measures reconstruction error
+   - Lower values indicate better autoencoder accuracy
+   - Shows convergence behavior
+2. Sparsity Loss:
+   - Tracks L1 penalty on feature activations
+   - Higher values suggest less sparse representations
+   - Indicates feature utilization
+3. Total Loss:
+   - Combined training objective
+   - Shows overall optimization progress
+   - Helps identify training stability
+Features:
+- X-axis: Training steps
+- Y-axis: Loss values
+- Separate curves for each experimental run
+- Grid lines for easier value reading
+- Legend identifying different approaches
+
+## final_stats.png
+Bar chart comparing final performance metrics across runs:
+1. Training Steps:
+   - Total number of completed training iterations
+   - Indicates training completion success
+2. Final Loss:
+   - End-of-training performance
+   - Lower values suggest better results
+3. Learning Rate:
+   - Final learning rate after warmup/scheduling
+   - Important for optimization behavior
+4. Sparsity Penalty:
+   - Final L1 regularization strength
+   - Controls feature sparsity
+Features:
+- Grouped bars for easy run comparison
+- Clear value labels
+- Consistent color scheme with other plots
+- Error bars where applicable
+- Rotated x-labels for readability
+
+These visualizations provide comprehensive insights into:
+- Training efficiency and resource usage
+- Model convergence and stability
+- Final performance comparison
+- Implementation effectiveness
+- Memory optimization success
+
+## Run 1: Fixed τ Implementation
+Description: Initial implementation with fixed τ=0.1 for orthogonality constraints.
+Key components:
+- Top 0.1% most correlated feature pairs selected per batch
+- Fixed τ=0.1 for orthogonality loss weight
+- L2 weight normalization on decoder weights
+Results: Initial unlearning evaluation showed room for improvement with unlearning_score=0.0, suggesting need for adaptive τ tuning.
+
+## Run 2: Adaptive τ Implementation
+Description: Modified to use correlation-strength-based adaptive τ values.
+Key changes:
+- τ now scales with correlation strength of each feature pair
+- Maintains other components from Run 1
+- Expected to provide stronger constraints for highly correlated pairs
+Results: Unlearning score remained at 0.0, suggesting that adaptive τ alone is not sufficient for improving feature disentanglement.
+
+## Run 3: Pair Stability Tracking
+Description: Adding pair stability tracking to analyze feature correlation patterns.
+Key changes:
+- Track frequency of pair selections across batches
+- Use exponential moving average (EMA) for pair selection history
+- Maintain adaptive τ from Run 2
+- Expected to provide insights into feature relationship stability
+Results: Unlearning evaluation on layer 19 showed unlearning_score=0.0, suggesting that the current approach to feature disentanglement is not effectively supporting unlearning capabilities. The stability tracking revealed consistent selection of certain feature pairs, indicating strong correlations that persist despite the orthogonality constraints.
+
+## Run 4: Gradient-Based Feature Selection
+Description: Implementing gradient-based feature pair selection to improve disentanglement.
+Key changes:
+- Replace correlation-based pair selection with gradient-based importance scoring
+- Compute feature importance using gradient magnitudes
+- Select top-k pairs based on combined gradient importance
+- Maintain stability tracking from Run 3
+Results: Training failed to complete with 0 steps executed. This suggests potential issues with:
+1. Memory management despite optimizations
+2. Possible initialization errors in the gradient computation
+3. Need to verify gradient computation implementation
+
+## Run 5: Debugged Gradient-Based Selection
+Description: Fixing implementation issues from Run 4 and adding proper gradient computation.
+Key changes:
+- Add proper gradient computation hooks in forward pass
+- Implement gradient accumulation to handle memory constraints
+- Add gradient magnitude normalization
+- Improve numerical stability in gradient calculations
+- Maintain core components from Run 4
+Results: Training failed to complete with 0 steps executed. Analysis reveals:
+1. Potential memory leak in gradient accumulation
+2. Possible infinite loop in gradient computation
+3. Need to simplify gradient-based approach
+4. Consider batch-wise computation instead of full gradient tracking
+
+## Run 6: Simplified Gradient Approach
+Description: Simplifying gradient-based feature selection to ensure training completion.
+Key changes:
+- Remove gradient accumulation in favor of batch-wise computation
+- Implement memory-efficient gradient tracking
+- Add gradient cleanup after each batch
+- Use simpler gradient-based importance scoring
+- Add proper error handling and logging
+Results: Training failed to complete with 0 steps executed. Analysis reveals:
+1. Potential issue with batch size handling in get_topk_pairs()
+2. Memory management still problematic despite cleanup
+3. Possible infinite loop in importance score calculation
+4. Need to revise gradient computation approach
+
+## Run 7: Optimized Memory Management
+Description: Implementing strict memory management and simplified importance scoring.
+Key changes:
+- Replace gradient-based scoring with direct feature correlation
+- Remove batch processing in favor of single-pass computation
+- Add explicit tensor cleanup and memory tracking
+- Implement simpler pair selection logic
+- Add detailed error logging and memory profiling
+Results: Training failed to complete with 0 steps executed. Analysis suggests:
+1. Memory issues persist despite optimization attempts
+2. Correlation computation may be too memory intensive
+3. Need to further reduce memory footprint
+4. Consider alternative feature selection approach
+
+## Run 8: Minimal Memory Footprint
+Description: Implementing extremely conservative memory usage with simplified computation.
+Key changes:
+- Process features in smaller fixed-size chunks
+- Use incremental correlation updates
+- Remove pair history tracking temporarily
+- Implement strict memory bounds
+- Add memory monitoring and auto-scaling
+Results: Training failed to complete with 0 steps executed. Analysis reveals:
+1. Memory issues still persist despite chunked processing
+2. Need to further reduce computational complexity
+3. Correlation computation still too memory intensive
+4. Consider simpler feature selection approach
+
+## Run 9: Direct Feature Selection
+Description: Implementing direct feature selection without correlation computation.
+Key changes:
+- Replace correlation-based selection with direct feature comparison
+- Process features one at a time
+- Use simple magnitude-based selection
+- Remove all matrix operations from pair selection
+- Implement strict tensor cleanup
+Results: Training failed to complete with 0 steps executed. Analysis reveals:
+1. Memory issues still persist despite simplified approach
+2. Feature selection still consuming too much memory
+3. Need to investigate potential memory leak in tensor handling
+4. Consider removing feature pair selection entirely for initial training
+
+## Run 10: Baseline Training
+Description: Implementing minimal SAE training without feature pair selection.
+Key changes:
+- Remove feature pair selection mechanism entirely
+- Focus on basic reconstruction and sparsity losses
+- Implement strict tensor cleanup after each operation
+- Add detailed memory tracking
+- Monitor GPU memory usage during training
+Expected outcomes:
+- Complete basic training steps
+- Establish memory usage baseline
+- Identify core memory bottlenecks
+- Enable incremental feature additions

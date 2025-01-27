@@ -1,0 +1,210 @@
+# Title: Structured Positional Masking for Adaptive Temporal Feature Specialization
+
+# Generated Figures:
+
+## unlearning_scores.png
+This figure shows a bar plot comparing the unlearning scores across different experimental runs. The x-axis shows the different approaches tested (from baseline to residual position learning), while the y-axis represents the unlearning score metric. This metric quantifies how well each approach achieves feature disentanglement - higher scores indicate better unlearning capability. The plot helps visualize the relative effectiveness of different architectural choices in achieving position-specific feature learning.
+
+## loss_curves.png 
+This figure displays the training loss trajectories over time for all experimental runs. Each line represents a different approach, with training steps on the x-axis and loss values on the y-axis. The curves help identify:
+- Convergence speed of different approaches
+- Stability of training (smooth vs erratic curves)
+- Final loss values achieved
+- Potential overfitting (if loss increases)
+The alpha transparency helps distinguish overlapping curves, while the legend identifies each approach.
+
+## final_metrics.png
+This bar plot compares the final loss values achieved by each experimental run. The x-axis shows the different approaches, while the y-axis shows their final loss values. This visualization helps quickly identify:
+- Which approaches achieved the lowest final loss
+- The relative performance differences between approaches
+- Any patterns in how architectural choices affect final performance
+The rotated x-axis labels ensure readability of approach names.
+
+# Experiment description: 1. Initialize position-specific weight masks
+
+## Run 0: Baseline
+Results: [Previous baseline results...]
+Description: Baseline results.
+
+## Run 1: Hard Positional Masking
+Description: Implemented position-specific binary masks with:
+- Random initialization (50% active positions per feature)
+- Hard binary masks during forward pass
+- Position-aware gradient updates
+- Added position specialization tracking
+
+Results:
+- Initial unlearning evaluation showed zero unlearning score, indicating potential issues
+- The hard binary masks may be too restrictive, preventing effective feature learning
+- Position specialization tracking needs validation
+
+Analysis:
+- The hard binary masking approach appears too aggressive
+- Need to try softer masking approach to allow more gradual specialization
+- Should implement continuous masks with sigmoid activation
+- Will help validate if the issue is with mask strictness
+
+## Run 2: Soft Positional Masking
+Description: Implementing continuous position masks with:
+- Random initialization between 0-1 
+- Sigmoid activation for smooth masking
+- Learnable position masks
+- Gradient flow through masks
+
+Results:
+- Unlearning score of 0.0 indicates features are not being learned distinctly enough
+- The soft masking approach is working technically but needs tuning
+- Current sparsity penalty (0.04) may be too low to encourage distinct feature learning
+
+Analysis:
+- Need to increase sparsity penalty to encourage more distinct feature representations
+- The soft masking approach seems promising but needs stronger regularization
+- Will try increasing sparsity penalty significantly in next run
+
+## Run 3: Increased Sparsity Soft Masking
+Description: Keeping soft positional masking but with increased sparsity:
+- Increased L1 penalty to encourage more distinct features (0.2)
+- Same continuous position masks with sigmoid
+- Random initialization between 0-1
+- Focus on getting more specialized feature learning
+
+Results:
+- Unlearning score remained at 0.0 despite 5x increase in sparsity penalty
+- The increased L1 penalty did not lead to more distinct feature learning
+- Suggests that sparsity alone may not be sufficient for position-specific learning
+
+Analysis:
+- Simple sparsity penalties may not effectively encourage position-specific features
+- Need to directly incentivize position-specific learning in the loss function
+- Will try position-aware loss scaling in next run
+
+## Run 4: Position-Aware Loss Scaling
+Description: Adding position-specific loss weighting:
+- Position-dependent loss scaling factors
+- Higher reconstruction loss weight for position-specific features
+- Maintain soft positional masking
+- Balanced sparsity penalty (0.1)
+
+Results:
+- Unlearning score remained at 0.0
+- Position-aware loss scaling did not improve feature specialization
+- Suggests need for more structural changes to architecture
+
+Analysis:
+- Loss weighting alone insufficient for position-specific learning
+- Need stronger architectural constraints
+- Will try explicit position-specific feature groups
+
+## Run 5: Position-Specific Feature Groups
+Description: Restructuring feature space with explicit position groups:
+- Divide features into position-specific groups (features_per_pos = d_sae // context_length)
+- Add learned position embeddings to enhance position awareness
+- Separate encoder/decoder weights per position
+- Independent processing per sequence position
+- Position-weighted reconstruction loss (linear scaling from 1.0 to 2.0)
+- Balanced sparsity penalty (0.1)
+
+Results:
+- Unlearning score remained at 0.0
+- Position-specific architectural changes did not improve feature specialization
+- The explicit position-based feature grouping was insufficient
+
+Analysis:
+- Even with strong architectural constraints, features are not learning position-specific patterns
+- The current approach may be too rigid, preventing natural feature emergence
+- Need to explore more flexible ways to encourage positional learning
+- Consider dynamic routing or attention mechanisms
+
+## Run 6: Attention-Based Feature Routing
+Description: Implementing flexible position-aware feature routing:
+- Add attention mechanism to learn position-feature associations
+- Replace hard grouping with soft attention weights
+- Dynamic position-feature routing during encoding
+- Maintain position embeddings
+- Gradient-guided feature specialization
+
+Results:
+- Unlearning score remained at 0.0 despite architectural changes
+- The attention-based routing did not improve feature specialization
+- Training completed but features did not develop position-specific patterns
+
+Analysis:
+- The attention mechanism was unable to learn meaningful position-feature associations
+- Dynamic routing may be too flexible, not providing enough constraint
+- Need to consider hybrid approaches that combine structure and flexibility
+- Position information may need to be more deeply integrated into the feature learning process
+
+## Run 7: Hierarchical Position-Feature Learning
+Description: Implementing a hierarchical approach to position-aware feature learning:
+- Two-level feature hierarchy: global and position-specific features
+- Gated mixing of global and position-specific representations
+- Learned gating weights per position
+- Progressive training schedule (global -> position-specific)
+- Position-dependent loss weighting
+- Maintain attention mechanism but with stronger positional priors
+
+Results:
+- Unlearning score remained at 0.0
+- The hierarchical architecture failed to induce meaningful position-specific features
+- Training completed successfully but without desired specialization
+- Position-dependent loss weighting did not effectively guide feature learning
+
+Analysis:
+- The hierarchical split between global and position-specific features may be too rigid
+- Gating mechanism might be learning to rely too heavily on global features
+- Position information may need to be more fundamentally integrated into the feature extraction
+- Need to consider alternative approaches that don't artificially separate features
+- The attention mechanism may need more direct supervision signals
+
+## Run 8: Contrastive Position-Feature Learning
+Description: Implementing contrastive learning approach to encourage position-aware features:
+- Remove artificial feature splitting
+- Add contrastive loss term to push features from different positions apart
+- Maintain position embeddings but integrate more deeply into feature computation
+- Use InfoNCE-style loss to maximize mutual information between positions and features
+- Temperature-scaled position-feature similarity scoring
+- Balanced mixing of reconstruction and contrastive objectives
+
+Results:
+- Unlearning score remained at 0.0
+- The contrastive learning approach did not improve position-specific feature learning
+- Training completed but features did not develop desired positional specificity
+- The InfoNCE loss term did not effectively encourage position-aware representations
+
+Analysis:
+- Contrastive learning alone insufficient to induce position-specific features
+- The balance between reconstruction and contrastive objectives may need tuning
+- Position information might need more structural enforcement
+- Consider combining successful elements from previous approaches
+- May need to rethink fundamental assumptions about position-feature relationships
+
+## Run 9: Multi-Scale Position-Feature Integration
+Description: Implementing multi-scale approach to position-aware feature learning:
+- Introduce position-dependent feature scales (local, medium, global range)
+- Progressive feature binding from local to global context
+- Learned position-scale attention weights
+- Scale-specific reconstruction targets
+- Hierarchical position embeddings
+- Adaptive scale mixing based on feature statistics
+
+Results:
+- Unlearning score remained at 0.0
+- Multi-scale approach did not improve position-specific feature learning
+- Training completed but features remained position-agnostic
+- Scale-specific reconstruction targets did not induce desired specialization
+
+Analysis:
+- The multi-scale architecture, while theoretically promising, did not achieve position-aware features
+- Progressive feature binding may have been too complex for effective training
+- Scale-specific targets might have created competing optimization objectives
+- Need to consider simpler, more direct approaches to position-awareness
+- May need to focus on fundamental representation learning principles
+
+## Run 10: Residual Position Learning
+Description: Implementing residual learning approach for position-aware features:
+- Add direct residual connections between position embeddings and features
+- Learned position-feature residual mappings
+- Position-conditional feature normalization
+- Gradient-isolated position pathways
+- Adaptive position-feature gating with residual shortcuts
+- Position-aware feature regularization

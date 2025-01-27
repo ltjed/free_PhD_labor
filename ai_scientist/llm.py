@@ -16,6 +16,7 @@ AVAILABLE_LLMS = [
     "gpt-4o-2024-08-06",
     "o1-preview-2024-09-12",
     "o1-mini-2024-09-12",
+    "o1-2024-12-17",
     "deepseek-coder",
     "deepseek-reasoner",
     "llama3.1-405b",
@@ -215,7 +216,7 @@ def get_response_from_llm(
         )
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
-    elif model in ["o1-preview-2024-09-12", "o1-mini-2024-09-12"]:
+    elif model in ["o1-preview-2024-09-12", "o1-mini-2024-09-12", "o1-2024-12-17"]:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         response = client.chat.completions.create(
             model=model,
@@ -345,7 +346,7 @@ def create_client(model):
     elif 'gpt' in model:
         print(f"Using OpenAI API with model {model}.")
         return openai.OpenAI(), model
-    elif model in ["o1-preview-2024-09-12", "o1-mini-2024-09-12"]:
+    elif model in ["o1-preview-2024-09-12", "o1-mini-2024-09-12", "o1-2024-12-17"]:
         print(f"Using OpenAI API with model {model}.")
         return openai.OpenAI(), model
     elif model in ["deepseek-coder", "deepseek-reasoner"]:

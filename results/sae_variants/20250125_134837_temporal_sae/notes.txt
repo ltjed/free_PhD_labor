@@ -1,0 +1,221 @@
+# Title: Structured Positional Masking for Adaptive Temporal Feature Specialization
+# Experiment description: 1. Initialize position-specific weight masks
+
+2. Train with masked gradient updates
+
+3. Compare to static slicing
+
+4. Evaluate:
+
+   - Position specialization retention
+
+   - Sparse_probing on order-sensitive tasks
+
+   - Feature activation positional fidelity
+
+5. Ablation on mask strictness (hard vs soft)
+
+## Run 0: Baseline
+Results: [Previous baseline results...]
+Description: Baseline results.
+
+## Run 1: Hard Positional Masking
+Description: Implemented position-specific binary masks that partition the feature space across sequence positions. Each position gets a dedicated subset of features, enforcing strict specialization. Key changes:
+- Added position masks in PositionalSAE
+- Modified encode() to apply position-specific masks
+- Equal distribution of features across positions
+- Binary (hard) masks for strict specialization
+
+Results: 
+- Unlearning score of 0.0 suggests the hard masking may be too restrictive
+- The strict partitioning likely prevents features from capturing position-invariant patterns
+- Need to explore softer constraints that allow controlled feature sharing
+
+## Run 2: Soft Positional Masking
+Description: Implementing soft positional masks using continuous values between 0 and 1 instead of binary masks. This allows features to be partially active across multiple positions while maintaining position preferences. Changes:
+- Replace binary masks with continuous values
+- Initialize with Gaussian distributions centered at preferred positions
+- Allow gradual adaptation of mask values during training
+- Add temperature parameter to control mask softness
+
+Results:
+- Unlearning score of 0.0 indicates the current soft masking implementation may still be too restrictive
+- The Gaussian distribution with current temperature (0.1) might be creating too sharp position preferences
+- The masking scheme appears to be interfering with the model's ability to learn generalizable features
+- Need to adjust temperature parameter to create broader, more overlapping position preferences
+
+## Run 3: Optimized Temperature Soft Masking
+Description: Adjusting the temperature parameter in the soft masking implementation to create broader, more overlapping position preferences while maintaining some degree of position-specific specialization. Changes:
+- Increase temperature parameter from 0.1 to 0.5 for broader Gaussian distributions
+- Maintain the same soft masking architecture but with more permissive feature sharing
+- Keep all other hyperparameters constant to isolate the effect of temperature
+
+Results:
+- Unlearning score remained at 0.0, suggesting that even with broader distributions, pure position-based masking may be too rigid
+- The increased temperature did not significantly improve the model's ability to learn transferable features
+- Need to explore alternative approaches that balance position-specificity with content-based feature allocation
+
+## Run 4: Hybrid Content-Position Masking
+Description: Implementing a hybrid masking approach that combines position preferences with content-based feature allocation. Changes:
+- Add content-based attention mechanism to modulate position masks
+- Compute feature relevance scores based on input content
+- Combine content scores with position preferences using learned weights
+- Allow dynamic feature allocation based on both position and content importance
+
+Results:
+- Unlearning score remained at 0.0, indicating the hybrid approach still doesn't achieve desired feature disentanglement
+- The static combination of position and content masks may be too restrictive
+- Need to explore more dynamic adaptation mechanisms
+
+## Run 5: Adaptive Mask Evolution
+Description: Implementing dynamic mask adaptation based on feature activation patterns during training. Changes:
+- Initialize masks with weak position preferences using Gaussian distributions
+- Add mask evolution based on feature usage statistics tracked via activation_history buffer
+- Implement per-feature adaptive temperature scaling based on usage patterns
+- Introduce content-based projection with learnable blend factors
+- Add automatic feature reset mechanism for features with usage below 1% threshold
+- Include dynamic temperature adjustment based on feature utilization metrics
+
+Results:
+- Unlearning score remained at 0.0, suggesting fundamental limitations in our approach
+- The adaptive mechanisms, while more sophisticated, did not improve feature disentanglement
+- The combination of position-based and content-based masking still appears too restrictive
+- The automatic feature reset mechanism may be triggering too frequently
+- Temperature adaptation may need longer training periods to stabilize
+
+Key Insights:
+- Position-based masking, even with adaptive mechanisms, may be fundamentally limiting
+- Need to reconsider core assumptions about position-specificity in feature learning
+- Future directions should explore alternative approaches to feature specialization
+- Consider investigating attention-based mechanisms without explicit position constraints
+
+## Run 6: Attention-Based Feature Routing
+Description: Moving away from explicit position masking towards learned attention-based feature routing. Key changes:
+
+1. Replaced PositionalSAE with AttentionRoutedSAE implementing multi-head attention for feature routing
+2. Added feature usage tracking with exponential moving average
+3. Implemented learned feature importance weighting
+4. Added automatic feature reset mechanism for underutilized features
+5. Integrated multi-head attention with 8 heads for sophisticated feature routing
+6. Added safety mechanisms for handling non-finite values and gradient issues
+
+Implementation Details:
+- Multi-head attention with 8 heads for sophisticated feature routing
+- Usage tracking with 0.99 decay factor
+- Feature importance learned through sigmoid-activated weights
+- Automatic reset of features with usage below 1% threshold
+- Gradient constraints on decoder weights using ConstrainedAdam optimizer
+- Comprehensive error handling and numerical stability measures
+
+Results:
+- Unlearning score: 0.0
+- Training completed but did not achieve desired feature disentanglement
+- The attention-based routing approach, while more sophisticated than position masking, 
+  still did not enable effective feature separation
+- The automatic feature reset mechanism and importance weighting may need refinement
+- Results suggest we need to explore alternative approaches to feature disentanglement
+
+Key Insights:
+- Pure attention-based routing may not be sufficient for feature disentanglement
+- Need to investigate hybrid approaches combining attention with other mechanisms
+- Consider exploring contrastive learning or additional regularization techniques
+- May need to revisit core assumptions about feature separation mechanisms
+
+## Run 7: Contrastive Feature Learning
+Description: Implementing contrastive learning approach to encourage feature disentanglement. Changes:
+
+1. Replaced AttentionRoutedSAE with ContrastiveAttentionSAE
+2. Added feature similarity tracking matrix with 0.95 decay factor
+3. Implemented temperature-scaled contrastive loss
+4. Created positive/negative sample pair mechanisms
+5. Modified loss function to include contrastive term with temperature parameter
+6. Retained attention routing mechanism from Run 6
+7. Added safety checks and gradient stabilization
+
+Implementation Details:
+- Feature similarity tracking using exponential moving average
+- Temperature-scaled contrastive loss for better feature separation
+- Positive pairs from same batch positions, negative pairs from different positions
+- Combined loss: reconstruction + L1 sparsity + contrastive term
+- Maintained attention-based routing with 8 heads
+- Comprehensive error handling and numerical stability measures
+
+Results:
+- Unlearning score: 0.0
+- Training completed but did not achieve feature disentanglement
+- The combination of attention routing and contrastive learning still failed to separate features effectively
+- Temperature scaling and similarity tracking may need further tuning
+- Results suggest fundamental limitations in current approach
+
+Key Insights:
+- Combined attention routing and contrastive learning insufficient for feature disentanglement
+- Need to explore more sophisticated feature separation mechanisms
+- Consider investigating alternative loss formulations
+- May need to incorporate additional structural constraints
+
+## Run 8: Hierarchical Feature Organization
+Description: Implementing hierarchical feature organization with grouped attention and structured sparsity. Changes:
+
+1. Implemented hierarchical feature organization with 16 feature groups
+2. Added group-level competition and usage tracking
+3. Integrated multi-head attention (8 heads) for feature routing
+4. Added feature importance learning with temperature scaling
+5. Implemented automatic feature reset for underutilized features
+6. Added comprehensive error handling and stability measures
+
+Implementation Details:
+- 16 feature groups with group-level competition factor of 0.1
+- Group and feature usage tracking with 0.99 decay factor
+- Multi-head attention with 8 heads for sophisticated routing
+- Learned feature importance with temperature-scaled weights
+- Automatic reset of features with usage below 1% threshold
+- Combined loss: reconstruction + L1 sparsity + contrastive term
+
+Results:
+- Unlearning score: 0.0
+- Training completed but did not achieve feature disentanglement
+- The hierarchical organization with grouped attention still failed to separate features effectively
+- Group competition and usage tracking may need further tuning
+- Results suggest we need to explore alternative approaches
+
+Key Insights:
+- Hierarchical feature organization insufficient for feature disentanglement
+- Group-level competition may be too weak or too strong
+- Need to explore alternative feature organization strategies
+- Consider investigating more dynamic feature allocation mechanisms
+
+## Run 9: Dynamic Feature Allocation
+Description: Implementing dynamic feature allocation with adaptive competition and learned grouping. Changes:
+
+1. Implemented DynamicSAE with multi-head attention (8 heads) for feature routing
+2. Added dynamic clustering with 32 learned clusters
+3. Implemented adaptive competition with learned scaling
+4. Added feature importance learning and temperature scaling
+5. Integrated cluster-aware contrastive learning
+6. Added comprehensive error handling and stability measures
+
+Implementation Details:
+- Multi-head attention with 8 heads for sophisticated routing
+- 32 learned feature clusters with usage tracking
+- Usage decay factor of 0.99 for feature statistics
+- Adaptive competition with learned scaling factor
+- Feature importance weighting through learned parameters
+- Temperature-scaled contrastive loss
+- Automatic feature reset for usage below 1% threshold
+- Comprehensive error handling and numerical stability checks
+
+Results:
+- Unlearning score: 0.0
+- Training completed but did not achieve feature disentanglement
+- The dynamic feature allocation with adaptive competition still failed to separate features effectively
+- The cluster-aware contrastive learning did not improve feature separation
+- Results suggest we need to explore more fundamental approaches to feature disentanglement
+
+Key Insights:
+- Dynamic feature allocation with adaptive competition insufficient for feature disentanglement
+- Cluster-aware contrastive learning may need different formulation
+- Need to explore alternative approaches to feature separation
+- Consider investigating information-theoretic objectives
+
+## Run 10: Information-Theoretic Feature Learning
+Description: Implementing information-theoretic objectives for feature disentanglement. Changes:

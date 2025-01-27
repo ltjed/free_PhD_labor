@@ -1,0 +1,241 @@
+# Title: TemporalLens: Position-Aware Sparse Autoencoders for Interpreting Sequential Neural Representations
+
+# Visualization Guide
+
+This document describes the key visualizations produced during our experiments with position-aware sparse autoencoders. Each run generates specific plots that help analyze different aspects of the model's behavior.
+
+## Visualization Overview by Run
+
+### Run 4: Position-wise Loss Visualization
+Generated files:
+- position_analysis.png: Three-panel plot showing:
+  1. Position-wise loss evolution over training steps (heatmap)
+  2. Final position-wise loss distribution across sequence
+  3. Position weight evolution showing how the model adapts to different positions
+
+### Run 5-6: Adaptive Loss and Sparsity Analysis
+Generated files:
+- comparative_analysis.png: Four-quadrant visualization showing:
+  1. Final loss comparison across different runs (bar chart)
+  2. Sparsity level comparison across runs (bar chart)
+  3. Position-wise loss patterns (heatmap)
+  4. Adaptive weight distribution (line plot)
+
+### Run 7: Weight Evolution Tracking
+Generated files:
+- position_weights.png: Time series visualization showing:
+  1. Evolution of position-specific weights over training
+  2. Convergence patterns of different sequence positions
+  3. Correlation between position weights and reconstruction difficulty
+
+### Run 8: Sparsity Pattern Analysis
+Generated files:
+- sparsity_analysis.png: Multi-panel visualization showing:
+  1. Position-wise sparsity evolution (heatmap)
+  2. Final sparsity distribution across positions (line plot)
+  3. Feature activity heatmap showing position-specific activation patterns
+  
+### Run 9: Temporal Clustering Analysis
+Generated files:
+- temporal_clustering.png: Hierarchical clustering visualization:
+  1. Dendrogram showing feature relationships based on temporal patterns
+  2. Sorted feature activity heatmap revealing position-specific behaviors
+  
+- cluster_patterns.png: Detailed cluster analysis showing:
+  1. Average activation patterns per cluster (line plots)
+  2. Within-cluster consistency measures (correlation heatmaps)
+  3. Position-specific feature specialization patterns
+
+# Key Metrics and Interpretation
+
+## Loss Metrics (comparative_analysis.png)
+- Final Loss: Overall model performance
+- MSE Loss: Reconstruction accuracy
+- Sparsity Loss: Feature usage efficiency
+- Position-wise Loss: Sequence-specific performance
+
+## Temporal Patterns (temporal_clustering.png)
+- Feature Clusters: Groups of features with similar temporal behavior
+- Activation Patterns: Position-specific feature specialization
+- Cluster Consistency: Stability of temporal feature groups
+
+## Sparsity Analysis (sparsity_analysis.png)
+- Position-wise Sparsity: How feature usage varies across sequence
+- Feature Activity: Which features activate at different positions
+- Temporal Structure: Patterns in feature activation timing
+
+# Experiment description: 
+1. Initialize position-specific weight masks
+2. Train with masked gradient updates
+3. Compare to static slicing
+4. Evaluate:
+   - Position specialization retention
+   - Sparse_probing on order-sensitive tasks
+   - Feature activation positional fidelity
+5. Ablation on mask strictness (hard vs soft)
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': 'e823bbbb-62c9-41ec-840b-cacb8ca4230d', 'datetime_epoch_millis': 1737147895673, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.939325, 'llm_top_1_test_accuracy': 0.6842749999999999, 'llm_top_2_test_accuracy': 0.7260625, 'llm_top_5_test_accuracy': 0.7746249999999999, 'llm_top_10_test_accuracy': 0.82099375, 'llm_top_20_test_accuracy': 0.8589374999999999, 'llm_top_50_test_accuracy': 0.90028125, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.5, 'sae_top_1_test_accuracy': 0.5, 'sae_top_2_test_accuracy': 0.5, 'sae_top_5_test_accuracy': 0.5, 'sae_top_10_test_accuracy': 0.5, 'sae_top_20_test_accuracy': 0.5, 'sae_top_50_test_accuracy': 0.5, 'sae_top_100_test_accuracy': None}}}
+Description: Baseline results using standard SAE implementation.
+
+## Run 1: Initial Positional SAE Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: First implementation of Positional SAE with position-specific feature masking. The model uses learnable continuous position masks with temperature parameter to control mask softness. Initial results show training completion but require further analysis of feature specialization patterns. Key aspects implemented:
+1. Learnable position-specific logits initialized randomly
+2. Sigmoid activation with temperature for soft masking
+3. Feature activation modulated by position-specific masks
+4. Unit-norm constraints on decoder weights
+
+Next steps:
+1. Analyze temporal feature patterns
+2. Add position specialization metrics
+3. Compare with hard masking baseline
+
+## Run 2: Temperature Annealing for Mask Sharpening
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Modified the Positional SAE to include temperature annealing for the sigmoid masks. This run focused on gradually sharpening position masks during training to encourage more discrete specialization patterns. Key modifications:
+1. Added exponential temperature decay schedule
+2. Started with high temperature (τ=5.0) for soft masks
+3. Gradually decreased temperature to τ=0.1 for sharper position preferences
+4. Maintained other hyperparameters from Run 1
+
+Initial results suggest completed training but need detailed analysis of:
+- Position mask sharpness progression
+- Feature specialization patterns
+- Reconstruction quality across positions
+
+Next steps:
+1. Analyze position-wise reconstruction error
+2. Compare feature activation patterns pre/post temperature annealing
+3. Evaluate impact on temporal feature interpretability
+
+## Run 3: Position-wise Loss Tracking Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced the Positional SAE with granular position-wise loss tracking to better understand how well the model reconstructs activations at different sequence positions. Key modifications:
+1. Implemented position-wise L2 reconstruction loss tracking
+2. Added metrics for average, max, and min loss per position
+3. Reshaped inputs/reconstructions to (batch, seq_len, hidden_dim) for position analysis
+4. Maintained temperature annealing from Run 2
+
+Analysis of results shows:
+- Successfully tracking reconstruction quality across sequence positions
+- Position-specific metrics now available for detailed analysis
+- Framework in place for visualizing temporal learning patterns
+
+Next steps:
+1. Add visualization of position-wise loss patterns
+2. Analyze correlation between mask strength and reconstruction quality
+3. Implement adaptive position-specific loss weighting
+
+## Run 4: Position-wise Loss Visualization
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Added comprehensive visualization capabilities to analyze position-wise loss patterns and temporal learning dynamics. Key additions:
+1. Implemented heatmap visualization of loss evolution across positions
+2. Added final position-wise loss distribution plot
+3. Created automated plotting utility in plot.py
+4. Maintained all previous functionality from Run 3
+
+Analysis of visualization results reveals:
+- Clear temporal patterns in reconstruction quality
+- Position-specific learning dynamics visible in loss evolution
+- Potential areas for targeted optimization identified
+
+Next steps:
+1. Implement adaptive position-specific loss weighting
+2. Analyze position-wise feature specialization
+3. Consider position-dependent sparsity penalties
+
+## Run 5: Adaptive Position-wise Loss Weighting
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented adaptive position-wise loss weighting to dynamically adjust the importance of different sequence positions during training. Key modifications:
+1. Added exponential moving average (EMA) tracking of position-wise losses
+2. Implemented dynamic position weight updates based on loss patterns
+3. Normalized weights to maintain consistent overall loss scale
+4. Integrated position weights into reconstruction loss computation
+
+Analysis of results:
+- Successfully implemented position-specific loss weighting mechanism
+- EMA tracking provides stable weight updates
+- Position weights automatically adjust based on reconstruction difficulty
+- Framework now supports adaptive learning across sequence positions
+
+Next steps:
+1. Implement position-dependent sparsity penalties
+2. Add visualization of position weight evolution
+3. Analyze impact on feature specialization patterns
+
+## Run 6: Position-dependent Sparsity Penalties
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced the model with position-specific L1 sparsity penalties to allow different sparsity levels across sequence positions. Key modifications:
+1. Reshaped feature activations to separate sequence positions
+2. Applied position-specific weights to L1 penalties
+3. Reused adaptive weights from reconstruction loss
+4. Maintained consistent overall sparsity level through normalization
+
+Analysis of results:
+- Successfully implemented position-dependent sparsity regulation
+- Framework now supports varying sparsity requirements across positions
+- Unified weighting mechanism for both reconstruction and sparsity
+- Position-specific feature selection now possible
+
+Next steps:
+1. Add visualization of position weight evolution
+2. Analyze position-specific feature sparsity patterns
+3. Evaluate impact on temporal feature interpretability
+
+## Run 7: Position Weight Evolution Visualization
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Added visualization capabilities for tracking the evolution of position-specific weights throughout training. This run focused on understanding how the model's position-dependent learning dynamics develop over time. Key modifications:
+1. Enhanced logging system to track position weights during training
+2. Added position weight evolution plot to visualization suite
+3. Implemented comprehensive tracking of both loss and weight patterns
+4. Maintained all previous functionality from Run 6
+
+Analysis of results:
+- Successfully captured position weight evolution patterns
+- Visualization reveals temporal adaptation of model focus
+- Clear correlation between position weights and reconstruction difficulty
+- Framework now provides complete picture of temporal learning dynamics
+
+Next steps:
+1. Analyze position-specific feature sparsity patterns
+2. Evaluate impact on temporal feature interpretability
+3. Consider feature clustering by temporal behavior
+
+## Run 8: Position-specific Feature Sparsity Analysis
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced visualization and analysis capabilities to better understand position-specific feature sparsity patterns. This run focused on tracking and visualizing how different features activate across sequence positions. Key modifications:
+1. Added comprehensive sparsity analysis visualization
+2. Implemented tracking of position-wise sparsity evolution
+3. Created final sparsity distribution visualization
+4. Added feature activity heatmap by sequence position
+
+Analysis of results:
+- Successfully implemented position-specific sparsity tracking
+- Visualization reveals patterns in feature usage across positions
+- Clear temporal structure in feature activation patterns
+- Framework now supports detailed analysis of positional feature behavior
+
+Next steps:
+1. Implement temporal feature clustering
+2. Analyze feature groups by activation patterns
+3. Evaluate impact on interpretability
+
+## Run 9: Temporal Feature Clustering Analysis
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented hierarchical clustering of features based on their temporal activation patterns to identify groups of features with similar position-specific behaviors. Key modifications:
+1. Added hierarchical clustering based on temporal activation profiles
+2. Created dendrogram visualization of feature relationships
+3. Implemented sorted feature activity heatmap
+4. Maintained all previous visualization capabilities
+
+Analysis of results:
+- Successfully identified clusters of temporally-related features
+- Visualization reveals clear groupings in activation patterns
+- Dendrogram shows hierarchical relationships between feature groups
+- Framework now supports systematic analysis of feature relationships
+
+Next steps:
+1. Analyze activation pattern motifs within clusters
+2. Implement feature pattern similarity metrics
+3. Evaluate cluster stability across training

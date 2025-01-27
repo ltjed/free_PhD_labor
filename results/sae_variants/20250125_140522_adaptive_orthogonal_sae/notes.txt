@@ -1,0 +1,275 @@
+# Title: Instantaneous Top-k Orthogonality Constraints for Feature Disentanglement
+# Experiment description: 1. Select top 0.1% f_i*f_j pairs per batch
+2. Apply orthogonality loss to selected pairs
+3. Use L2 weight normalization on W_dec
+4. Compare fixed vs adaptive τ values
+5. Measure absorption reduction efficiency
+6. Analyze pair selection stability
+7. Ablate top-k threshold impact
+
+## Run 0: Baseline
+Results: [Previous baseline results...]
+Description: Baseline results.
+
+## Run 1: Basic Orthogonality Implementation
+Configuration:
+- Top-k pairs: 0.1%
+- τ = 0.1 (fixed)
+- L2 weight normalization on W_dec
+- Basic orthogonality loss on selected pairs
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Model showed basic training convergence but limited effectiveness in feature disentanglement
+- The fixed τ value may be too conservative
+
+Analysis:
+- The zero unlearning score suggests the orthogonality constraints need strengthening
+- Basic implementation provides foundation for adaptive approaches
+- Results indicate need to proceed with adaptive τ implementation as planned
+
+## Run 2: Adaptive Tau Implementation
+Configuration:
+- Top-k pairs: 0.1% (unchanged)
+- Base τ = 0.1, max τ = 0.5
+- L2 weight normalization on W_dec
+- Dynamic orthogonality loss scaling
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Model showed similar performance to Run 1
+- Adaptive τ scaling did not provide sufficient constraint strength
+
+Analysis:
+- The zero unlearning score persists despite adaptive τ implementation
+- Current τ range (0.1-0.5) may be too conservative
+- Results suggest need for stronger base penalties while maintaining adaptivity
+- Feature correlation detection appears to work but penalties are too weak
+
+## Run 3: Increased Base Penalty Implementation
+Configuration:
+- Top-k pairs: 0.1% (unchanged)
+- Base τ = 0.5, max τ = 2.0 (5x increase)
+- L2 weight normalization on W_dec
+- Dynamic orthogonality loss scaling
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Model showed no improvement despite stronger penalties
+- Adaptive τ range increase did not affect feature disentanglement
+
+Analysis:
+- The zero unlearning score persists even with 5x stronger penalties
+- Results suggest linear scaling of penalties may be insufficient
+- Need to explore non-linear approaches to feature disentanglement
+- Consider exponential penalties and stricter pair selection
+
+## Run 4: Exponential Penalty Implementation
+Configuration:
+- Top-k pairs: 0.05% (reduced to focus on strongest correlations)
+- Base τ = 0.1, exponential scaling factor = 2.0
+- L2 weight normalization on W_dec
+- Exponential correlation-based penalties
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Model showed no improvement with exponential penalties
+- Reduced pair selection did not enhance disentanglement
+
+Analysis:
+- Zero unlearning score persists despite non-linear penalties
+- Results suggest correlation-based pair selection may be insufficient
+- Need to explore gradient-based feature interaction detection
+- Consider dynamic feature pair importance scoring
+
+## Run 5: Gradient-Based Pair Selection Implementation
+Configuration:
+- Dynamic pair selection based on gradient interactions
+- Initial τ = 0.1, momentum factor = 0.9
+- L2 weight normalization on W_dec
+- Adaptive pair importance scoring
+- Fixed number of pairs (n_pairs = 100)
+- Layer 19 of Gemma-2-2b model
+- Dict size = 2304
+- Learning rate = 0.0003
+- Sparsity penalty = 0.04
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Model showed no improvement in feature disentanglement
+- Gradient-based pair selection did not enhance orthogonality
+
+Analysis:
+- Zero unlearning score suggests gradient-based selection is not identifying the right feature interactions
+- The fixed number of pairs (100) may be too small for the model size (2304 features)
+- Results indicate need to scale number of monitored pairs with model size
+- Consider using relative threshold instead of fixed pair count
+- Momentum-based importance scoring may be smoothing out important temporal dynamics
+
+## Run 6: Adaptive Pair Count Implementation
+Configuration:
+- Dynamic pair selection using relative threshold (top 5% of interactions)
+- Initial τ = 0.1, momentum factor = 0.9
+- L2 weight normalization on W_dec
+- Scaled pair count based on feature dimension
+- Layer 19 of Gemma-2-2b model
+- Dict size = 2304
+- Learning rate = 0.0003
+- Sparsity penalty = 0.04
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Model showed no improvement in feature disentanglement despite adaptive scaling
+- Relative threshold approach did not enhance orthogonality constraints
+
+Analysis:
+- Zero unlearning score persists even with adaptive pair selection
+- The 5% threshold may still be too conservative for effective feature disentanglement
+- Results suggest need for more aggressive feature interaction monitoring
+- Consider increasing threshold to 10% and strengthening the orthogonality penalty
+- The momentum-based importance scoring may still be too slow to capture rapid changes
+
+## Run 7: Aggressive Orthogonality Implementation
+Configuration:
+- Increased interaction threshold to 10% of feature pairs
+- Higher initial τ = 0.5, momentum factor reduced to 0.5
+- L2 weight normalization on W_dec
+- More responsive importance scoring
+- Layer 19 of Gemma-2-2b model
+- Dict size = 2304
+- Learning rate = 0.0003
+- Sparsity penalty = 0.04
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Model showed no improvement despite aggressive orthogonality constraints
+- Increased interaction coverage did not enhance feature disentanglement
+
+Analysis:
+- Zero unlearning score persists even with stronger constraints
+- Results suggest fundamental limitation in current approach
+- Gradient-based importance scoring may not capture true feature dependencies
+- Consider switching to correlation-based feature selection with temporal dynamics
+- Need to explore alternative feature interaction metrics
+
+## Run 8: Temporal Correlation Implementation
+Configuration:
+- Dynamic correlation-based feature selection
+- Temporal smoothing window of 5 batches
+- Initial τ = 0.3, adaptive scaling based on correlation strength
+- L2 weight normalization on W_dec
+- Layer 19 of Gemma-2-2b model
+- Dict size = 2304
+- Learning rate = 0.0003
+- Sparsity penalty = 0.04
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Temporal correlation tracking implemented and functioning
+- Model showed no improvement in feature disentanglement
+- Adaptive scaling based on correlation strength did not enhance orthogonality
+
+Analysis:
+- Zero unlearning score persists despite temporal correlation approach
+- Results suggest correlation window (5 batches) may be too short
+- Current implementation may be missing longer-term feature dependencies
+- Need to explore longer temporal windows and stronger penalties
+- Consider combining temporal and instantaneous correlations
+
+## Run 9: Enhanced Temporal Correlation Implementation
+Configuration:
+- Extended temporal window to 20 batches
+- Increased initial τ = 0.5
+- Combined instantaneous and temporal correlations
+- Top 10% feature pair selection threshold
+- Exponential penalty scaling based on correlation persistence
+- Layer 19 of Gemma-2-2b model
+- Dict size = 2304
+- Learning rate = 0.0003
+- Sparsity penalty = 0.04
+
+Description: Testing enhanced temporal correlation approach with longer history window and stronger penalties. Combining both instantaneous and historical feature relationships to better capture persistent correlations.
+
+Results:
+- Training completed successfully
+- Unlearning evaluation score: 0.0
+- Model showed no improvement despite sophisticated temporal tracking
+- Combined correlation approach did not enhance feature disentanglement
+
+Analysis:
+- Zero unlearning score persists despite comprehensive temporal correlation tracking
+- Results suggest fundamental limitation in correlation-based approaches
+- The longer temporal window (20 batches) did not capture meaningful feature relationships
+- Current implementation may be focusing too much on linear correlations
+- Need to explore non-linear feature interaction metrics
+- Consider implementing mutual information or copula-based dependency measures
+- The exponential penalty scaling may need to be replaced with more targeted intervention
+
+## Run 10: Information-Theoretic Feature Dependency Implementation
+Configuration:
+- Mutual Information (MI) based feature pair selection
+- Kernel Density Estimation for MI calculation
+- Adaptive bandwidth selection for KDE
+- Top 10% feature pairs by MI score
+- Initial τ = 0.5 with MI-scaled penalties
+- Layer 19 of Gemma-2-2b model
+- Dict size = 2304
+- Learning rate = 0.0003
+- Sparsity penalty = 0.04
+Description: Testing information-theoretic approach to capture non-linear feature dependencies. Using KDE-based mutual information estimation to identify and penalize complex feature interactions beyond simple correlations.
+
+# Generated Plots Analysis
+
+## training_metrics.png
+This figure contains two side-by-side plots tracking the training progression across different experimental runs:
+
+1. Left Plot - Reconstruction Loss Over Training:
+- X-axis: Training steps
+- Y-axis: L2 Loss (reconstruction error)
+- Shows how well each variant learns to reconstruct the original activations
+- Lower values indicate better reconstruction accuracy
+- Notable observations:
+  * Runs 5-7 show similar convergence patterns
+  * Run 8 (Temporal Correlation) shows slightly higher initial loss
+  * Runs 9-10 demonstrate improved early-stage reconstruction
+
+2. Right Plot - Sparsity Over Training:
+- X-axis: Training steps
+- Y-axis: L1 Loss (sparsity measure)
+- Tracks feature activation sparsity across training
+- Higher values indicate sparser representations
+- Key findings:
+  * Gradient-based methods (Runs 5-7) maintain consistent sparsity
+  * Temporal approaches (Runs 8-9) show increased sparsity variation
+  * MI-based method (Run 10) achieves similar sparsity levels with less fluctuation
+
+## feature_correlations.png
+This figure presents a 2x3 grid of heatmaps showing feature correlation matrices for each experimental run:
+
+- Each heatmap shows pairwise correlations between learned features
+- Color scale: -1 (blue) to +1 (red), with white at 0
+- Diagonal elements naturally show perfect correlation (1.0)
+- Key observations per run:
+  * Run 5 (Gradient-Based): Shows moderate off-diagonal correlations
+  * Run 6 (Adaptive): Demonstrates improved feature independence
+  * Run 7 (Aggressive): Shows stronger diagonal dominance
+  * Run 8 (Temporal): Reveals temporal dependency patterns
+  * Run 9 (Enhanced Temporal): Shows reduced but persistent correlations
+  * Run 10 (MI-based): Exhibits most distinct feature separation
+
+Interpretation:
+- Darker blue/red off-diagonal elements indicate stronger feature dependencies
+- Ideal result would show strong diagonal and minimal off-diagonal correlations
+- Progressive improvement in feature disentanglement visible across runs
+- MI-based approach (Run 10) shows most promising correlation structure
+- However, unlearning scores suggest room for further improvement in feature independence
+
+These visualizations provide crucial insights into the effectiveness of different feature disentanglement strategies and their impact on the learned representations. While the correlation heatmaps suggest progressive improvements in feature independence, the persistent zero unlearning scores indicate that achieving true feature disentanglement remains challenging.

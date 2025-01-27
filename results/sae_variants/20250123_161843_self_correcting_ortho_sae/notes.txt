@@ -1,0 +1,272 @@
+# Title: Self-Correcting Orthogonal SAEs with Adaptive Z-Score Thresholding and Feature Reactivation
+# Experiment description: 1. Calculate dynamic thresholds via EMA(μ) + 2*EMA(σ)
+2. Implement linear ortho penalty weighting (EMA(h_ih_j) - τ)
+3. Revive dead features contributing to high interference
+4. Use rank-32 randomized SVD for covariance
+5. Train on Gemma-2B with full benchmark suite
+6. Evaluate core, sparse_probing, and WMDP metrics
+7. Analyze reactivation impact on feature diversity
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'sparse_probing'...}
+Description: Baseline results.
+
+## Run 1: Initial Implementation
+Results: Core metrics show:
+- Explained variance: -0.78515625 (very poor reconstruction)
+- MSE: 47.25 (high reconstruction error)
+- L0 sparsity: 0.0 (no feature activation)
+- L1 sparsity: 0.0 (no sparse representations)
+- KL divergence score: -0.5279 (poor behavior preservation)
+
+Description: Initial implementation shows significant issues:
+1. Zero sparsity indicates the thresholding may be too aggressive
+2. Negative explained variance suggests potential initialization or optimization issues
+3. High MSE indicates poor reconstruction quality
+4. Poor KL divergence suggests significant deviation from original model behavior
+
+## Run 2: Improved Initialization and Training Stability
+Results: Core metrics show:
+- Explained variance: -0.98046875 (still very poor reconstruction)
+- MSE: 53.0 (reconstruction error increased)
+- L0 sparsity: 77.038 (improved feature activation)
+- L1 sparsity: 868.0 (better sparse representations)
+- KL divergence score: -0.503 (slight improvement in behavior preservation)
+
+Description: Second implementation shows mixed results:
+1. Sparsity metrics improved significantly, indicating better feature activation
+2. However, reconstruction quality deteriorated further
+3. Behavior preservation showed minimal improvement
+4. L2 norm ratio of 0.324 suggests excessive information loss
+
+Next steps:
+1. Reduce orthogonality penalty further (currently too aggressive)
+2. Implement adaptive learning rate scheduling
+3. Add skip connections to improve reconstruction
+4. Fine-tune EMA parameters for more stable updates
+
+## Run 3: Reduced Orthogonality Penalty and Adaptive Learning Rate
+Results: Core metrics show:
+- Explained variance: -0.98046875 (no improvement in reconstruction)
+- MSE: 53.0 (reconstruction error unchanged)
+- L0 sparsity: 77.038 (sparsity maintained)
+- L1 sparsity: 868.0 (consistent sparse representations)
+- KL divergence score: -0.503 (behavior preservation unchanged)
+- CE loss score: -0.559 (poor performance preservation)
+- L2 norm ratio: 0.324 (information loss persists)
+
+Description: Third implementation with reduced orthogonality penalty and adaptive learning rate shows:
+1. Changes had minimal impact on model performance
+2. Reconstruction quality remains poor despite optimization improvements
+3. Sparsity metrics held steady but didn't improve
+4. The adaptive learning rate did not help overcome optimization challenges
+5. High CE loss indicates significant deviation from original model behavior
+
+## Run 4: Skip Connections Implementation
+Results: Core metrics show:
+- Explained variance: -0.98046875 (no improvement in reconstruction)
+- MSE: 53.0 (reconstruction error unchanged)
+- L0 sparsity: 77.038 (sparsity patterns unchanged)
+- L1 sparsity: 868.0 (consistent sparse representations)
+- KL divergence score: -0.503 (behavior preservation static)
+- CE loss score: -0.559 (performance issues persist)
+- L2 norm ratio: 0.324 (significant information loss continues)
+
+Description: Fourth implementation with skip connections shows:
+1. Skip connections failed to improve reconstruction quality
+2. All key metrics remained virtually identical to previous runs
+3. The addition of skip_scale parameter (0.1) had no measurable impact
+4. Information loss through the autoencoder remains severe
+5. Model behavior and performance preservation metrics unchanged
+6. Sparsity patterns remained consistent but suboptimal
+
+Next steps:
+1. Add layer normalization before encoding (high priority)
+2. Consider alternative sparsity mechanisms
+3. Investigate potential architectural limitations
+
+## Run 5: Gradient Scaling Based on Feature Importance
+Results: Core metrics show:
+- Explained variance: -0.98046875 (unchanged)
+- MSE: 53.0 (no improvement)
+- L0 sparsity: 77.038 (static)
+- L1 sparsity: 868.0 (unchanged)
+- KL divergence score: -0.503 (minimal change)
+- CE loss score: -0.559 (performance issues continue)
+- L2 norm ratio: 0.324 (information loss persists)
+
+Description: Fifth implementation with gradient scaling shows:
+1. Feature importance-based gradient scaling had no measurable impact
+2. All key metrics remained identical to previous runs
+3. The weighted L1 loss and scaled gradients did not improve feature learning
+4. Reconstruction quality remains poor
+5. Model behavior preservation metrics unchanged
+6. Information loss through autoencoder continues to be severe
+
+Analysis:
+1. The feature importance calculation may be too noisy during training
+2. Gradient scaling could be interfering with the learning dynamics
+3. The fundamental architectural issues may be dominating any optimization improvements
+4. Need to focus on improving the basic encoding/decoding process
+
+## Run 6: Layer Normalization Implementation
+Results: Core metrics show:
+- Explained variance: -0.7890625 (significant improvement from -0.98)
+- MSE: 47.5 (reduced from 53.0)
+- L0 sparsity: 56.639 (more selective feature activation)
+- L1 sparsity: 103.0 (much sparser representations)
+- KL divergence score: -0.360 (substantial improvement from -0.503)
+- CE loss score: -0.401 (better than previous -0.559)
+- L2 norm ratio: 0.048 (indicates very high information compression)
+
+Description: Sixth implementation with layer normalization shows:
+1. Layer normalization before encoding provided substantial improvements
+2. Reconstruction quality improved significantly (explained variance up by 0.19)
+3. MSE decreased by 5.5 points indicating better reconstruction
+4. Sparsity metrics show more selective feature activation
+5. Behavior preservation improved markedly (KL div and CE loss)
+6. However, the very low L2 ratio (0.048) suggests excessive compression
+7. The model may be underfitting due to aggressive normalization
+
+Analysis:
+1. Layer normalization is clearly beneficial but may need tuning
+2. The extreme compression ratio suggests normalization may be too aggressive
+3. Need to balance information preservation with sparsity
+4. Consider adjusting norm_eps parameter and scaling factors
+
+Next steps:
+1. Implement adaptive normalization scaling
+2. Fine-tune layer norm parameters
+3. Add residual connections around the normalization layer
+4. Consider gradient clipping modifications
+
+## Run 7: Adaptive Layer Normalization Implementation
+Results: Core metrics show:
+- Explained variance: -0.7890625 (maintained improvement from Run 6)
+- MSE: 47.5 (consistent with Run 6)
+- L0 sparsity: 60.024 (slightly higher than Run 6)
+- L1 sparsity: 78.5 (more efficient sparse representations)
+- KL divergence score: -0.286 (substantial improvement from -0.360)
+- CE loss score: -0.329 (better than previous -0.401)
+- L2 norm ratio: 0.0354 (slight improvement in compression ratio)
+
+Description: Seventh implementation with adaptive layer normalization shows:
+1. Added adaptive scaling parameter to dynamically adjust normalization strength
+2. Implemented learnable scaling using sigmoid activation
+3. Applied adaptive scaling to the layer normalization process
+4. Maintained strong reconstruction quality while improving behavior preservation
+5. Achieved better balance between sparsity and information preservation
+6. Reduced compression ratio indicates more efficient feature extraction
+7. Improved KL divergence and CE loss suggest better model behavior preservation
+
+Analysis:
+1. Adaptive normalization successfully improved model behavior preservation
+2. Sparsity metrics show more balanced feature activation
+3. The learnable scaling factor helped optimize the normalization strength
+4. Compression ratio improved while maintaining reconstruction quality
+5. Overall metrics suggest better balance between competing objectives
+
+Next steps:
+1. Implement attention-based feature reweighting
+2. Consider multi-scale normalization approach
+3. Explore gradient accumulation for more stable updates
+4. Investigate feature correlation reduction techniques
+
+## Run 8: Attention-Based Feature Reweighting Implementation
+Results: Core metrics show:
+- Explained variance: -0.7890625 (maintained from Run 7)
+- MSE: 47.5 (consistent with Run 7)
+- L0 sparsity: 64.132 (improved feature activation)
+- L1 sparsity: 85.0 (slightly higher than Run 7)
+- KL divergence score: -0.342 (slight regression from Run 7)
+- CE loss score: -0.388 (minor regression from Run 7)
+- L2 norm ratio: 0.0378 (slightly higher compression ratio)
+
+Description: Eighth implementation with attention-based feature reweighting shows:
+1. Added self-attention mechanism for dynamic feature weighting
+2. Implemented projection layers for key, query, and value transformations
+3. Added residual connections around attention block
+4. Introduced learnable attention scaling parameter
+5. Maintained reconstruction quality while slightly improving sparsity
+6. Minor regressions in behavior preservation metrics
+7. Slightly increased information preservation (higher L2 ratio)
+
+Analysis:
+1. Attention mechanism successfully improved feature activation patterns
+2. Sparsity metrics show more nuanced feature selection
+3. The slight regression in KL divergence and CE loss suggests potential overfitting
+4. Higher compression ratio indicates better information retention
+5. The trade-off between sparsity and behavior preservation needs further optimization
+
+Next steps:
+1. Add gradient accumulation for training stability
+2. Explore feature correlation reduction techniques
+3. Consider adding regularization to attention weights
+
+# Plot Analysis
+
+## Individual Metric Evolution Plots
+
+### Explained Variance (explained_variance_evolution.png)
+The explained variance plot shows a critical improvement from runs 1-5 (-0.98) to runs 6-8 (-0.79), followed by a slight regression in run 9 (-0.80). This metric measures how well the autoencoder captures input variance, with higher values indicating better reconstruction quality. The sharp improvement coincides with the introduction of layer normalization in run 6, demonstrating its importance for stable training.
+
+### MSE Evolution (mse_evolution.png)
+Mean Squared Error evolution reveals initial high reconstruction error (53.0) in runs 2-4, followed by improvement to 47.5 in runs 6-8, with a slight degradation to 47.75 in run 9. Lower MSE indicates better reconstruction fidelity. The pattern mirrors explained variance, confirming the benefits of layer normalization and the slight trade-off introduced by multi-scale normalization.
+
+### L0 Sparsity (l0_evolution.png)
+L0 sparsity, measuring the proportion of zero activations, shows interesting progression: from 0 (run 1) to 77.038 (runs 2-4), dropping to 56.639 (run 6), then rising significantly to 87.03 (run 9). This demonstrates how architectural changes affected feature activation patterns, with multi-scale normalization producing the sparsest representations.
+
+### L1 Sparsity (l1_evolution.png)
+L1 sparsity evolution reveals the magnitude of active features: dramatic increase from 0 to 868.0 (runs 2-4), sharp reduction to 103.0 (run 6), followed by fluctuations and final increase to 239.0 (run 9). This metric complements L0 sparsity, showing how different approaches affected not just feature activation but also activation strength.
+
+### KL Divergence Score (kl_div_score_evolution.png)
+KL divergence tracks behavioral similarity to the original model: poor initial scores (-0.5279) improve significantly with layer normalization (-0.360, run 6), peak with adaptive normalization (-0.286, run 7), before regressing with attention mechanisms (-0.342, run 8) and multi-scale normalization (-0.49, run 9). This suggests later architectural complexity may have come at the cost of behavioral fidelity.
+
+### CE Loss Score (ce_loss_score_evolution.png)
+Cross-entropy loss evolution parallels KL divergence: initial poor performance (-0.559) improves with layer normalization (-0.401, run 6), peaks with adaptive normalization (-0.329, run 7), before degrading with attention (-0.388, run 8) and multi-scale approaches (-0.546, run 9). This reinforces the trade-off between architectural sophistication and model behavior preservation.
+
+### L2 Norm Ratio (l2_ratio_evolution.png)
+L2 norm ratio shows information preservation: very low initial values (0.324) drop further with layer normalization (0.048, run 6), remain low through attention mechanisms (0.0378, run 8), before improving with multi-scale normalization (0.0918, run 9). This suggests multi-scale normalization helped balance information preservation with sparsity.
+
+## Combined Analysis (key_metrics_combined.png)
+The combined plot of explained variance, L0 sparsity, and KL divergence provides a holistic view of model evolution. It reveals clear trade-offs between reconstruction quality (explained variance), feature sparsity (L0), and behavior preservation (KL divergence). The plot shows that while later runs achieved better sparsity, they often came at the cost of behavior preservation, suggesting an inherent tension between these objectives.
+
+Key observations from the combined visualization:
+1. Explained variance and KL divergence often move together, suggesting reconstruction quality and behavior preservation are linked
+2. Sparsity improvements often come at the cost of other metrics
+3. Run 7 (Adaptive Layer Norm) appears to achieve the best balance across metrics
+4. Multi-scale normalization (Run 9) shows how pushing one metric (sparsity) can degrade others
+
+These plots collectively demonstrate the evolution of the model architecture and the various trade-offs encountered in pursuing multiple competing objectives. They suggest that while architectural sophistication can improve individual metrics, maintaining balance across all metrics remains challenging.
+
+## Run 9: Multi-Scale Normalization Implementation
+Results: Core metrics show:
+- Explained variance: -0.80078125 (slight regression)
+- MSE: 47.75 (minor increase)
+- L0 sparsity: 87.03 (significant improvement)
+- L1 sparsity: 239.0 (substantial increase)
+- KL divergence score: -0.49 (regression from Run 8)
+- CE loss score: -0.546 (further regression)
+- L2 norm ratio: 0.0918 (improved information preservation)
+
+Description: Ninth implementation with multi-scale normalization shows:
+1. Implemented multiple normalization scales (0.1, 0.5, 1.0, 2.0)
+2. Added learned parameters for scale-specific normalization
+3. Used softmax-weighted combination of scales
+4. Implemented scale-specific residual connections
+5. Achieved better feature activation and sparsity
+6. Improved information preservation (higher L2 ratio)
+7. However, behavior preservation metrics showed regression
+
+Analysis:
+1. Multi-scale approach successfully improved feature selection (higher sparsity)
+2. Information preservation improved significantly (L2 ratio up by ~2.4x)
+3. The regression in KL divergence and CE loss suggests potential instability
+4. The trade-off between sparsity and behavior preservation needs addressing
+5. Training dynamics may need stabilization through gradient accumulation
+6. The increased sparsity might be causing too much information filtering
+
+Next steps:
+1. Add gradient accumulation for training stability
+2. Explore feature correlation reduction techniques
+3. Consider adding regularization to attention weights

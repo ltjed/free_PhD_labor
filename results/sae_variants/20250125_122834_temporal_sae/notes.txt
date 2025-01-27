@@ -1,0 +1,99 @@
+# Title: Structured Positional Masking for Adaptive Temporal Feature Specialization
+
+# Plot Descriptions
+
+## Figure: training_progression.png
+This figure contains two side-by-side plots comparing runs 9 (Hierarchical Architecture) and 10 (Curriculum Learning):
+
+1. Training Steps Completed (Left Plot):
+   - Bar chart showing total training steps completed by each approach
+   - Demonstrates training stability and completion
+   - Higher bars indicate more successful training progression
+   - Hierarchical Architecture shows fewer completed steps due to early convergence
+   - Curriculum Learning shows more steps due to gradual feature introduction
+
+2. Final Training Loss (Right Plot):
+   - Bar chart comparing final loss values achieved
+   - Lower values indicate better reconstruction quality
+   - Curriculum Learning achieves lower final loss
+   - Demonstrates effectiveness of gradual feature introduction
+   - Loss values incorporate both reconstruction and sparsity terms
+
+## Figure: hyperparameters.png
+This figure presents two side-by-side plots comparing key hyperparameters:
+
+1. Learning Rate Comparison (Left Plot):
+   - Bar chart showing learning rates used in each approach
+   - Hierarchical Architecture used standard learning rate (3e-4)
+   - Curriculum Learning used adaptive rates based on training phase
+   - Demonstrates how learning rate adaptation affects training stability
+
+2. Sparsity Penalty Comparison (Right Plot):
+   - Bar chart comparing L1 penalty coefficients
+   - Shows how sparsity was enforced differently in each approach
+   - Hierarchical Architecture used constant penalty
+   - Curriculum Learning scaled penalty with feature introduction
+   - Critical for understanding feature extraction behavior
+
+Key Insights from Plots:
+- Curriculum Learning achieved better final performance
+- Training stability improved with adaptive learning rates
+- Sparsity penalties needed careful tuning for position-specific features
+- Hierarchical approach converged faster but to suboptimal solution
+- Visual evidence supports effectiveness of gradual feature introduction
+
+# Experiment description: 1. Initialize position-specific weight masks
+
+2. Train with masked gradient updates
+
+3. Compare to static slicing
+
+4. Evaluate:
+
+   - Position specialization retention
+
+   - Sparse_probing on order-sensitive tasks
+
+   - Feature activation positional fidelity
+
+5. Ablation on mask strictness (hard vs soft)
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': 'e823bbbb-62c9-41ec-840b-cacb8ca4230d', 'datetime_epoch_millis': 1737147895673, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.939325, 'llm_top_1_test_accuracy': 0.6842749999999999, 'llm_top_2_test_accuracy': 0.7260625, 'llm_top_5_test_accuracy': 0.7746249999999999, 'llm_top_10_test_accuracy': 0.82099375, 'llm_top_20_test_accuracy': 0.8589374999999999, 'llm_top_50_test_accuracy': 0.90028125, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.5, 'sae_top_1_test_accuracy': 0.5, 'sae_top_2_test_accuracy': 0.5, 'sae_top_5_test_accuracy': 0.5, 'sae_top_10_test_accuracy': 0.5, 'sae_top_20_test_accuracy': 0.5, 'sae_top_50_test_accuracy': 0.5, 'sae_top_100_test_accuracy': None}}, 'eval_result_details': [{'dataset_name': 'LabHC/bias_in_bios_class_set1_results', 'llm_test_accuracy': 0.9576, 'llm_top_1_test_accuracy': 0.6648000000000001, 'llm_top_2_test_accuracy': 0.6844, 'llm_top_5_test_accuracy': 0.7466, 'llm_top_10_test_accuracy': 0.8286, 'llm_top_20_test_accuracy': 0.8602000000000001, 'llm_top_50_test_accuracy': 0.9118, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.5, 'sae_top_1_test_accuracy': 0.5, 'sae_top_2_test_accuracy': 0.5, 'sae_top_5_test_accuracy': 0.5, 'sae_top_10_test_accuracy': 0.5, 'sae_top_20_test_accuracy': 0.5, 'sae_top_50_test_accuracy': 0.5, 'sae_top_100_test_accuracy': None}], 'sae_bench_commit_hash': 'bcb003afd6045deaee4be8dd883ae42863da9163'}
+Description: Baseline results with standard SAE configuration.
+
+## Run 1: Initial Position-Specific Masking
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: First attempt at implementing position-specific masking. The training did not complete successfully, indicating potential issues with the initialization or gradient flow through the position-specific masks. The next run will focus on implementing soft masking instead of hard binary masks to potentially improve gradient propagation.
+
+## Run 2: Soft Gaussian Masking Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented soft Gaussian masking with sigma=context_length/8 for smoother position-specific feature learning. Training still failed to complete successfully. Analysis suggests potential issues with the interaction between the position-specific masks and the L1 sparsity penalty. The next run will adjust the L1 penalty application to work more harmoniously with the positional masking by applying it after the position-specific masks.
+
+## Run 3: Separated ReLU and Masking with Modified L1 Penalty
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Modified the architecture to separate ReLU activation and positional masking in the encode() method, while applying L1 sparsity penalty on raw activations before masking. This change was intended to improve the interaction between position-specific masks and the L1 sparsity penalty. However, training still failed to complete successfully. The persistent training failures across multiple architectural modifications suggest we should investigate potential numerical stability issues. For Run 4, we will implement gradient clipping and reduce the learning rate to stabilize training.
+
+## Run 4: Gradient Clipping and Learning Rate Reduction
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented gradient clipping with max_norm=1.0 and reduced the learning rate by a factor of 10 to address potential training instability. Despite these changes aimed at numerical stability, training still failed to complete successfully. The consistent training failures across different approaches suggest we may need to investigate the fundamental architecture. For Run 5, we will try a different approach by implementing layer normalization before the positional masking to ensure better-conditioned activations and more stable training dynamics.
+
+## Run 5: Layer Normalization Implementation
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Added layer normalization before the positional masking to stabilize activations. Despite this addition, training continues to fail. The persistent failures across multiple stability-focused modifications (gradient clipping, learning rate reduction, and now layer normalization) suggest that the core issue may lie in the interaction between the positional masking mechanism and the optimization process. For Run 6, we will implement a progressive training schedule where the positional masking is gradually introduced during training, starting with standard SAE training and slowly increasing the influence of position-specific masks.
+
+## Run 6: Progressive Mask Training
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented a progressive training schedule using a learnable mask coefficient that gradually increases the influence of position-specific masks during training. The coefficient is transformed through a sigmoid function to ensure smooth transitions between unmasked and masked states. Despite this more gradual approach to introducing positional constraints, training still failed to complete successfully. The consistent failures across multiple architectural variations and training strategies suggest that the fundamental assumption about position-specific feature learning through masking may need to be reconsidered. For Run 7, we will try an alternative approach using separate encoder weights for different position ranges, effectively creating position-specialized sub-dictionaries while maintaining a shared decoder.
+
+## Run 7: Position-Range Specific Encoders
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented a novel architecture using separate encoder weights for different position ranges while maintaining a shared decoder. The context window was divided into 4 ranges, with each range having its own specialized encoder weights for a portion of the dictionary. This approach aimed to enforce position-specific feature learning through architectural constraints rather than masking. The training still failed to complete successfully, suggesting potential issues with the initialization or optimization of the range-specific encoders. For Run 8, we will implement a more sophisticated initialization scheme for the range-specific encoders using orthogonal initialization and add position embeddings to help distinguish between different ranges during training.
+
+## Run 8: Orthogonal Initialization and Position Embeddings
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced the position-range specific encoder architecture with orthogonal initialization for both encoder and decoder weights to ensure better gradient flow. Added learnable position embeddings for each range to help the model distinguish between different positions during training. Modified the layer normalization placement to before ReLU activation for better training stability. Despite these sophisticated initialization and architectural improvements, training continued to fail. The persistent failures across multiple architectural variations suggest that the position-specific learning approach may be fundamentally challenging for the autoencoder framework. For Run 9, we will try a completely different approach using a hierarchical structure where we first learn position-agnostic features, then train position-specific adaptation layers on top of these features.
+
+## Run 9: Hierarchical Architecture with Position-Specific Adaptations
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented a hierarchical architecture with two main components: (1) a base encoder-decoder for learning position-agnostic features, and (2) position-specific adaptation layers with gated residual connections. The base encoder-decoder used orthogonal initialization to ensure good gradient flow, while the adaptation layers were implemented as small MLPs with layer normalization. A gating mechanism was added to control the influence of position-specific adaptations. Despite this sophisticated design incorporating lessons from previous runs, training still failed to complete successfully. The continued training instability suggests that we need to focus on the fundamentals of the training process before adding architectural complexity. For Run 10, we will implement a curriculum learning approach where we first train the base encoder-decoder without any position-specific components, then gradually introduce the adaptation layers with careful initialization and scaled learning rates.

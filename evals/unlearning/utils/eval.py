@@ -24,12 +24,13 @@ def run_metrics_calculation(
     force_rerun: bool,
 ):
     dataset_names = config.dataset_names
-
+    print(f"running on datasets: {dataset_names}")
     for retain_threshold in config.retain_thresholds:
+        print(f"for retain_threshold = {retain_threshold}")
         top_features_custom = get_top_features(
             forget_sparsity, retain_sparsity, retain_threshold=retain_threshold
         )
-
+        print(f"top_features_custom = {top_features_custom}")
         main_ablate_params = {
             "intervention_method": config.intervention_method,
         }
@@ -62,7 +63,7 @@ def run_metrics_calculation(
             save_metrics_dir=save_metrics_dir,
             retain_threshold=retain_threshold,
         )
-
+        print(f"metrics_lst = {metrics_lst}")
     return metrics_lst
 
 

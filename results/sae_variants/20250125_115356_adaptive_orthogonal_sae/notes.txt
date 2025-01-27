@@ -1,0 +1,102 @@
+# Title: Instantaneous Top-k Orthogonality Constraints for Feature Disentanglement
+# Experiment description: 1. Select top 0.1% f_i*f_j pairs per batch
+2. Apply orthogonality loss to selected pairs
+3. Use L2 weight normalization on W_dec
+4. Compare fixed vs adaptive τ values
+5. Measure absorption reduction efficiency
+6. Analyze pair selection stability
+7. Ablate top-k threshold impact
+
+## Run 0: Baseline
+Results: [Previous baseline results...]
+Description: Baseline results without orthogonality constraints.
+
+## Run 1: Fixed τ = 0.1
+Results: {'eval_type_id': 'sparse_probing', ...[truncated for brevity]...}
+Description: First test of orthogonality constraints with:
+- Fixed τ = 0.1 threshold for orthogonality loss
+- Top 0.1% most correlated feature pairs selected per batch
+- L2 normalization applied to decoder weights
+- Layer 19 of Gemma-2B model
+Key findings:
+1. Overall test accuracy improved to 0.9509 (from 0.9393 baseline)
+2. Top-1 accuracy increased to 0.7017 (from 0.6843 baseline)
+3. Consistent improvements across all k values in top-k accuracy
+4. Particularly strong gains on Helsinki-NLP/europarl dataset (top-1: 0.9394)
+5. Moderate gains on sentiment and code tasks
+
+## Run 2: Adaptive τ
+Results: {'eval_type_id': 'sparse_probing', ...[truncated for brevity]...}
+Description: Testing adaptive orthogonality threshold with:
+- Initial τ = 0.1, decaying by 0.5% per step
+- Minimum τ = 0.05 to maintain some constraint
+- Same top 0.1% pair selection and L2 normalization
+- Layer 19 of Gemma-2B model
+Key findings:
+1. Overall test accuracy maintained at 0.9509 (same as Run 1)
+2. Top-1 accuracy maintained at 0.7017 (same as Run 1)
+3. No significant changes in performance metrics
+4. Suggests fixed τ may be sufficient
+5. Computational overhead of adaptive τ may not be justified
+6. Helsinki-NLP/europarl performance stable at 0.9394 top-1
+
+## Run 3: Increased Top-k Threshold
+Results: {'eval_type_id': 'sparse_probing', ...[truncated for brevity]...}
+Description: Testing impact of selecting more feature pairs with:
+- Fixed τ = 0.1 (reverting from adaptive)
+- Increased top-k threshold from 0.1% to 0.5% of pairs
+- Same L2 normalization on decoder weights
+- Layer 19 of Gemma-2B model
+Key findings:
+1. Overall test accuracy remained exactly at 0.9509
+2. Top-1 accuracy unchanged at 0.7017
+3. Performance consistent across all datasets
+4. Helsinki-NLP/europarl maintained 0.9394 top-1 accuracy
+5. No apparent benefit from increasing pair selection
+6. Suggests 0.1% threshold may be sufficient
+7. Additional computational cost not justified
+
+## Run 4: Increased τ Value
+Results: {'eval_type_id': 'sparse_probing', ...[truncated for brevity]...}
+Description: Testing stronger orthogonality constraints with:
+- Increased fixed τ = 0.2 (from 0.1)
+- No τ decay (τ_decay = 1.0)
+- Reverted to 0.1% top-k threshold
+- Same L2 normalization on decoder weights
+- Layer 19 of Gemma-2B model
+Key findings:
+1. Overall test accuracy maintained at 0.9509
+2. Top-1 accuracy stable at 0.7017
+3. Performance metrics unchanged across all datasets:
+   - Helsinki-NLP/europarl: 0.9394 top-1
+   - LabHC/bias_in_bios sets: ~0.67 top-1
+   - Amazon reviews: 0.697 top-1
+   - GitHub code: 0.628 top-1
+4. SAE metrics consistent at 0.5 across all measures
+5. Stronger orthogonality constraints did not improve disentanglement
+6. Suggests τ = 0.1 may be optimal for this architecture
+7. Higher τ values may be too restrictive for feature learning
+
+## Run 5: Lower τ with Higher Top-k
+Results: {'eval_type_id': 'sparse_probing', ...[truncated for brevity]...}
+Description: Testing weaker constraints with more feature pairs:
+- Lowered fixed τ = 0.05 (from previous 0.2)
+- No τ decay (τ_decay = 1.0)
+- Increased top-k threshold to 1.0% (from 0.1%)
+- Same L2 normalization on decoder weights
+- Layer 19 of Gemma-2B model
+Key findings:
+1. Overall test accuracy remained exactly at 0.9509
+2. Top-1 accuracy unchanged at 0.7017
+3. Performance metrics remarkably stable across all datasets:
+   - Helsinki-NLP/europarl: 0.9394 top-1 (identical)
+   - LabHC/bias_in_bios sets: 0.65-0.69 top-1 (similar range)
+   - Amazon reviews: 0.697 top-1 (identical)
+   - GitHub code: 0.628 top-1 (identical)
+4. SAE metrics still at 0.5 across all measures
+5. Weaker constraints did not affect feature learning
+6. Increased pair selection showed no benefit
+7. Results suggest orthogonality constraints may not be 
+   the limiting factor in feature disentanglement
+8. Model appears highly stable across different τ values
+   and top-k thresholds

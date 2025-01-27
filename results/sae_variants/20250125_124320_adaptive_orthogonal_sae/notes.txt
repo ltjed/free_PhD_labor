@@ -1,0 +1,185 @@
+# Title: Instantaneous Top-k Orthogonality Constraints for Feature Disentanglement
+
+# Plot Descriptions
+
+## training_curves.png
+This plot visualizes the total loss evolution during training across different experimental runs. The x-axis represents training steps, while the y-axis shows the total loss value (combination of reconstruction loss, sparsity penalty, and orthogonality constraints). Each line represents a different experimental configuration, allowing direct comparison of convergence rates and final performance. Key observations include:
+- Initial rapid descent phase (0-1000 steps) showing quick adaptation
+- Intermediate plateau regions indicating stable feature learning
+- Final convergence patterns revealing relative stability of different approaches
+- Relative performance differences between baseline and enhanced implementations
+
+## sparsity_evolution.png
+This figure tracks the evolution of feature sparsity levels throughout training. The x-axis shows training steps, while the y-axis represents the average sparsity level (proportion of zero activations) across features. This plot is crucial for understanding how different mechanisms affect feature utilization:
+- Initial sparsity development during early training
+- Impact of adaptive sparsity penalties on activation patterns
+- Effectiveness of local competition in promoting sparse representations
+- Long-term stability of sparsity levels across different approaches
+- Relationship between sparsity and feature reallocation mechanisms
+
+## feature_correlations.png
+This bar plot compares the final average feature correlations across different experimental runs. The x-axis shows different experimental configurations, while the y-axis represents the mean absolute correlation between feature pairs. This visualization is essential for evaluating feature disentanglement:
+- Baseline correlation levels without constraints
+- Impact of orthogonality constraints on feature relationships
+- Effectiveness of correlation-based pruning
+- Influence of adaptive neighborhoods on feature independence
+- Overall success in achieving feature disentanglement
+
+## feature_usage.png
+This plot displays the distribution of feature usage frequencies, sorted in descending order. The x-axis represents feature indices (sorted by usage), while the y-axis shows the usage frequency. This visualization reveals:
+- Overall feature utilization patterns
+- Effectiveness of feature reallocation mechanisms
+- Impact of local competition on feature specialization
+- Balance between active and inactive features
+- Success in maintaining dictionary efficiency
+- Identification of potential dead or redundant features
+
+These plots collectively provide a comprehensive view of the SAE's training dynamics and final performance characteristics. They help evaluate the effectiveness of various mechanisms including:
+- Orthogonality constraints
+- Adaptive sparsity penalties
+- Local competition
+- Feature reallocation
+- Correlation-based pruning
+- Neighborhood adaptation
+
+The visualizations are particularly valuable for:
+1. Comparing different experimental configurations
+2. Identifying training stability issues
+3. Evaluating feature learning efficiency
+4. Assessing the impact of various mechanisms
+5. Understanding the temporal dynamics of feature development
+6. Validating the effectiveness of adaptive parameters
+# Experiment description: 1. Select top 0.1% f_i*f_j pairs per batch
+2. Apply orthogonality loss to selected pairs
+3. Use L2 weight normalization on W_dec
+4. Compare fixed vs adaptive τ values
+5. Measure absorption reduction efficiency
+6. Analyze pair selection stability
+7. Ablate top-k threshold impact
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': 'e823bbbb-62c9-41ec-840b-cacb8ca4230d'}
+Description: Baseline results with standard SAE implementation.
+
+## Run 1: Fixed τ with Top-k Orthogonality
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented top-k pair selection (0.1% of pairs) with fixed τ=0.1 for orthogonality constraint. The orthogonality loss is applied only to the most correlated feature pairs, reducing computational overhead while targeting the most problematic feature interactions. This approach aims to maintain feature disentanglement more efficiently than applying the constraint globally.
+
+Key implementation details:
+1. Selected top 0.1% of |f_i * f_j| pairs per batch
+2. Applied orthogonality loss with fixed τ=0.1 to selected pairs
+3. Maintained L2 normalization on decoder weights
+4. Used standard L1 sparsity penalty (0.04)
+
+## Run 2: Adaptive τ with Top-k Orthogonality
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Extended Run 1 by implementing an adaptive τ mechanism that automatically adjusts the orthogonality constraint strength based on the observed feature correlations. This approach aims to find an optimal balance between feature disentanglement and representation capacity.
+
+Key implementation details:
+1. Initialized τ=0.1 with momentum-based updates
+2. Dynamically adjusted τ based on mean correlation of top pairs
+3. Maintained bounds τ ∈ [0.01, 0.5] to prevent instability
+4. Used momentum coefficient 0.9 for smooth updates
+5. Target correlation set to 0.1 as reference point
+6. Kept same top-k selection (0.1% of pairs) and L2 normalization
+
+Analysis: The adaptive τ mechanism allows the model to automatically tune the orthogonality constraint strength based on the actual feature correlations observed during training. When correlations are too high, τ increases to enforce stronger orthogonality; when correlations are sufficiently low, τ decreases to allow more flexibility in feature learning.
+
+## Run 3: Dynamic Pair Selection with Correlation Statistics
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced Run 2 by implementing a dynamic pair selection threshold based on the correlation distribution statistics. This approach aims to automatically determine the appropriate number of feature pairs to constrain based on the actual correlation structure in the learned features.
+
+Key implementation details:
+1. Computed mean and standard deviation of feature correlations
+2. Set correlation threshold as mean + 2*std to target significant correlations
+3. Used momentum-based updates (0.9) for smooth threshold adaptation
+4. Enforced minimum pairs constraint (10 pairs) for stability
+5. Maintained adaptive τ mechanism from Run 2
+6. Kept L2 normalization on decoder weights
+
+Analysis: The dynamic pair selection mechanism allows the model to automatically adjust both the number of constrained pairs and the strength of the constraints based on the evolving correlation structure. This approach is more flexible than using a fixed percentage threshold, as it can adapt to different phases of training where the correlation patterns may vary significantly. The minimum pairs constraint ensures the model maintains some level of feature disentanglement even when correlations are generally low.
+
+## Run 4: Correlation-Based Neuron Pruning
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced Run 3 by implementing a correlation-based neuron pruning mechanism that identifies and reinitializes neurons that become too highly correlated with others. This approach aims to maintain feature diversity and prevent redundant feature learning while preserving the dynamic pair selection and adaptive τ mechanisms from previous runs.
+
+Key implementation details:
+1. Added prune_threshold (0.8) to identify highly correlated neurons
+2. Implemented prune_window (100 steps) for periodic pruning checks
+3. Computed full correlation matrix for pruning decisions
+4. Reinitialized pruned neurons with random orthogonal directions
+5. Scaled new directions based on average norm of surviving neurons
+6. Reset optimizer state for pruned neurons
+7. Maintained all mechanisms from Run 3 (dynamic pair selection, adaptive τ)
+
+Analysis: The correlation-based pruning mechanism provides an active intervention for maintaining feature diversity by detecting and reinitializing neurons that have become too similar to others. This complements the passive orthogonality constraints by providing a way to "reset" neurons that have converged to redundant features despite the constraints. The pruning window allows sufficient time for features to stabilize between pruning operations, while the threshold ensures only truly problematic neurons are affected. The careful reinitialization process, including norm scaling and optimizer state reset, helps the pruned neurons smoothly reintegrate into the feature set.
+
+## Run 5: Momentum-Based Feature Importance
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced Run 4 by introducing a momentum-based feature importance tracking mechanism that influences the pruning decisions. This approach aims to protect consistently active and useful features while being more aggressive in pruning truly redundant neurons.
+
+Key implementation details:
+1. Added feature_importance tracking with momentum (0.99)
+2. Importance scores updated based on feature activity
+3. Adjusted pruning thresholds based on feature importance percentiles
+4. Protected high-importance features from pruning
+5. Reset importance scores for pruned neurons
+6. Maintained all mechanisms from Run 4 (correlation pruning, dynamic pair selection, adaptive τ)
+
+Analysis: The momentum-based importance tracking provides a long-term view of feature utility that helps distinguish between transiently and persistently important features. This prevents the pruning mechanism from removing features that may appear redundant in the short term but serve important distinct functions over longer timescales. The importance-adjusted pruning thresholds create a more nuanced pruning policy that is conservative with proven features and more aggressive with less useful ones. Resetting importance scores for pruned neurons ensures they have a fair chance to develop new, useful features after reinitialization.
+
+## Run 6: Adaptive Sparsity Penalty
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced Run 5 by implementing an adaptive sparsity penalty mechanism that dynamically adjusts the L1 penalty based on observed activation sparsity. This approach aims to maintain a target level of sparsity while allowing the penalty to adapt to different phases of training.
+
+Key implementation details:
+1. Added sparsity_momentum parameter (0.99) for tracking feature activation sparsity
+2. Implemented target_sparsity parameter (0.1) as desired sparsity level
+3. Created sparsity_history tensor to track per-feature sparsity
+4. Dynamically adjusted L1 penalty based on sparsity error
+5. Bounded L1 penalty adjustments (0.01 to 0.2) for stability
+6. Maintained all mechanisms from Run 5 (importance tracking, correlation pruning, etc.)
+
+Analysis: The adaptive sparsity penalty mechanism provides automatic tuning of the L1 regularization strength based on observed activation patterns. When features are too dense, the penalty increases to encourage sparsity; when features are too sparse, the penalty decreases to allow more activity. This dynamic adjustment helps maintain a consistent level of sparsity throughout training while being responsive to different phases where more or less sparsity might be beneficial. The momentum-based tracking ensures smooth transitions in the penalty value, while the bounds prevent extreme values that could destabilize training.
+
+## Run 7: Local Competition Through Inhibition
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Implemented a biologically-inspired local competition mechanism through lateral inhibition in the encoding process. This approach aims to improve feature disentanglement and sparsity through competitive dynamics between neighboring features.
+
+Key implementation details:
+1. Added inhibition_radius parameter (32) to define local competition neighborhoods
+2. Implemented inhibition_strength parameter (0.3) to control suppression intensity
+3. Added competition_threshold (0.5) to determine when inhibition occurs
+4. Modified encode() method to apply local inhibition after initial activation
+5. Maintained all mechanisms from Run 6 (adaptive sparsity, importance tracking, etc.)
+
+Analysis: The local competition mechanism introduces a form of self-organization inspired by biological neural networks, where strongly activated features suppress their neighbors. This creates a winner-take-all dynamic within local regions of the feature space, naturally encouraging both sparsity and feature differentiation. The inhibition radius parameter defines the scope of competition, while the inhibition strength and competition threshold parameters control the intensity and onset of competitive effects. This mechanism complements the existing sparsity and orthogonality constraints by adding a dynamic, activity-dependent form of feature selection.
+
+## Run 8: Adaptive Feature Neighborhoods
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced Run 7 by implementing adaptive feature neighborhoods based on activation patterns. This approach replaces the fixed inhibition radius with dynamic neighborhoods that evolve based on feature co-activation patterns, allowing more flexible and data-driven competitive dynamics.
+
+Key implementation details:
+1. Added base_radius parameter (32) as initial neighborhood size
+2. Implemented neighborhood_momentum (0.99) for stable relationship tracking
+3. Created neighborhood_history tensor to track feature co-activations
+4. Modified encode() to use adaptive neighborhoods for competition
+5. Dynamically adjusted neighborhood sizes based on co-activation strength
+6. Maintained all mechanisms from Run 7 (local inhibition, adaptive sparsity, etc.)
+
+Analysis: The adaptive neighborhood mechanism allows the competitive dynamics to evolve based on actual feature relationships observed during training. Instead of assuming a fixed spatial relationship between features, the model learns which features tend to co-activate and adjusts the competition neighborhoods accordingly. This creates a more flexible form of local competition that can adapt to the natural clustering and relationships in the feature space. The neighborhood_history tensor provides a long-term memory of feature relationships, while the momentum parameter ensures stable evolution of these relationships. The base_radius parameter provides an initial scale for neighborhoods, but the actual competition groups can grow or shrink based on observed co-activation patterns. This adaptive approach helps the model discover and maintain more natural feature groupings while still encouraging appropriate levels of competition and differentiation.
+
+## Run 9: Feature Reallocation Mechanism
+Results: {'training_steps': 0, 'final_loss': None, 'layer': 19, 'dict_size': 2304, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}
+Description: Enhanced Run 8 by implementing a feature reallocation mechanism that identifies and redistributes underutilized features. This approach aims to maintain efficient use of the feature dictionary by repurposing features that fail to capture meaningful patterns.
+
+Key implementation details:
+1. Added activity_threshold parameter (0.01) to identify inactive features
+2. Implemented reallocation_window (1000 steps) for periodic checks
+3. Created reallocation_history tensor to track feature activity
+4. Used reallocation_momentum (0.99) for stable activity tracking
+5. Reallocated inactive features using random scaled directions
+6. Reset relevant tracking metrics and optimizer states
+7. Maintained mechanisms from Run 8 (adaptive neighborhoods, etc.)
+
+Analysis: The feature reallocation mechanism provides an active way to maintain dictionary efficiency by identifying and repurposing features that show consistently low activity. Unlike the pruning mechanism which focuses on correlation, this approach targets features that may be "dead" or failing to capture useful patterns. The activity tracking uses momentum to avoid premature reallocation of features that might be temporarily inactive. When reallocation occurs, the new feature directions are carefully scaled based on active features to ensure smooth integration into the existing dictionary. The reset of tracking metrics and optimizer states gives reallocated features a fresh start while maintaining the overall training dynamics. This mechanism complements the existing adaptive neighborhoods by ensuring that all features in the competition neighborhoods have the opportunity to be meaningfully utilized.

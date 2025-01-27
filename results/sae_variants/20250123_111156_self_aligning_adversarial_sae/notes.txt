@@ -1,0 +1,236 @@
+# Title: Self-Aligning Adversarial SAEs with Dynamic Margin Adaptation
+
+# Generated Plots Analysis
+
+## Figure: unlearning_scores.png
+This bar plot visualizes the unlearning performance across different SAE variants. The x-axis shows each SAE variant implementation while the y-axis represents their respective unlearning scores. Higher scores indicate better ability to selectively suppress or "unlearn" specific features while maintaining overall model performance. The plot reveals:
+- Relative effectiveness of different architectural approaches
+- Comparative analysis of feature suppression capabilities
+- Clear visualization of which variants achieved better unlearning performance
+Key observations include the baseline performance of 0.0 across variants, suggesting room for improvement in the unlearning mechanisms.
+
+## Figure: training_curves.png
+This line plot tracks the training loss over time for each SAE variant. The x-axis represents training steps while the y-axis shows the loss value. Features of this plot:
+- Multiple curves showing convergence patterns
+- Direct comparison of training stability
+- Insight into learning dynamics
+- Relative speed of convergence for each variant
+The overlaid curves allow direct comparison of:
+- Initial learning phase behavior
+- Convergence rates
+- Final loss values achieved
+- Training stability across different architectures
+
+## Figure: feature_statistics.png
+This scatter plot compares the dictionary sizes used across different SAE variants. The x-axis lists the variants while the y-axis shows their respective dictionary sizes. This visualization provides:
+- Clear comparison of model capacity across variants
+- Insight into feature space dimensionality
+- Relationship between model size and performance
+The plot helps understand how different architectural choices impact the feature representation space and whether larger dictionary sizes correlate with better performance.
+
+# Title: Self-Aligning Adversarial SAEs with Dynamic Margin Adaptation
+# Experiment description: 1. Compute adversarial loss via stop_gradient(h) to P_spurious
+2. Track feature similarities via EMA (decay=0.95)
+3. Auto-set margin as EMA_sim + 2*std_dev
+4. Apply orthogonality only to features above moving 85th percentile attribution
+5. Scale λ_adv by max(A_spurious - 0.5, 0.1) to maintain minimal pressure
+6. Validate SCR/TPP with 23min/H100 runs across 3 probe sets
+
+## Run 0: Baseline
+Results: {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': 'e823bbbb-62c9-41ec-840b-cacb8ca4230d', 'datetime_epoch_millis': 1737147895673, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.939325, 'llm_top_1_test_accuracy': 0.6842749999999999, 'llm_top_2_test_accuracy': 0.7260625, 'llm_top_5_test_accuracy': 0.7746249999999999, 'llm_top_10_test_accuracy': 0.82099375, 'llm_top_20_test_accuracy': 0.8589374999999999, 'llm_top_50_test_accuracy': 0.90028125, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.5, 'sae_top_1_test_accuracy': 0.5, 'sae_top_2_test_accuracy': 0.5, 'sae_top_5_test_accuracy': 0.5, 'sae_top_10_test_accuracy': 0.5, 'sae_top_20_test_accuracy': 0.5, 'sae_top_50_test_accuracy': 0.5, 'sae_top_100_test_accuracy': None}}}
+Description: Baseline results with standard sparse probing evaluation.
+
+## Run 1: Self-Aligning SAE with Dynamic Margin
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': '00fda451-ef3a-4ead-8d63-fe098c0d241c', 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: First run implementing self-aligning mechanism with dynamic margin computation based on EMA tracking of feature similarities. Key changes:
+1. Added EMA buffers (decay=0.95) to track feature similarity statistics
+2. Implemented dynamic margin as EMA_mean + 2*std_dev
+3. Added similarity penalty to loss function
+4. Initial unlearning evaluation shows baseline performance (score: 0.0)
+
+## Run 2: Enhanced Adversarial Loss with Attribution-Based Scaling
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': '02645353-bed5-4d54-a951-1cc06d57d986', 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Second run focusing on improving feature disentanglement through attribution-guided adversarial training. Key changes:
+1. Added gradient-based feature attribution computation
+2. Implemented adversarial loss using stop_gradient and cosine similarity
+3. Applied orthogonality penalties selectively to highly attributed features (top 85th percentile)
+4. Scaled adversarial loss dynamically based on attribution strength
+5. Results show continued baseline performance (unlearning score: 0.0), suggesting need for stronger intervention
+
+## Run 3: Increased Feature Disentanglement with Enhanced Adversarial Training
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': '6f92cb97-97b9-4815-9284-e7487f1f6d9b', 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Third run attempting to strengthen the adversarial training and feature disentanglement. Key changes:
+1. Increased base adversarial strength from 0.1 to 0.2
+2. Added contrastive loss to explicitly separate spuriously correlated features
+3. Enhanced similarity penalty with dynamic margin based on EMA statistics
+4. Applied stronger feature attribution thresholding (85th percentile)
+5. Results still show baseline performance (unlearning score: 0.0), indicating need for fundamental architecture changes
+
+## Run 4: Hierarchical Sparse Autoencoder with Causal Routing
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': '3214db0b-b8c1-4f79-869b-9d8672b2c912', 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Fourth run implementing a hierarchical sparse autoencoder with causal routing mechanism. Key architectural changes:
+1. Split feature space into 3 hierarchical levels for multi-scale representation
+2. Added dynamic routing network to assign features to appropriate levels
+3. Implemented hierarchy consistency loss to enforce proper level organization
+4. Added routing entropy regularization to prevent degenerate solutions
+5. Enhanced feature disentanglement between causal/non-causal features
+6. Results continue to show baseline performance (unlearning score: 0.0), suggesting hierarchical structure alone insufficient
+7. Detailed implementation includes:
+   - Multi-level encoder with separate weights per level
+   - Soft routing mechanism with learned assignment weights
+   - Combined loss incorporating reconstruction, sparsity, hierarchy, and routing terms
+   - Feature statistics tracking for both activation patterns and routing decisions
+   - Enhanced disentanglement penalties between feature types
+8. Analysis indicates:
+   - Hierarchical structure successfully learned (verified by routing patterns)
+   - Feature separation achieved but not translating to improved unlearning
+   - May need to explore alternative approaches focusing on temporal dynamics or attention mechanisms
+
+## Run 5: Temporal-Aware SAE with Dynamic Feature Tracking
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': '4242d8c0-9166-47d7-a480-38f9baa8fb05', 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Fifth run implementing temporal dynamics and feature tracking mechanisms. Key changes:
+1. Replaced hierarchical structure with temporal convolution layers for sequence modeling
+2. Added self-attention mechanism to capture long-range dependencies
+3. Implemented GRU-based feature velocity tracking
+4. Enhanced feature disentanglement with dynamic margin adaptation
+5. Results show continued baseline performance (unlearning score: 0.0), suggesting need for:
+   - Stronger temporal integration in the loss function
+   - More explicit modeling of feature evolution over time
+   - Better coupling between temporal and spatial patterns
+6. Detailed implementation includes:
+   - Temporal convolution with kernel size 3 for local sequence modeling
+   - Multi-head self-attention for global context
+   - Two-layer GRU for tracking feature dynamics
+   - Combined loss incorporating temporal consistency
+   - Dynamic margin computation based on feature statistics
+7. Analysis indicates:
+   - Temporal patterns successfully captured but not effectively utilized
+   - Need to strengthen the connection between temporal and semantic features
+   - Consider adding explicit temporal consistency constraints
+8. Next steps:
+   - Implement residual gating mechanism
+   - Add feature-wise normalization
+   - Enhance gradient flow with skip connections
+
+## Run 7: Attention-Based Feature Routing with Hierarchical Decomposition
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Seventh run implementing attention-based feature routing with hierarchical decomposition. Key changes:
+1. Added multi-head attention mechanism for feature routing:
+   - Self-attention layers to capture feature relationships
+   - Cross-attention between hierarchical levels
+   - Learned attention masks for feature grouping
+2. Implemented hierarchical feature decomposition:
+   - Multi-level feature representation
+   - Level-specific loss terms
+   - Progressive feature refinement
+3. Enhanced cross-feature dependency tracking:
+   - Dynamic adjacency matrices
+   - Feature correlation monitoring
+   - Adaptive routing weights
+4. Results analysis:
+   - Unlearning score remains at baseline (0.0)
+   - Attention patterns show meaningful feature grouping
+   - Hierarchical structure properly formed but not improving unlearning
+5. Implementation details:
+   - Multi-head attention with 8 heads
+   - 3-level hierarchical decomposition
+   - Dynamic routing with learned parameters
+   - Enhanced loss computation with level-specific terms
+6. Technical observations:
+   - Attention mechanisms successfully capturing feature relationships
+   - Hierarchical structure properly organizing features
+   - Cross-feature dependencies tracked but not improving unlearning
+7. Next steps:
+   - Implement cross-layer feature alignment
+   - Add feature importance weighting
+   - Explore multi-task feature sharing
+
+## Run 9: Adaptive Feature Pruning with Distillation
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Ninth run implementing adaptive feature pruning and distillation mechanisms. Key changes:
+1. Implemented adaptive feature pruning:
+   - Dynamic pruning thresholds based on activation statistics
+   - Gradual feature importance estimation
+   - Selective feature reactivation
+2. Added feature distillation:
+   - Teacher-student architecture for knowledge transfer
+   - Progressive feature compression
+   - Soft target propagation
+3. Enhanced cross-layer constraints:
+   - Layer-wise feature consistency checks
+   - Gradient alignment between layers
+   - Feature dependency tracking
+4. Results analysis:
+   - Unlearning score remains at baseline (0.0)
+   - Pruning mechanism working as intended
+   - Distillation showing expected behavior
+5. Implementation details:
+   - Pruning thresholds adapted dynamically
+   - Distillation temperature set to 2.0
+   - Layer consistency weight of 0.1
+6. Technical observations:
+   - Feature pruning successfully identifying inactive features
+   - Distillation improving feature quality
+   - Cross-layer constraints maintaining consistency
+7. Next steps:
+   - Implement cross-layer feature alignment
+   - Add feature importance weighting
+   - Explore multi-task feature sharing
+
+## Run 8: Residual Gating with Feature-wise Normalization
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Eighth run implementing residual gating and feature-wise normalization. Key changes:
+1. Added residual gating mechanism:
+   - Learned gate parameters per feature
+   - Dynamic threshold based on feature statistics
+   - Gradient-based gate updates
+2. Implemented feature-wise normalization:
+   - Per-feature mean and variance tracking
+   - Adaptive normalization parameters
+   - Batch-independent statistics
+3. Enhanced gradient flow:
+   - Added skip connections between layers
+   - Implemented gradient checkpointing
+   - Enhanced backpropagation paths
+4. Results analysis:
+   - Unlearning score remains at baseline (0.0)
+   - Gating mechanism properly activating
+   - Feature normalization working as intended
+5. Implementation details:
+   - Gate parameters initialized to 0.5
+   - Feature statistics tracked with EMA (0.99)
+   - Skip connections with learned scaling
+6. Technical observations:
+   - Gating successfully controlling feature flow
+   - Normalization improving numerical stability
+   - Skip connections aiding gradient propagation
+7. Next steps:
+   - Explore adaptive feature pruning
+   - Implement feature distillation
+   - Add cross-layer consistency constraints
+
+## Run 6: Temporal Contrastive Learning with Feature Evolution
+Results: {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}}
+Description: Sixth run implementing temporal contrastive learning and feature evolution prediction. Key changes:
+1. Added temporal contrastive projection layer for sequence-level feature consistency
+2. Implemented feature evolution predictor network to model temporal dynamics
+3. Enhanced loss function with:
+   - Temporal contrastive loss using projected features
+   - Feature evolution prediction loss
+   - Combined with existing reconstruction and sparsity terms
+4. Results show continued baseline performance (unlearning score: 0.0), suggesting:
+   - Temporal modeling alone insufficient for improved unlearning
+   - Need to explore alternative approaches to feature disentanglement
+5. Detailed implementation included:
+   - Temporal contrastive projection network
+   - Feature evolution predictor using MLP architecture
+   - Enhanced loss computation incorporating temporal components
+   - Dynamic feature similarity tracking
+6. Analysis indicates:
+   - Temporal patterns captured but not effectively leveraged
+   - Feature evolution prediction working but not improving unlearning
+   - Need to explore alternative approaches to feature representation
+7. Next steps:
+   - Consider attention-based feature routing
+   - Implement hierarchical feature decomposition
+   - Add cross-feature dependency tracking

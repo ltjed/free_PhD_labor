@@ -1,0 +1,192 @@
+# Title: Instantaneous Top-k Orthogonality Constraints for Feature Disentanglement
+# Experiment description: 1. Select top 0.1% f_i*f_j pairs per batch
+2. Apply orthogonality loss to selected pairs
+3. Use L2 weight normalization on W_dec
+4. Compare fixed vs adaptive τ values
+5. Measure absorption reduction efficiency
+6. Analyze pair selection stability
+7. Ablate top-k threshold impact
+
+## Run 0: Baseline
+Description: Baseline results without orthogonality constraints.
+
+## Run 1: Fixed τ Implementation
+Description: Initial implementation of orthogonality constraints with:
+- Fixed τ = 0.1
+- Top 0.1% most correlated feature pairs selected per batch
+- L2 weight normalization on decoder weights
+- Unlearning evaluation shows initial unlearning_score of 0.0, suggesting room for improvement
+- Architecture successfully implemented with orthogonality constraints
+- Evaluation on gemma-2b-it model layer 19 completed
+
+Key Implementation Details:
+1. Implemented select_top_pairs() to identify most correlated feature pairs
+2. Added orthogonality_loss() computation
+3. Integrated L2 normalization for decoder weights
+4. Modified loss function to include orthogonality term
+
+Results: Unlearning evaluation completed with initial metrics showing room for improvement. The unlearning score of 0.0 suggests that the fixed τ approach may need adjustment, leading us to Run 2's adaptive τ implementation.
+
+Next Steps: Implement adaptive τ mechanism to dynamically adjust orthogonality constraint strength based on feature correlation distributions.
+
+## Run 2: Adaptive τ Implementation
+Description: Implementation of dynamic orthogonality constraint adjustment with:
+- Initial τ = 0.1, bounds [0.01, 1.0]
+- Adaptive τ based on correlation history
+- Top 0.1% feature pair selection maintained
+- L2 weight normalization on decoder weights
+
+Key Implementation Details:
+1. Added correlation history tracking
+2. Implemented update_tau() for dynamic τ adjustment
+3. Modified orthogonality_loss() to use adaptive τ
+4. Maintained core architecture from Run 1
+
+Results: Unlearning evaluation completed with unlearning_score remaining at 0.0, suggesting that:
+1. The adaptive mechanism may need stronger initial constraints
+2. The correlation threshold (0.1%) may be too selective
+3. The τ adjustment rate may need to be more aggressive
+
+Next Steps: Implement more aggressive orthogonality constraints with:
+- Higher initial τ (0.5)
+- Wider τ bounds [0.1, 2.0]
+- Increased feature pair selection (top 1%)
+
+## Run 3: Aggressive Orthogonality Implementation
+Description: Implementation of more aggressive orthogonality constraints with:
+- Initial τ = 0.5 (5x higher than Run 1)
+- Expanded τ bounds [0.1, 2.0] for wider dynamic range
+- Increased feature pair selection to top 1% (10x more pairs than Run 1/2)
+- More aggressive τ adjustment rates (1.5x increase, 0.7x decrease)
+- Maintained L2 weight normalization on decoder weights
+
+Key Implementation Details:
+1. Increased initial τ to 0.5 for stronger initial orthogonality enforcement
+2. Widened τ bounds to allow both stronger and weaker constraints as needed
+3. Increased feature pair selection to top 1% for broader coverage
+4. Implemented more aggressive τ adjustment mechanism
+5. Maintained core architecture from previous runs
+
+Results: Unlearning evaluation completed with unlearning_score remaining at 0.0, suggesting that:
+1. The orthogonality constraints, even with aggressive parameters, may not be sufficient
+2. The approach may need fundamental architectural changes rather than parameter tuning
+3. The evaluation metric may need investigation for sensitivity
+
+Next Steps: Consider fundamental architectural changes:
+- Implement global orthogonality constraints instead of pair-wise
+- Add gradient projection to maintain orthogonality during training
+- Investigate alternative feature selection strategies
+
+## Run 4: Global Orthogonality Implementation
+Description: Fundamental architectural change moving from pair-wise to global orthogonality constraints using SVD:
+- Implemented feature normalization before correlation computation
+- Added global correlation matrix calculation
+- Introduced SVD-based orthogonality measurement
+- Dynamic τ adjustment based on maximum correlation across all features
+- Maintained L2 weight normalization on decoder weights
+
+Key Implementation Details:
+1. Replaced pair-wise feature selection with global correlation matrix
+2. Added SVD computation to measure non-orthogonality across all features
+3. Modified τ adjustment to use maximum correlation as signal
+4. Improved numerical stability with proper feature normalization
+5. Maintained core architecture elements from previous runs
+
+Results: Unlearning evaluation completed with unlearning_score remaining at 0.0, indicating that:
+1. The global orthogonality approach did not improve feature disentanglement
+2. The SVD-based loss may need refinement
+3. The evaluation metric's sensitivity needs investigation
+4. Alternative approaches to feature disentanglement may be needed
+
+Next Steps: Implement gradient projection approach:
+- Add explicit gradient orthogonalization during training
+- Maintain orthogonality through direct weight matrix manipulation
+- Focus on preserving learned features while enforcing constraints
+
+## Run 5: Gradient Projection Implementation
+Description: Fundamental architectural change implementing gradient projection to maintain orthogonality during training:
+- Created custom OrthogonalAdam optimizer with gradient projection
+- Applied QR decomposition for gradient orthogonalization
+- Implemented explicit orthogonalization of weights after updates using SVD
+- Applied constraints to both encoder and decoder weights
+- Maintained core feature extraction and L2 normalization
+
+Key Implementation Details:
+1. Implemented OrthogonalAdam optimizer extending torch.optim.Adam
+2. Added project_gradients() method using QR decomposition
+3. Implemented post-update orthogonalization using SVD
+4. Applied constraints to both W_enc and W_dec
+5. Maintained existing loss computation and feature extraction
+
+Results: Unlearning evaluation completed with unlearning_score remaining at 0.0, indicating that:
+1. The gradient projection approach did not improve feature disentanglement
+2. The orthogonalization of both encoder and decoder weights was insufficient
+3. The fundamental approach to feature disentanglement may need rethinking
+4. The evaluation metric's sensitivity should be investigated
+
+Next Steps: Consider alternative approaches:
+- Investigate contrastive learning techniques
+- Explore information bottleneck methods
+- Consider adversarial training approaches
+- Research alternative evaluation metrics
+
+# Generated Figures Analysis
+
+## training_metrics.png
+This figure contains four subplots showing the evolution of different metrics during training across all implementations:
+
+1. Training Loss Over Time (Top Left):
+   - Shows the overall loss convergence for each approach
+   - Baseline shows highest initial loss but stable convergence
+   - Gradient Projection implementation achieves lowest final loss
+   - Fixed τ and Adaptive τ show similar convergence patterns
+   - Global SVD approach shows more oscillatory behavior
+
+2. Orthogonality Loss Over Time (Top Right):
+   - Measures the degree of feature disentanglement
+   - Baseline has no orthogonality loss (not implemented)
+   - Gradient Projection shows fastest decrease in orthogonality loss
+   - Global SVD implementation shows high variance in orthogonality
+   - Adaptive τ maintains more consistent orthogonality than Fixed τ
+
+3. τ Values Over Time (Bottom Left):
+   - Tracks the evolution of the orthogonality constraint strength
+   - Fixed τ shows constant value at 0.1
+   - Adaptive τ shows dynamic adjustment between 0.01 and 1.0
+   - Aggressive τ implementation shows wider oscillations (0.1 to 2.0)
+   - Global SVD and Gradient Projection show more stable τ values
+
+4. Sparsity Loss Over Time (Bottom Right):
+   - Indicates feature activation sparsity
+   - All implementations maintain similar sparsity patterns
+   - Gradient Projection shows slightly better sparsity
+   - Global SVD implementation shows higher variance in sparsity
+   - Baseline maintains consistent but higher sparsity loss
+
+## final_metrics.png
+This bar chart provides a comparative analysis of the final performance metrics:
+
+1. Final Loss Values:
+   - Gradient Projection achieves lowest final loss
+   - Global SVD shows comparable performance to Adaptive τ
+   - Baseline has highest final loss as expected
+
+2. Final Orthogonality Loss:
+   - Gradient Projection shows best feature disentanglement
+   - Global SVD and Aggressive τ show similar final orthogonality
+   - Fixed τ has higher final orthogonality loss
+   - Baseline has no orthogonality measurement
+
+3. Final Sparsity Loss:
+   - All implementations achieve similar final sparsity
+   - Gradient Projection slightly outperforms others
+   - Differences in sparsity are less pronounced than other metrics
+
+Key Observations:
+- Gradient Projection consistently outperforms other approaches
+- Global orthogonality constraints show promise but high variance
+- Adaptive τ provides better stability than fixed approaches
+- All methods maintain similar sparsity characteristics
+- Unlearning scores remain at 0.0 despite improvements in other metrics
+
+These visualizations suggest that while the implementations successfully achieve different aspects of the intended behavior (orthogonality, sparsity), they don't translate to improved unlearning performance, indicating a potential disconnect between these metrics and the ultimate goal of feature disentanglement for unlearning.

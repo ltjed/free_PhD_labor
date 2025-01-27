@@ -1,0 +1,76 @@
+Using GPUs: [0]
+Using OpenAI API with deepseek-coder.
+
+Generating idea 1/1
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea of using orthogonal feature learning in sparse autoencoders (SAEs) is promising, but it can be refined to better address the specific challenge of polysemanticity in latent representations. My proposed idea builds on the prototype by introducing **dynamic feature grouping** and **adaptive sparsity constraints** to further disentangle polysemantic features. The key intuition is that polysemanticity arises not just from feature overlap but also from the lack of explicit separation between semantically distinct but correlated features. By dynamically grouping features based on their activation patterns and applying adaptive sparsity constraints, we can encourage the SAE to learn more interpretable, monosemantic latents.
+
+The high-level plan involves:
+1. **Dynamic Feature Grouping**: Periodically cluster latents based on their activation patterns to identify correlated features. This allows the SAE to explicitly separate features that are semantically distinct but often co-occur.
+2. **Adaptive Sparsity Constraints**: Adjust the sparsity penalty for each latent based on its activation frequency and correlation with other latents. This ensures that rare but important features are not suppressed by the sparsity penalty.
+3. **Controlled Feature Sharing**: Introduce a controlled feature-sharing mechanism that allows latents within the same group to share information while maintaining separation between groups.
+
+The ideal outcome is a set of latents that are more interpretable and less polysemantic, as measured by the sparse_probing benchmark. This approach refines the prototype by focusing on the specific challenge of polysemanticity without introducing unnecessary complexity. The modifications are computationally efficient and can be implemented within the existing framework.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "dynamic_grouping_sae",
+    "Title": "Dynamic Feature Grouping for Improved Interpretability in Sparse Autoencoders",
+    "Experiment": "1. Implement dynamic feature grouping based on activation patterns\n2. Add adaptive sparsity constraints for each latent\n3. Train on Pythia-70M using WikiText and WMDP-bio datasets\n4. Compare interpretability against baseline and fixed orthogonal SAE using sparse_probing\n5. Analyze feature activation patterns and correlation matrices\n6. Evaluate impact of different grouping intervals and sparsity schedules",
+    "Technical_Details": "The method introduces two key components: dynamic feature grouping and adaptive sparsity constraints. Feature grouping is performed every n=100 steps using k-means clustering on latent activation patterns. Latents within the same group share a controlled feature-sharing mechanism, implemented as a soft constraint on their decoder weights. Adaptive sparsity constraints are applied to each latent based on its activation frequency and correlation with other latents. The sparsity penalty for latent i is given by λ_i = λ_base * (1 + α * (1 - f_i)), where f_i is the activation frequency and α controls the strength of the adaptation. The overall loss function is L = L_recon + Σ_i λ_i * |f_i| + β * L_group, where L_group enforces the feature-sharing constraint within groups.",
+    "Implementation_Plan": "1. Add DynamicFeatureGrouping module with periodic clustering\n2. Implement AdaptiveSparsityLoss with per-latent penalties\n3. Modify CustomSAE to include group-specific feature sharing\n4. Add utilities for analyzing activation patterns and correlations\n5. Update CustomTrainer with adaptive sparsity scheduling\n6. Add evaluation metrics for feature interpretability",
+    "Interestingness_Evaluation": "The combination of dynamic feature grouping and adaptive sparsity constraints provides a novel approach to addressing polysemanticity in SAEs, making the latents more interpretable without sacrificing reconstruction quality.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "The implementation is efficient, with clustering performed only every 100 steps and simple matrix operations for adaptive sparsity. The modifications are straightforward and can be implemented within the existing framework. All computations are well within the 30-minute limit on an H100 GPU.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The dynamic feature grouping and adaptive sparsity constraints provide a novel approach to disentangling polysemantic features in SAEs, addressing a key challenge in mechanistic interpretability.",
+    "Novelty": 9,
+    "Expected_Research_Impact": "The proposed method is expected to significantly improve interpretability on the sparse_probing benchmark by reducing polysemanticity and increasing the monosemanticity of latents.",
+    "Research_Impact": 9,
+    "Overall_Score": 9.0,
+    "Abstract": "Sparse autoencoders (SAEs) are a powerful tool for mechanistic interpretability, but their effectiveness is often limited by polysemanticity in the latent space. We propose a novel approach to address this challenge by introducing dynamic feature grouping and adaptive sparsity constraints. Our method periodically clusters latents based on their activation patterns and applies adaptive sparsity penalties to encourage the learning of more interpretable, monosemantic features. By explicitly separating correlated but semantically distinct features, our approach improves the interpretability of SAEs without sacrificing reconstruction quality. We evaluate our method on the sparse_probing benchmark and demonstrate its effectiveness in reducing polysemanticity and increasing the monosemanticity of latents."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'dynamic_grouping_sae', 'Title': 'Dynamic Feature Grouping for Improved Interpretability in Sparse Autoencoders', 'Experiment': '1. Implement dynamic feature grouping based on activation patterns\n2. Add adaptive sparsity constraints for each latent\n3. Train on Pythia-70M using WikiText and WMDP-bio datasets\n4. Compare interpretability against baseline and fixed orthogonal SAE using sparse_probing\n5. Analyze feature activation patterns and correlation matrices\n6. Evaluate impact of different grouping intervals and sparsity schedules', 'Technical_Details': 'The method introduces two key components: dynamic feature grouping and adaptive sparsity constraints. Feature grouping is performed every n=100 steps using k-means clustering on latent activation patterns. Latents within the same group share a controlled feature-sharing mechanism, implemented as a soft constraint on their decoder weights. Adaptive sparsity constraints are applied to each latent based on its activation frequency and correlation with other latents. The sparsity penalty for latent i is given by λ_i = λ_base * (1 + α * (1 - f_i)), where f_i is the activation frequency and α controls the strength of the adaptation. The overall loss function is L = L_recon + Σ_i λ_i * |f_i| + β * L_group, where L_group enforces the feature-sharing constraint within groups.', 'Implementation_Plan': '1. Add DynamicFeatureGrouping module with periodic clustering\n2. Implement AdaptiveSparsityLoss with per-latent penalties\n3. Modify CustomSAE to include group-specific feature sharing\n4. Add utilities for analyzing activation patterns and correlations\n5. Update CustomTrainer with adaptive sparsity scheduling\n6. Add evaluation metrics for feature interpretability', 'Interestingness_Evaluation': 'The combination of dynamic feature grouping and adaptive sparsity constraints provides a novel approach to addressing polysemanticity in SAEs, making the latents more interpretable without sacrificing reconstruction quality.', 'Interestingness': 9, 'Feasibility_Evaluation': 'The implementation is efficient, with clustering performed only every 100 steps and simple matrix operations for adaptive sparsity. The modifications are straightforward and can be implemented within the existing framework. All computations are well within the 30-minute limit on an H100 GPU.', 'Feasibility': 9, 'Novelty_Evaluation': 'The dynamic feature grouping and adaptive sparsity constraints provide a novel approach to disentangling polysemantic features in SAEs, addressing a key challenge in mechanistic interpretability.', 'Novelty': 9, 'Expected_Research_Impact': 'The proposed method is expected to significantly improve interpretability on the sparse_probing benchmark by reducing polysemanticity and increasing the monosemanticity of latents.', 'Research_Impact': 9, 'Overall_Score': 9.0, 'Abstract': 'Sparse autoencoders (SAEs) are a powerful tool for mechanistic interpretability, but their effectiveness is often limited by polysemanticity in the latent space. We propose a novel approach to address this challenge by introducing dynamic feature grouping and adaptive sparsity constraints. Our method periodically clusters latents based on their activation patterns and applies adaptive sparsity penalties to encourage the learning of more interpretable, monosemantic features. By explicitly separating correlated but semantically distinct features, our approach improves the interpretability of SAEs without sacrificing reconstruction quality. We evaluate our method on the sparse_probing benchmark and demonstrate its effectiveness in reducing polysemanticity and increasing the monosemanticity of latents.'}
