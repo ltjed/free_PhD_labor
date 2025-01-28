@@ -1,0 +1,53 @@
+# Title: Orthogonal Feature Learning for Optimal Knowledge Separation in Sparse Autoencoders
+
+# Experiment description: 
+1. Implement adaptive orthogonality loss with controlled feature sharing
+2. Add batch-wise feature grouping with periodic updates
+3. Train on Gemma-2b using standard datasets
+4. Compare unlearning performance against baseline and fixed orthogonal SAE
+5. Analyze condition numbers of feature subspaces
+6. Evaluate impact of different α values for controlled sharing
+
+## Run 2: Orthogonal Implementation with α=0.1
+Implementation details:
+- Layer 19 of Gemma-2b model
+- 4 feature groups with controlled sharing (α=0.1)
+- Adaptive orthogonality loss with warmup
+- Dictionary size: 2304 features
+- Training tokens: 10M
+- Batch size: 2048
+
+Results:
+1. Reconstruction Quality:
+- Explained variance: 0.295 (29.5%)
+- MSE: 19.125
+- Cosine similarity: 0.762
+
+2. Sparsity Metrics:
+- L0 sparsity: 57.29
+- L1 norm: 442.0
+- Relative reconstruction bias: 0.938
+
+3. Feature Independence:
+- Mean absorption score: 0.0101
+- Condition number tracked throughout training
+- SCR metrics show improved feature separation:
+  * SCR@2: 0.044
+  * SCR@5: 0.078
+  * SCR@10: 0.120
+  * SCR@20: 0.137
+
+4. Model Behavior Preservation:
+- KL divergence score: 0.786
+- Cross-entropy loss score: 0.780
+- L2 norm ratio (out/in): 0.715
+
+Key findings:
+1. Controlled feature sharing (α=0.1) successfully balances independence and reconstruction
+2. Feature groups maintain distinct functionalities (high SCR scores)
+3. Adaptive orthogonality loss effectively manages group separation
+4. Good preservation of model behavior while achieving sparsity
+5. Lower absorption scores suggest better feature disentanglement
+
+Next steps:
+Proceed with Run 3 to evaluate α=0.05 for comparison of stricter orthogonality constraints

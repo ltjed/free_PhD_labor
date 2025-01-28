@@ -82,6 +82,9 @@ def get_metrics_df(metrics_dir):
         df.append(row)
 
     df = pd.DataFrame(df)
+
+    print("Unlearning scores DataFrame:", df)
+    
     return df
 
 

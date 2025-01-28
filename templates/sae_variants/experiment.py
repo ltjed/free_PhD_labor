@@ -724,7 +724,7 @@ if __name__ == "__main__":
         #"absorption",
         # "autointerp",
         "core",
-        #"scr_and_tpp",
+        "scr_and_tpp",
         # "sparse_probing",
         # "unlearning",
     ]

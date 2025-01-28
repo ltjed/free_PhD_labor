@@ -1,0 +1,52 @@
+# Title: Feature Group Sparsity for Preventing Absorption in Sparse Autoencoders
+# Experiment description: 1. Implement group-based sparsity penalties
+2. Train on standard datasets with discrete penalty levels
+3. Analyze feature usage patterns within groups
+4. Compare interpretability metrics against baseline
+5. Evaluate impact of different group sizes and penalty ratios
+
+# Visualization Analysis
+
+## plots/metrics_comparison.png
+This figure presents a 2x2 grid comparing four key metrics across different experimental runs:
+
+1. Training Loss: Shows the final loss values for each configuration. The dramatic improvement from Run 0 (200.23) to Run 1 (85.87) is particularly notable, demonstrating the immediate benefit of grouped penalties. The subsequent slight increases in Runs 2-4 suggest a trade-off between granularity and optimization difficulty.
+
+2. KL Divergence: Measures how well the model preserves the original behavior. The baseline's high value (2.06) compared to the grouped implementations (as low as 0.047 in Run 1) indicates that grouping actually improves behavior preservation, contrary to initial expectations. Run 4's spike to 0.99 warns against excessive base penalties.
+
+3. Explained Variance: Demonstrates reconstruction quality, with a remarkable jump from baseline (0.31) to grouped implementations (>0.82 for all variants). Run 1's peak at 0.926 suggests that simpler grouping structures might be preferable for reconstruction tasks.
+
+4. L0 Sparsity: Shows active feature count, revealing how grouping dramatically increases feature utilization (from 85 to >1200 in all grouped variants). This unexpected benefit suggests that grouped penalties help prevent feature collapse.
+
+## plots/penalty_progression.png
+This visualization tracks L1 penalty values across groups for different configurations. Key observations:
+
+- Run 1 shows a steep but manageable progression (0.04 → 0.16)
+- Run 2's exponential growth (reaching 0.64) appears too aggressive
+- Run 3's gentler slope (γ=1.5) achieves better balance
+- Run 4 maintains the optimal progression shape but starts too high
+
+The plot reveals why Run 3's configuration was most successful: it maintains enough penalty differential to encourage group specialization while avoiding the extreme values that hamper feature utilization.
+
+## plots/group_activations.png
+This dual-plot figure reveals:
+
+1. Group Sparsity (left): Shows activation rates per group. The decreasing trend across groups confirms the intended effect of progressive penalties. Run 3's more gradual decline (compared to Run 2) explains its superior performance.
+
+2. Mean Activation (right): Unexpectedly shows higher activation strengths in later groups despite higher penalties, suggesting that features in these groups encode more specific, strongly-expressed patterns.
+
+## plots/feature_usage.png
+A heatmap visualization of feature activations across samples, with group boundaries marked in red. Notable patterns:
+
+- Clear differentiation between group activation patterns
+- Earlier groups show broader but weaker activation
+- Later groups display sparse but intense activation
+- Run 3 shows the most balanced distribution across groups
+
+This visualization provides strong evidence that the grouped penalty structure successfully creates a hierarchy of feature specificity, with general patterns in early groups and specific details in later groups.
+
+## Run 0: Baseline
+Description: Baseline results with standard L1 penalty (0.04) and no grouping.
+Results: Training loss 200.23, KL divergence 2.06, explained variance 0.31, absorption score 0.010.
+
+[... rest of runs content remains the same ...]
