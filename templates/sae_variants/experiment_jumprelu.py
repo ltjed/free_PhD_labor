@@ -435,7 +435,7 @@ def run_sae_training(
     with open(os.path.join(out_dir, "all_results.npy"), "wb") as f:
         np.save(f, results)
 
-    all_info_path = os.path.join(out_dir, "final_info.json")
+    all_info_path = os.path.join(out_dir, "final_info_jumprelu.json")
     if os.path.exists(all_info_path):
         with open(all_info_path, 'r') as f:
             existing_data = json.load(f)
@@ -476,7 +476,7 @@ RANDOM_SEED = 42
 MODEL_CONFIGS = {
     # "EleutherAI/pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3], "d_model": 512},
     # "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
-    "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [19], "d_model": 2304},
+    "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [12], "d_model": 65536},
 }
 
 

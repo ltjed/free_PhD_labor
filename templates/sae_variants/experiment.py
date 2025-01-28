@@ -496,7 +496,7 @@ RANDOM_SEED = 42
 MODEL_CONFIGS = {
     # "EleutherAI/pythia-70m-deduped": {"batch_size": 512, "dtype": "float32", "layers": [3], "d_model": 512},
     # "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [5, 12, 19], "d_model": 2304},
-    "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [19], "d_model": 2304},
+    "google/gemma-2-2b": {"batch_size": 32, "dtype": "bfloat16", "layers": [12], "d_model": 65536},
 }
 
 
@@ -721,12 +721,12 @@ if __name__ == "__main__":
     # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
 
     eval_types = [
-        #"absorption",
+        "absorption",
         # "autointerp",
         "core",
-        #"scr_and_tpp",
-        # "sparse_probing",
-        # "unlearning",
+        "scr_and_tpp",
+        "sparse_probing",
+        "unlearning",
     ]
 
     if "autointerp" in eval_types:

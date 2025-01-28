@@ -142,9 +142,9 @@ def do_idea(
     destination_dir = folder_name
     shutil.copytree(base_dir, destination_dir, dirs_exist_ok=True)
     # Read both files and store their results
-    with open(osp.join(base_dir, "run_0", "topK_final_info.json"), "r") as f:
+    with open(osp.join(base_dir, "run_0", "final_info_topk.json"), "r") as f:
         topk_results = json.load(f)
-    with open(osp.join(base_dir, "run_0", "jumprelu_final_info.json"), "r") as f:
+    with open(osp.join(base_dir, "run_0", "final_info_jumprelu.json"), "r") as f:
         jumprelu_results = json.load(f)
 
     # Create dictionaries for both results
@@ -232,7 +232,7 @@ def do_idea(
                 edit_format="diff",
             )
             try:
-                perform_writeup(idea, folder_name, coder, client, client_model)
+                perform_writeup(idea, folder_name, coder, reasoner_client, reasoner_client_model)
             except Exception as e:
                 print(f"Failed to perform writeup: {e}")
                 return False
@@ -312,18 +312,19 @@ if __name__ == "__main__":
 
     print(f"Using GPUs: {available_gpus}")
 
-    # Create client
+    # Create client, used for coding assistant (aider) during perform_experiment()
     client, client_model = create_client(args.model)
-    #client, client_model = create_client("deepseek-reasoner")
-    #coding_client, coding_client_model = create_client("claude-3-5-sonnet-20241022")
+
+    # reasoning model used for idea generation and writeup
+    reasoner_client, reasoner_client_model_ = create_client("deepseek-reasoner")
 
 
     base_dir = osp.join("templates", args.experiment)
     results_dir = osp.join("results", args.experiment)
     ideas = generate_ideas(
         base_dir,
-        client=client,
-        model=client_model,
+        client=reasoner_client,
+        model=reasoner_client_model,
         skip_generation=args.skip_idea_generation,
         max_num_generations=args.num_ideas,
         num_reflections=NUM_REFLECTIONS,
@@ -332,8 +333,8 @@ if __name__ == "__main__":
         ideas = check_idea_novelty(
             ideas,
             base_dir=base_dir,
-            client=client,
-            model=client_model,
+            client=reasoner_client,
+            model=reasoner_client_model,
         )
 
     if not args.skip_idea_generation:
