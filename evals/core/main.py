@@ -911,88 +911,88 @@ def multiple_evals(
         assert current_model is not None
 
     
-        try:
-            # Create a CoreEvalConfig for this specific evaluation
-            core_eval_config = CoreEvalConfig(
-                model_name=sae.cfg.model_name,
-                batch_size_prompts=multiple_evals_config.batch_size_prompts or 16,
-                n_eval_reconstruction_batches=multiple_evals_config.n_eval_reconstruction_batches,
-                n_eval_sparsity_variance_batches=multiple_evals_config.n_eval_sparsity_variance_batches,
-                exclude_special_tokens_from_reconstruction=exclude_special_tokens_from_reconstruction,
-                dataset=dataset,
-                context_size=context_size,
-                compute_kl=multiple_evals_config.compute_kl,
-                compute_ce_loss=multiple_evals_config.compute_ce_loss,
-                compute_l2_norms=multiple_evals_config.compute_l2_norms,
-                compute_sparsity_metrics=multiple_evals_config.compute_sparsity_metrics,
-                compute_variance_metrics=multiple_evals_config.compute_variance_metrics,
-                compute_featurewise_density_statistics=compute_featurewise_density_statistics,
-                compute_featurewise_weight_based_metrics=compute_featurewise_weight_based_metrics,
-                llm_dtype=dtype,
+        
+        # Create a CoreEvalConfig for this specific evaluation
+        core_eval_config = CoreEvalConfig(
+            model_name=sae.cfg.model_name,
+            batch_size_prompts=multiple_evals_config.batch_size_prompts or 16,
+            n_eval_reconstruction_batches=multiple_evals_config.n_eval_reconstruction_batches,
+            n_eval_sparsity_variance_batches=multiple_evals_config.n_eval_sparsity_variance_batches,
+            exclude_special_tokens_from_reconstruction=exclude_special_tokens_from_reconstruction,
+            dataset=dataset,
+            context_size=context_size,
+            compute_kl=multiple_evals_config.compute_kl,
+            compute_ce_loss=multiple_evals_config.compute_ce_loss,
+            compute_l2_norms=multiple_evals_config.compute_l2_norms,
+            compute_sparsity_metrics=multiple_evals_config.compute_sparsity_metrics,
+            compute_variance_metrics=multiple_evals_config.compute_variance_metrics,
+            compute_featurewise_density_statistics=compute_featurewise_density_statistics,
+            compute_featurewise_weight_based_metrics=compute_featurewise_weight_based_metrics,
+            llm_dtype=dtype,
+        )
+
+        # Wrap activation store creation with retry
+        @general_utils.retry_with_exponential_backoff(
+            retries=3,
+            exceptions=(Exception,),
+            initial_delay=1.0,
+            max_delay=30.0,
+        )
+        def create_activation_store():
+            return ActivationsStore.from_sae(
+                current_model, sae, context_size=context_size, dataset=dataset
             )
 
-            # Wrap activation store creation with retry
-            @general_utils.retry_with_exponential_backoff(
-                retries=3,
-                exceptions=(Exception,),
-                initial_delay=1.0,
-                max_delay=30.0,
-            )
-            def create_activation_store():
-                return ActivationsStore.from_sae(
-                    current_model, sae, context_size=context_size, dataset=dataset
-                )
+        activation_store = create_activation_store()
+        activation_store.shuffle_input_dataset(seed=42)
 
-            activation_store = create_activation_store()
-            activation_store.shuffle_input_dataset(seed=42)
+        eval_metrics = nested_dict()
+        eval_metrics["unique_id"] = f"{sae_release}_{sae_id}"
+        eval_metrics["sae_set"] = f"{sae_release}"
+        eval_metrics["sae_id"] = f"{sae_id}"
+        eval_metrics["eval_cfg"] = core_eval_config
 
-            eval_metrics = nested_dict()
-            eval_metrics["unique_id"] = f"{sae_release}_{sae_id}"
-            eval_metrics["sae_set"] = f"{sae_release}"
-            eval_metrics["sae_id"] = f"{sae_id}"
-            eval_metrics["eval_cfg"] = core_eval_config
+        scalar_metrics, feature_metrics = run_evals(
+            sae=sae,
+            activation_store=activation_store,
+            model=current_model,  # type: ignore
+            eval_config=core_eval_config,
+            ignore_tokens={
+                current_model.tokenizer.pad_token_id,  # type: ignore
+                current_model.tokenizer.eos_token_id,  # type: ignore
+                current_model.tokenizer.bos_token_id,  # type: ignore
+            },
+            verbose=verbose,
+        )
+        eval_metrics["metrics"] = scalar_metrics
 
-            scalar_metrics, feature_metrics = run_evals(
-                sae=sae,
-                activation_store=activation_store,
-                model=current_model,  # type: ignore
-                eval_config=core_eval_config,
-                ignore_tokens={
-                    current_model.tokenizer.pad_token_id,  # type: ignore
-                    current_model.tokenizer.eos_token_id,  # type: ignore
-                    current_model.tokenizer.bos_token_id,  # type: ignore
-                },
-                verbose=verbose,
-            )
-            eval_metrics["metrics"] = scalar_metrics
+        if compute_featurewise_density_statistics or compute_featurewise_weight_based_metrics:
+            eval_metrics["feature_metrics"] = feature_metrics
 
-            if compute_featurewise_density_statistics or compute_featurewise_weight_based_metrics:
-                eval_metrics["feature_metrics"] = feature_metrics
+        # Clean NaN values before saving
+        cleaned_metrics = replace_nans_with_negative_one(eval_metrics)
 
-            # Clean NaN values before saving
-            cleaned_metrics = replace_nans_with_negative_one(eval_metrics)
+        # Save results immediately after each evaluation
+        saved_path = save_single_eval_result(
+            cleaned_metrics,
+            eval_instance_id,
+            sae_lens_version,
+            sae_bench_commit_hash,
+            sae_result_path,
+            sae,
+        )
 
-            # Save results immediately after each evaluation
-            saved_path = save_single_eval_result(
-                cleaned_metrics,
-                eval_instance_id,
-                sae_lens_version,
-                sae_bench_commit_hash,
-                sae_result_path,
-                sae,
-            )
+        if verbose:
+            print(f"Saved evaluation results to: {saved_path}")
 
-            if verbose:
-                print(f"Saved evaluation results to: {saved_path}")
-
-            eval_results.append(eval_metrics)
+        eval_results.append(eval_metrics)
             
-        except Exception as e:
-            logger.error(
-                f"Failed to evaluate SAE {sae_id} from {sae_release} "
-                f"with context length {context_size} on dataset {dataset}: {str(e)}"
-            )
-            continue  # Skip this combination and continue with the next one
+        # except Exception as e:
+        #     logger.error(
+        #         f"Failed to evaluate SAE {sae_id} from {sae_release} "
+        #         f"with context length {context_size} on dataset {dataset}: {str(e)}"
+        #     )
+        #     continue  # Skip this combination and continue with the next one
 
         
         # Skip this combination and continue with the next one

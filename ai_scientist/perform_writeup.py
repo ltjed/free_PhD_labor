@@ -10,6 +10,8 @@ from typing import Optional, Tuple
 from ai_scientist.generate_ideas import search_for_papers
 from ai_scientist.llm import get_response_from_llm, extract_json_between_markers, create_client, AVAILABLE_LLMS
 
+from datetime import datetime
+
 # num_error_corrections and num_cite_rounds are originally 5, 20 by default
 
 # GENERATE LATEX
@@ -509,8 +511,8 @@ First, re-think the Title if necessary. Keep this concise and descriptive of the
             .replace(r"{{", "{")
             .replace(r"}}", "}")
         )
-
-    generate_latex(coder, folder_name, f"{folder_name}/{idea['Name']}.pdf")
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    generate_latex(coder, folder_name, f"{folder_name}/{idea['Name']}_{timestamp}.pdf")
 
 
 if __name__ == "__main__":

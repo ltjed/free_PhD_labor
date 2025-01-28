@@ -141,9 +141,18 @@ def do_idea(
     assert not osp.exists(folder_name), f"Folder {folder_name} already exists."
     destination_dir = folder_name
     shutil.copytree(base_dir, destination_dir, dirs_exist_ok=True)
-    with open(osp.join(base_dir, "run_0", "final_info.json"), "r") as f:
-        baseline_results = json.load(f)
-    baseline_results = {k: v for k, v in baseline_results.items()}
+    # Read both files and store their results
+    with open(osp.join(base_dir, "run_0", "topK_final_info.json"), "r") as f:
+        topk_results = json.load(f)
+    with open(osp.join(base_dir, "run_0", "jumprelu_final_info.json"), "r") as f:
+        jumprelu_results = json.load(f)
+
+    # Create dictionaries for both results
+    topk_results = {k: v for k, v in topk_results.items()}
+    jumprelu_results = {k: v for k, v in jumprelu_results.items()}
+
+    # Format the output string
+    baseline_results = f"Baseline results from TopK SAE: \n{topk_results}\nBaseline results from jumprelu SAE: \n{jumprelu_results}"
     exp_file = osp.join(folder_name, "experiment.py")
     vis_file = osp.join(folder_name, "plot.py")
     notes = osp.join(folder_name, "notes.txt")
