@@ -910,6 +910,7 @@ def multiple_evals(
 
         assert current_model is not None
 
+    
         try:
             # Create a CoreEvalConfig for this specific evaluation
             core_eval_config = CoreEvalConfig(
@@ -992,6 +993,9 @@ def multiple_evals(
                 f"with context length {context_size} on dataset {dataset}: {str(e)}"
             )
             continue  # Skip this combination and continue with the next one
+
+        
+        # Skip this combination and continue with the next one
 
         gc.collect()
         torch.cuda.empty_cache()

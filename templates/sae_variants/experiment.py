@@ -413,6 +413,7 @@ def run_sae_training(
         lm_name=model_name,
         submodule_name=submodule_name
     )
+
     training_log = []
     
     # Training loop
@@ -720,11 +721,11 @@ if __name__ == "__main__":
     # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
 
     eval_types = [
-        "absorption",
+        #"absorption",
         # "autointerp",
         "core",
-        "scr_and_tpp",
-        "sparse_probing",
+        #"scr_and_tpp",
+        # "sparse_probing",
         # "unlearning",
     ]
 
