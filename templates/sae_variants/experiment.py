@@ -274,15 +274,15 @@ class CustomTrainer(SAETrainer):
     def loss(self, x, logging=False, **kwargs):
         x_hat, f = self.ae(x, output_features=True)
         l2_loss = torch.linalg.norm(x - x_hat, dim=-1).mean()
+        recon_loss = (x - x_hat).pow(2).sum(dim=-1).mean()
         l1_loss = f.norm(p=1, dim=-1).mean()
-
         if self.steps_since_active is not None:
             # Update steps_since_active
             deads = (f == 0).all(dim=0)
             self.steps_since_active[deads] += 1
             self.steps_since_active[~deads] = 0
         
-        loss = l2_loss + self.l1_penalty * l1_loss
+        loss = recon_loss + self.l1_penalty * l1_loss
         return {"loss_for_backward": loss, "loss" : loss.cpu().item(), "l1_loss" : l1_loss.cpu().item(), "l2_loss" : l2_loss.cpu().item()}
         if not logging:
             return loss
@@ -291,7 +291,7 @@ class CustomTrainer(SAETrainer):
                 x, x_hat, f,
                 {
                     'l2_loss': l2_loss.item(),
-                    'mse_loss': (x - x_hat).pow(2).sum(dim=-1).mean().item(),
+                    'mse_loss': recon_loss.item(),
                     'sparsity_loss': l1_loss.item(),
                     'loss': loss.item()
                 }
@@ -724,7 +724,7 @@ if __name__ == "__main__":
         #"absorption",
         # "autointerp",
         "core",
-        "scr_and_tpp",
+        #"scr_and_tpp",
         # "sparse_probing",
         # "unlearning",
     ]
