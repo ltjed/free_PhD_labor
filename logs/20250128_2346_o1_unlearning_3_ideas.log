@@ -1,0 +1,266 @@
+Using GPUs: [0]
+Using Anthropic API with model claude-3-5-sonnet-20241022.
+Using OpenAI API with deepseek-reasoner.
+
+Generating idea 1/4
+Iteration 1/7
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let me try to work through this. The user wants me to come up with a refined version of the prototype Orthogonal SAE idea that improves interpretability in sparse autoencoders, particularly targeting the benchmarks like core and sparse_probing. The key challenge is polysemanticity, and the prototype uses adaptive orthogonality with controlled feature sharing.
+
+Hmm, the prototype's adaptive orthogonality loss allows some feature sharing via the alpha parameter. But maybe the fixed alpha throughout training isn't optimal. What if the level of sharing needed varies during training? Like, early on you might want more sharing to capture basic features, then gradually reduce it to encourage separation. That could help in better disentangling features without sacrificing reconstruction.
+
+So, the idea is to make alpha dynamic, scheduling it from an initial value to a target. For example, start with higher alpha (more sharing) to learn basic features, then decay it to lower alpha (less sharing) to enforce orthogonality. This phased approach could balance reconstruction and feature separation better than a static alpha.
+
+Also, the prototype uses group-specific biases. But if groups are updated periodically based on feature correlations, maybe the biases should adapt too. However, adding group-specific biases might complicate the model. Maybe instead, just focus on the dynamic alpha and the grouping mechanism.
+
+Implementation-wise, the main changes would be modifying the orthogonality loss to include a scheduled alpha. The CustomSAE class would need to track the current alpha value, perhaps using a scheduler similar to the learning rate warmup. The orthogonality loss term would then be ||W_enc^T W_enc - alpha(t) I||_F^2, where alpha(t) decreases over time.
+
+In the training loop, alpha could start at a higher value (e.g., 0.5) and linearly decay to a lower target (e.g., 0.1) over the course of training. This way, early training encourages some feature co-activation to capture broader patterns, while later stages push for more orthogonality to reduce polysemanticity.
+
+For the experiments, comparing different alpha schedules (like linear decay vs. step decay) would show which approach better balances sparsity and interpretability. Evaluating on core metrics like L0 sparsity and cross-entropy loss would indicate if the dynamic approach maintains reconstruction quality while improving feature separation.
+
+Also, the feature grouping in the prototype is updated every n steps. To make this efficient, maybe compute correlations using a moving average or batch statistics without storing all activations. But since the code already has a buffer, perhaps during the resample steps, they can compute feature correlations and update groups.
+
+The implementation plan would involve adding a scheduler for alpha in the trainer, modifying the loss calculation to use the current alpha, and adjusting the group updates. The CustomTrainer's loss function would include the dynamic orthogonality term with the scheduled alpha.
+
+Testing this should involve runs with different alpha schedules and measuring metrics like explained variance, sparsity, and the feature density statistics. On the sparse_probing benchmark, improved monosemanticity should lead to better probing accuracy when ablating specific features.
+
+Potential issues: If alpha decays too quickly, the model might not learn enough shared features early on, hurting reconstruction. Tuning the schedule parameters (start alpha, end alpha, decay rate) would be crucial. Also, ensuring that the orthogonality term doesn't dominate the loss early, which could prevent effective learning.
+
+In terms of feasibility, adding a scheduler for alpha is straightforward. The orthogonality loss is already a Frobenius norm, so adjusting alpha over time doesn't add computational complexity. The group updates every n steps are manageable as they're already part of the resampling process in the existing code.
+
+Novelty comes from the dynamic control of feature sharing, which isn't present in the prototype's static alpha. This approach could better adapt to the training phases, leading to more effective feature separation without sacrificing reconstruction, which directly targets the core and sparse_probing benchmarks by enhancing interpretability.
+
+The expected research impact is high because better-controlled feature sharing should reduce polysemanticity, leading to higher scores on core metrics like explained variance and lower L0 sparsity. Sparse_probing would benefit from more distinct features, improving classification accuracy when specific latents are ablated.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The key insight is that strictly enforcing orthogonality too early in training may prevent the SAE from learning useful feature hierarchies, while complete non-orthogonality enables problematic feature absorption. The prototype's fixed α parameter for controlled sharing lacks adaptivity to training phases. My solution introduces phased orthogonality constraints - starting with loose similarity allowances for feature co-development, then gradually enforcing stricter orthogonality. This mimics curriculum learning where simpler feature relationships are learned first before complex disentanglement. By making the sharing parameter α time-dependent (α(t)), we enable dynamic feature collaboration without permanent entanglement. This should better prevent absorption while maintaining reconstruction quality compared to static approaches.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "phased_orthogonal_sae",
+    "Title": "Curriculum-Driven Orthogonalization for Gradual Feature Disentanglement in Sparse Autoencoders",
+    "Experiment": "1. Implement phased orthogonality loss with α(t) scheduling\n2. Add correlation-based feature grouping with momentum updates\n3. Train on Gemma-2B using WMDP-bio/WikiText\n4. Compare against baseline SAE and fixed-α orthogonal SAE\n5. Evaluate impact of different α(t) schedules (linear decay, step decay)\n6. Analyze feature activation trajectories during training phases",
+    "Technical_Details": "The loss function combines reconstruction (L2), sparsity (L1), and phased orthogonality: L = ||x-\u02c6x||^2 + \u03bb_1||f||_1 + \u03bb_2(t)||W_enc^T W_enc - \u03b1(t)I||_F^2. \u03b1(t) schedules feature sharing: starts at \u03b1_initial=0.5 (allowing collaboration), linearly decays to \u03b1_final=0.1 over training. Feature groups are updated via exponential moving average of batch correlation matrices. Decoder weights maintain fixed orthogonality through constrained optimization. Implementation uses efficient rank-k SVD approximations for correlation tracking.",
+    "Implementation_Plan": "1. Add AlphaScheduler with linear/step decay modes\n2. Modify CustomSAE to track W_enc correlations\n3. Implement moving average correlation updates in CustomTrainer\n4. Add phased orthogonality term to loss calculation\n5. Update feature grouping logic to use correlation EMA\n6. Add decoder orthogonality constraints via weight projection",
+    "Interestingness_Evaluation": "The curriculum approach to feature disentanglement provides a biologically plausible learning mechanism that could transfer to other interpretability methods.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Requires adding 2-3 helper classes (scheduler, correlation tracker) and modifying existing loss terms; all components use standard PyTorch operations; correlation tracking uses batched covariance matrices without storage overhead; total added code <200 lines.",
+    "Feasibility": 8,
+    "Novelty_Evaluation": "The phased orthogonality approach introduces temporal dynamics to feature separation that haven't been explored in SAE literature.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Targeting improved core metrics (higher explained variance, better L2 ratio) and sparse_probing performance through better feature separation. Phased constraints should reduce feature absorption while maintaining reconstruction quality.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.5,
+    "Abstract": "Sparse autoencoders face a fundamental tension between learning efficiency and interpretability - strict orthogonality constraints improve feature disentanglement but hinder reconstruction quality, while loose constraints permit problematic feature absorption. We propose a curriculum learning approach that dynamically adjusts orthogonality constraints during SAE training. Our method begins with allowed feature similarity to capture basic semantic building blocks, then gradually enforces stricter orthogonality to separate composite features. This phased orthogonalization is implemented through a scheduled similarity parameter \u03b1(t) in the orthogonality loss term, combined with momentum-based feature correlation tracking. By aligning the optimization landscape with natural feature hierarchies, our approach aims to produce more interpretable latent representations while maintaining reconstruction fidelity. Experiments focus on measuring polysemanticity reduction through established benchmarks while analyzing the temporal development of feature separability."
+}
+```
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The key insight is that strictly enforcing orthogonality too early in training may prevent the SAE from learning useful feature hierarchies, while complete non-orthogonality enables problematic feature absorption. The prototype's fixed α parameter for controlled sharing lacks adaptivity to training phases. My solution introduces phased orthogonality constraints - starting with loose similarity allowances for feature co-development, then gradually enforcing stricter orthogonality. This mimics curriculum learning where simpler feature relationships are learned first before complex disentanglement. By making the sharing parameter α time-dependent (α(t)), we enable dynamic feature collaboration without permanent entanglement. This should better prevent absorption while maintaining reconstruction quality compared to static approaches.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "phased_orthogonal_sae",
+    "Title": "Curriculum-Driven Orthogonalization for Gradual Feature Disentanglement in Sparse Autoencoders",
+    "Experiment": "1. Implement phased orthogonality loss with α(t) scheduling\n2. Add correlation-based feature grouping with momentum updates\n3. Train on Gemma-2B using WMDP-bio/WikiText\n4. Compare against baseline SAE and fixed-α orthogonal SAE\n5. Evaluate impact of different α(t) schedules (linear decay, step decay)\n6. Analyze feature activation trajectories during training phases",
+    "Technical_Details": "The loss function combines reconstruction (L2), sparsity (L1), and phased orthogonality: L = ||x-\u02c6x||^2 + \u03bb_1||f||_1 + \u03bb_2(t)||W_enc^T W_enc - \u03b1(t)I||_F^2. \u03b1(t) schedules feature sharing: starts at \u03b1_initial=0.5 (allowing collaboration), linearly decays to \u03b1_final=0.1 over training. Feature groups are updated via exponential moving average of batch correlation matrices. Decoder weights maintain fixed orthogonality through constrained optimization. Implementation uses efficient rank-k SVD approximations for correlation tracking.",
+    "Implementation_Plan": "1. Add AlphaScheduler with linear/step decay modes\n2. Modify CustomSAE to track W_enc correlations\n3. Implement moving average correlation updates in CustomTrainer\n4. Add phased orthogonality term to loss calculation\n5. Update feature grouping logic to use correlation EMA\n6. Add decoder orthogonality constraints via weight projection",
+    "Interestingness_Evaluation": "The curriculum approach to feature disentanglement provides a biologically plausible learning mechanism that could transfer to other interpretability methods.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Requires adding 2-3 helper classes (scheduler, correlation tracker) and modifying existing loss terms; all components use standard PyTorch operations; correlation tracking uses batched covariance matrices without storage overhead; total added code <200 lines.",
+    "Feasibility": 8,
+    "Novelty_Evaluation": "The phased orthogonality approach introduces temporal dynamics to feature separation that haven't been explored in SAE literature.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Targeting improved core metrics (higher explained variance, better L2 ratio) and sparse_probing performance through better feature separation. Phased constraints should reduce feature absorption while maintaining reconstruction quality.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.5,
+    "Abstract": "Sparse autoencoders face a fundamental tension between learning efficiency and interpretability - strict orthogonality constraints improve feature disentanglement but hinder reconstruction quality, while loose constraints permit problematic feature absorption. We propose a curriculum learning approach that dynamically adjusts orthogonality constraints during SAE training. Our method begins with allowed feature similarity to capture basic semantic building blocks, then gradually enforces stricter orthogonality to separate composite features. This phased orthogonalization is implemented through a scheduled similarity parameter \u03b1(t) in the orthogonality loss term, combined with momentum-based feature correlation tracking. By aligning the optimization landscape with natural feature hierarchies, our approach aims to produce more interpretable latent representations while maintaining reconstruction fidelity. Experiments focus on measuring polysemanticity reduction through established benchmarks while analyzing the temporal development of feature separability."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'phased_orthogonal_sae', 'Title': 'Curriculum-Driven Orthogonalization for Gradual Feature Disentanglement in Sparse Autoencoders', 'Experiment': '1. Implement phased orthogonality loss with α(t) scheduling\n2. Add correlation-based feature grouping with momentum updates\n3. Train on Gemma-2B using WMDP-bio/WikiText\n4. Compare against baseline SAE and fixed-α orthogonal SAE\n5. Evaluate impact of different α(t) schedules (linear decay, step decay)\n6. Analyze feature activation trajectories during training phases', 'Technical_Details': 'The loss function combines reconstruction (L2), sparsity (L1), and phased orthogonality: L = ||x-ˆx||^2 + λ_1||f||_1 + λ_2(t)||W_enc^T W_enc - α(t)I||_F^2. α(t) schedules feature sharing: starts at α_initial=0.5 (allowing collaboration), linearly decays to α_final=0.1 over training. Feature groups are updated via exponential moving average of batch correlation matrices. Decoder weights maintain fixed orthogonality through constrained optimization. Implementation uses efficient rank-k SVD approximations for correlation tracking.', 'Implementation_Plan': '1. Add AlphaScheduler with linear/step decay modes\n2. Modify CustomSAE to track W_enc correlations\n3. Implement moving average correlation updates in CustomTrainer\n4. Add phased orthogonality term to loss calculation\n5. Update feature grouping logic to use correlation EMA\n6. Add decoder orthogonality constraints via weight projection', 'Interestingness_Evaluation': 'The curriculum approach to feature disentanglement provides a biologically plausible learning mechanism that could transfer to other interpretability methods.', 'Interestingness': 9, 'Feasibility_Evaluation': 'Requires adding 2-3 helper classes (scheduler, correlation tracker) and modifying existing loss terms; all components use standard PyTorch operations; correlation tracking uses batched covariance matrices without storage overhead; total added code <200 lines.', 'Feasibility': 8, 'Novelty_Evaluation': "The phased orthogonality approach introduces temporal dynamics to feature separation that haven't been explored in SAE literature.", 'Novelty': 8, 'Expected_Research_Impact': 'Targeting improved core metrics (higher explained variance, better L2 ratio) and sparse_probing performance through better feature separation. Phased constraints should reduce feature absorption while maintaining reconstruction quality.', 'Research_Impact': 9, 'Overall_Score': 8.5, 'Abstract': 'Sparse autoencoders face a fundamental tension between learning efficiency and interpretability - strict orthogonality constraints improve feature disentanglement but hinder reconstruction quality, while loose constraints permit problematic feature absorption. We propose a curriculum learning approach that dynamically adjusts orthogonality constraints during SAE training. Our method begins with allowed feature similarity to capture basic semantic building blocks, then gradually enforces stricter orthogonality to separate composite features. This phased orthogonalization is implemented through a scheduled similarity parameter α(t) in the orthogonality loss term, combined with momentum-based feature correlation tracking. By aligning the optimization landscape with natural feature hierarchies, our approach aims to produce more interpretable latent representations while maintaining reconstruction fidelity. Experiments focus on measuring polysemanticity reduction through established benchmarks while analyzing the temporal development of feature separability.'}
+Iteration 2/7
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let's look at the previous idea. The phased orthogonal SAE with curriculum learning for feature disentanglement. The overall score was 8.5. The feasibility was 8, which is good but maybe can be improved.
+
+The main issue I see is the feasibility evaluation mentioned adding 2-3 helper classes and 200 lines of code. Maybe that's a bit too much for a junior PhD student to implement within a month. Also, the technical details included using SVD approximations for correlation tracking, which might be computationally expensive and add complexity.
+
+To improve feasibility, perhaps simplify the correlation tracking. Instead of using SVD, maybe use a simpler method like tracking pairwise cosine similarities with a moving average. That would reduce computational overhead and code complexity. Also, the phased orthogonality loss with α(t) could be implemented with a simple linear scheduler, avoiding more complex decay schedules initially.
+
+The novelty was 8, but maybe by focusing on a more straightforward implementation of the curriculum approach without advanced math, the novelty remains while improving feasibility. The core idea is still the phased orthogonality, just with simpler components.
+
+Research impact was 9, targeting core and sparse_probing. Keeping that focus is good. Implementation plan can be adjusted to remove the SVD part and use simpler correlation tracking. This would make the code changes minimal, perhaps just modifying the loss function and adding a scheduler for α(t).
+
+So, revising the Technical_Details to remove SVD and replace with cosine similarity tracking. Update the Implementation_Plan accordingly. This should increase feasibility without losing the core idea. Also, adjust the experiment steps to reflect simpler schedules and metrics.
+
+The abstract should still convey the curriculum approach but without mentioning complex math. The overall score might increase if feasibility goes up.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The revised idea maintains the core curriculum learning approach while simplifying implementation through cosine similarity tracking instead of SVD-based correlation matrices. By replacing complex covariance updates with per-feature pairwise similarity checks using moving averages, we reduce computational overhead and code complexity. This makes the implementation more feasible while preserving the key innovation of phased orthogonality. The simplified α(t) scheduling (linear decay only) maintains the curriculum effect without introducing multiple schedule types. These changes better align with the prototype's constraints while keeping the novel temporal dynamics intact.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "phased_orthogonal_sae_v2",
+    "Title": "Dynamic Feature Orthogonalization Through Curriculum Sparsity Constraints",
+    "Experiment": "1. Implement linear α(t) decay in orthogonality loss\n2. Add pairwise cosine similarity tracking with EMA\n3. Train on Gemma-2B using standard benchmarks\n4. Compare feature absorption rates against baseline SAE\n5. Evaluate reconstruction quality vs orthogonality trade-off\n6. Monitor feature activation coherence through training phases",
+    "Technical_Details": "Loss function combines standard SAE terms with phased orthogonality: L = ||x-x̂||² + λ₁||f||₁ + λ₂(t)||W_encᵀW_enc - α(t)I||²_F. α(t) = α_init - (α_init-α_final)*min(t/t_ramp,1) linearly transitions from 0.4→0.1 over first 50% training. Pairwise feature similarities tracked via EMA (β=0.99) of batch-wise cosine similarities. Decoder weights constrained via spectral normalization. Implementation uses efficient matrix ops without SVD, adding <100 lines to base code.",
+    "Implementation_Plan": "1. Add LinearAlphaScheduler class\n2. Modify CustomSAE to track cosine similarity EMA\n3. Update loss calculation with phased orthogonality term\n4. Implement spectral norm constraint on W_dec\n5. Add similarity visualization hooks\n6. Integrate α(t) monitoring into logging",
+    "Interestingness_Evaluation": "The dynamic balance between feature collaboration and competition provides new insights into interpretable representation learning.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Simplified similarity tracking uses basic linear algebra; spectral norm implemented via power iteration; total new code <150 lines; all components compatible with standard PyTorch optimizers; training time increase <5% per batch.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The linear phasing of orthogonality constraints combined with EMA similarity tracking offers a fresh approach to feature disentanglement.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Targets core metrics through better feature separation (improved L0 sparsity) and sparse_probing via reduced polysemanticity. Dynamic constraints should minimize absorption while preserving reconstruction.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.9,
+    "Abstract": "We present a sparse autoencoder variant that dynamically adjusts feature orthogonality constraints during training to balance reconstruction quality with interpretable feature separation. Our approach introduces a linearly decaying similarity allowance α(t) in the orthogonality loss term, enabling initial feature co-development followed by progressive disentanglement. Feature interactions are tracked through exponential moving averages of pairwise cosine similarities, providing adaptive feedback without computational overhead. Spectral normalization on decoder weights maintains stable learning dynamics while phased constraints align with natural feature hierarchy formation. This method aims to reduce polysemanticity through curriculum-based optimization while preserving the autoencoder's reconstruction capabilities, potentially offering improved interpretability across mechanistic analysis benchmarks."
+}
+```
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The revised idea maintains the core curriculum learning approach while simplifying implementation through cosine similarity tracking instead of SVD-based correlation matrices. By replacing complex covariance updates with per-feature pairwise similarity checks using moving averages, we reduce computational overhead and code complexity. This makes the implementation more feasible while preserving the key innovation of phased orthogonality. The simplified α(t) scheduling (linear decay only) maintains the curriculum effect without introducing multiple schedule types. These changes better align with the prototype's constraints while keeping the novel temporal dynamics intact.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "phased_orthogonal_sae_v2",
+    "Title": "Dynamic Feature Orthogonalization Through Curriculum Sparsity Constraints",
+    "Experiment": "1. Implement linear α(t) decay in orthogonality loss\n2. Add pairwise cosine similarity tracking with EMA\n3. Train on Gemma-2B using standard benchmarks\n4. Compare feature absorption rates against baseline SAE\n5. Evaluate reconstruction quality vs orthogonality trade-off\n6. Monitor feature activation coherence through training phases",
+    "Technical_Details": "Loss function combines standard SAE terms with phased orthogonality: L = ||x-x̂||² + λ₁||f||₁ + λ₂(t)||W_encᵀW_enc - α(t)I||²_F. α(t) = α_init - (α_init-α_final)*min(t/t_ramp,1) linearly transitions from 0.4→0.1 over first 50% training. Pairwise feature similarities tracked via EMA (β=0.99) of batch-wise cosine similarities. Decoder weights constrained via spectral normalization. Implementation uses efficient matrix ops without SVD, adding <100 lines to base code.",
+    "Implementation_Plan": "1. Add LinearAlphaScheduler class\n2. Modify CustomSAE to track cosine similarity EMA\n3. Update loss calculation with phased orthogonality term\n4. Implement spectral norm constraint on W_dec\n5. Add similarity visualization hooks\n6. Integrate α(t) monitoring into logging",
+    "Interestingness_Evaluation": "The dynamic balance between feature collaboration and competition provides new insights into interpretable representation learning.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Simplified similarity tracking uses basic linear algebra; spectral norm implemented via power iteration; total new code <150 lines; all components compatible with standard PyTorch optimizers; training time increase <5% per batch.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The linear phasing of orthogonality constraints combined with EMA similarity tracking offers a fresh approach to feature disentanglement.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Targets core metrics through better feature separation (improved L0 sparsity) and sparse_probing via reduced polysemanticity. Dynamic constraints should minimize absorption while preserving reconstruction.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.9,
+    "Abstract": "We present a sparse autoencoder variant that dynamically adjusts feature orthogonality constraints during training to balance reconstruction quality with interpretable feature separation. Our approach introduces a linearly decaying similarity allowance α(t) in the orthogonality loss term, enabling initial feature co-development followed by progressive disentanglement. Feature interactions are tracked through exponential moving averages of pairwise cosine similarities, providing adaptive feedback without computational overhead. Spectral normalization on decoder weights maintains stable learning dynamics while phased constraints align with natural feature hierarchy formation. This method aims to reduce polysemanticity through curriculum-based optimization while preserving the autoencoder's reconstruction capabilities, potentially offering improved interpretability across mechanistic analysis benchmarks."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'phased_orthogonal_sae_v2', 'Title': 'Dynamic Feature Orthogonalization Through Curriculum Sparsity Constraints', 'Experiment': '1. Implement linear α(t) decay in orthogonality loss\n2. Add pairwise cosine similarity tracking with EMA\n3. Train on Gemma-2B using standard benchmarks\n4. Compare feature absorption rates against baseline SAE\n5. Evaluate reconstruction quality vs orthogonality trade-off\n6. Monitor feature activation coherence through training phases', 'Technical_Details': 'Loss function combines standard SAE terms with phased orthogonality: L = ||x-x̂||² + λ₁||f||₁ + λ₂(t)||W_encᵀW_enc - α(t)I||²_F. α(t) = α_init - (α_init-α_final)*min(t/t_ramp,1) linearly transitions from 0.4→0.1 over first 50% training. Pairwise feature similarities tracked via EMA (β=0.99) of batch-wise cosine similarities. Decoder weights constrained via spectral normalization. Implementation uses efficient matrix ops without SVD, adding <100 lines to base code.', 'Implementation_Plan': '1. Add LinearAlphaScheduler class\n2. Modify CustomSAE to track cosine similarity EMA\n3. Update loss calculation with phased orthogonality term\n4. Implement spectral norm constraint on W_dec\n5. Add similarity visualization hooks\n6. Integrate α(t) monitoring into logging', 'Interestingness_Evaluation': 'The dynamic balance between feature collaboration and competition provides new insights into interpretable representation learning.', 'Interestingness': 9, 'Feasibility_Evaluation': 'Simplified similarity tracking uses basic linear algebra; spectral norm implemented via power iteration; total new code <150 lines; all components compatible with standard PyTorch optimizers; training time increase <5% per batch.', 'Feasibility': 9, 'Novelty_Evaluation': 'The linear phasing of orthogonality constraints combined with EMA similarity tracking offers a fresh approach to feature disentanglement.', 'Novelty': 8, 'Expected_Research_Impact': 'Targets core metrics through better feature separation (improved L0 sparsity) and sparse_probing via reduced polysemanticity. Dynamic constraints should minimize absorption while preserving reconstruction.', 'Research_Impact': 9, 'Overall_Score': 8.9, 'Abstract': "We present a sparse autoencoder variant that dynamically adjusts feature orthogonality constraints during training to balance reconstruction quality with interpretable feature separation. Our approach introduces a linearly decaying similarity allowance α(t) in the orthogonality loss term, enabling initial feature co-development followed by progressive disentanglement. Feature interactions are tracked through exponential moving averages of pairwise cosine similarities, providing adaptive feedback without computational overhead. Spectral normalization on decoder weights maintains stable learning dynamics while phased constraints align with natural feature hierarchy formation. This method aims to reduce polysemanticity through curriculum-based optimization while preserving the autoencoder's reconstruction capabilities, potentially offering improved interpretability across mechanistic analysis benchmarks."}
+Iteration 3/7
+Failed to generate idea: Expecting value: line 1 column 1 (char 0)
+
+Generating idea 2/4
+Iteration 1/7
+Failed to generate idea: Expecting value: line 1 column 1 (char 0)
+
+Generating idea 3/4
+Iteration 1/7
+Failed to generate idea: Expecting value: line 1 column 1 (char 0)
+
+Generating idea 4/4
+Iteration 1/7
+Failed to generate idea: Expecting value: line 1 column 1 (char 0)
+Skipping seed idea 0
+Skipping seed idea 1
+Skipping seed idea 2
+Skipping seed idea 3
+Skipping seed idea 4
+Skipping seed idea 5
+Skipping seed idea 6
+Skipping seed idea 7
+saved
+[]
+All ideas evaluated.

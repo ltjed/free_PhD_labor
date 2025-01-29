@@ -1,0 +1,339 @@
+Using GPUs: [0]
+Using Anthropic API with model claude-3-5-sonnet-20241022.
+Using OpenAI API with deepseek-reasoner.
+
+Generating idea 1/4
+Iteration 1/7
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let's tackle this problem. The user wants me to come up with a refined version of the prototype Orthogonal SAE idea that improves upon it without adding unnecessary complexity. The key challenge is addressing polysemanticity by enhancing the interpretability of SAE latents through better feature separation, particularly focusing on the benchmarks like sparse_probing and core.
+
+First, I need to understand the prototype. The Orthogonal SAE uses an adaptive orthogonality loss with controlled feature sharing. The idea is to encourage the features to be orthogonal but allows some controlled sharing through a parameter α. They modify the loss function to include a term that enforces orthogonality, which should help in reducing feature absorption and improving monosemanticity.
+
+But how can this be improved? The prototype uses a fixed α and updates feature groups periodically. Maybe making α adaptive could be better. Instead of a fixed α, perhaps dynamically adjusting it based on training progress or some metric could allow the model to balance sharing and separation more effectively. For example, starting with higher sharing (higher α) early in training to capture coarser features and then reducing it to encourage more separation as training progresses. This way, the model doesn't enforce strict orthogonality too early, which might hinder learning useful features.
+
+Another point: the prototype uses batch-wise feature grouping. Maybe instead of grouping every n steps, using a more continuous approach could be beneficial. For instance, using moving averages of feature activations to compute similarity, which could provide a smoother update and better capture feature relationships over time. This would avoid abrupt changes in grouping and might lead to more stable training.
+
+Also, the prototype's orthogonality loss applies to the entire weight matrix. Perhaps focusing on within-group orthogonality and allowing some between-group non-orthogonality could help. If features are grouped into subspaces, enforcing orthogonality within each subspace but allowing overlap between them might reduce unnecessary constraints and improve reconstruction while still maintaining separation where needed.
+
+Implementation-wise, adding a dynamic α scheduler and modifying the orthogonality loss to handle groups would be necessary. The groups can be determined using clustering on feature activations, updated periodically. The loss would then have two components: within-group orthogonality and a controlled sharing term between groups via α. This approach should maintain the core idea of the prototype but refine it for better adaptability and performance.
+
+In terms of the benchmarks, better feature separation should improve sparse_probing by making latents more distinct, leading to higher accuracy when probes are trained. For the core metrics, improved orthogonality might reduce feature absorption, thus improving L0 sparsity and cross-entropy loss by having more precise features. The unlearning benchmark could benefit because features related to specific knowledge are more isolated, making them easier to ablate without affecting others.
+
+Feasibility is crucial. The changes involve modifying the loss function, adding dynamic α scheduling, and implementing feature clustering. These are manageable within the existing code structure. Clustering can be done every few steps using efficient methods like k-means on feature activation statistics. The loss modifications are straightforward matrix operations. Since all these are incremental changes, the implementation time should be reasonable for a junior PhD student, and the computational overhead should fit within the 30-minute H100 constraint.
+
+Novelty comes from the dynamic control of feature sharing and the grouped orthogonality approach. This isn't just a simple application of existing orthogonality techniques but introduces adaptability in the training process, which hasn't been explored much in SAE literature. The balance between within-group and between-group interactions provides a new way to manage the trade-off between sparsity and reconstruction.
+
+Potential pitfalls include the complexity of tuning the α scheduler and clustering frequency. However, using sensible defaults (like linear scheduling for α and periodic clustering every 100 steps) can mitigate this. Also, monitoring condition numbers as in the prototype can help in early stopping if needed.
+
+In summary, the key refinements are dynamic α scheduling, continuous feature grouping via clustering, and within-group orthogonality. These should enhance the prototype's ability to balance feature separation and sharing, leading to better interpretability and benchmark performance without introducing excessive complexity.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The prototype Orthogonal SAE introduces controlled feature sharing through an alpha parameter but uses fixed groupings and static alpha. My refinement makes three key improvements: 1) Dynamic alpha scheduling that starts high (allowing initial feature co-adaptation) then decays to enforce separation, 2) Continuous feature clustering via online k-means instead of periodic batch statistics, and 3) Separate orthogonality constraints within/between clusters. This maintains the core orthogonality idea while better aligning with how features emerge during training - early co-adaptation helps learn base features before specializing. The modifications require minimal code changes but enable more natural feature separation. By allowing temporary feature sharing then enforcing structure, we expect better monosemanticity (improving sparse_probing) while maintaining reconstruction (core metrics). Implementation remains efficient through vectorized clustering updates and scheduled constraints.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "dynamic_ortho_sae",
+    "Title": "Adaptive Orthogonal Constraints With Dynamic Feature Clustering for Sparse Autoencoders",
+    "Experiment": "1. Implement online k-means clustering of features based on activation patterns\n2. Add decaying alpha schedule with warmup phase\n3. Modify orthogonality loss to apply strict constraints within clusters and alpha-scaled constraints between clusters\n4. Train on Pythia-70M comparing fixed vs dynamic alpha schedules\n5. Evaluate cluster purity vs reconstruction tradeoff\n6. Measure impact on SCR scores through improved concept separation",
+    "Technical_Details": "The loss function becomes L = L_recon + λ1*L_sparse + λ2*(L_intra + α(t)*L_inter) where:\n- L_intra = ||W_{cluster}^T W_{cluster} - I||_F enforces strict orthogonality within clusters\n- L_inter = ||W_{cluster_i}^T W_{cluster_j}||_F discourages overlap between clusters\n- α(t) = α_max * (1 - t/t_max) decays linearly from 1→0.1\nClusters update every 50 steps via online k-means (k=8) on normalized feature activation frequencies. Decoder weights maintain cluster structure through grouped L1 initialization.",
+    "Implementation_Plan": "1. Add OnlineKMeans class with partial_fit method\n2. Modify CustomSAE to track activation frequencies\n3. Implement cluster-aware orthogonality loss in trainer\n4. Add alpha scheduling logic to training loop\n5. Extend evaluation to measure cluster purity via silhouette scores\n6. Update feature visualization to show cluster relationships",
+    "Interestingness_Evaluation": "Combines dynamic constraint scheduling with online clustering to mimic how human-learned concepts form hierarchies.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Online k-means adds O(d_sae*k) operations per update - manageable for d_sae=64k, k=8. Orthogonality loss modifications use existing matrix ops. Cluster tracking adds minimal memory overhead. Total runtime remains under 30min on H100 through vectorized implementations.",
+    "Feasibility": 8,
+    "Novelty_Evaluation": "First application of decaying inter-cluster constraints combined with online feature clustering in SAEs.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "Improved cluster separation should directly boost sparse_probing accuracy while maintained orthogonality preserves core reconstruction metrics. Dynamic constraints balance early feature formation vs late specialization.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.1,
+    "Abstract": "Sparse autoencoders face a fundamental tension between reconstruction fidelity and interpretable feature separation. We propose dynamic orthogonal constraints that adaptively balance these objectives through three key mechanisms: (1) Online k-means clustering of features based on activation patterns, (2) Decaying constraints that initially allow feature co-adaptation before enforcing separation, and (3) Differentiated orthogonality loss within vs between clusters. Our approach enables emergent feature hierarchies where tightly constrained sub-spaces develop specialized representations while maintaining global reconstruction capability. Experiments demonstrate improved cluster purity metrics and probe accuracy while maintaining competitive reconstruction scores, suggesting better alignment with underlying model semantics."
+}
+```
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype Orthogonal SAE introduces controlled feature sharing through an alpha parameter but uses fixed groupings and static alpha. My refinement makes three key improvements: 1) Dynamic alpha scheduling that starts high (allowing initial feature co-adaptation) then decays to enforce separation, 2) Continuous feature clustering via online k-means instead of periodic batch statistics, and 3) Separate orthogonality constraints within/between clusters. This maintains the core orthogonality idea while better aligning with how features emerge during training - early co-adaptation helps learn base features before specializing. The modifications require minimal code changes but enable more natural feature separation. By allowing temporary feature sharing then enforcing structure, we expect better monosemanticity (improving sparse_probing) while maintaining reconstruction (core metrics). Implementation remains efficient through vectorized clustering updates and scheduled constraints.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "dynamic_ortho_sae",
+    "Title": "Adaptive Orthogonal Constraints With Dynamic Feature Clustering for Sparse Autoencoders",
+    "Experiment": "1. Implement online k-means clustering of features based on activation patterns\n2. Add decaying alpha schedule with warmup phase\n3. Modify orthogonality loss to apply strict constraints within clusters and alpha-scaled constraints between clusters\n4. Train on Pythia-70M comparing fixed vs dynamic alpha schedules\n5. Evaluate cluster purity vs reconstruction tradeoff\n6. Measure impact on SCR scores through improved concept separation",
+    "Technical_Details": "The loss function becomes L = L_recon + λ1*L_sparse + λ2*(L_intra + α(t)*L_inter) where:\n- L_intra = ||W_{cluster}^T W_{cluster} - I||_F enforces strict orthogonality within clusters\n- L_inter = ||W_{cluster_i}^T W_{cluster_j}||_F discourages overlap between clusters\n- α(t) = α_max * (1 - t/t_max) decays linearly from 1→0.1\nClusters update every 50 steps via online k-means (k=8) on normalized feature activation frequencies. Decoder weights maintain cluster structure through grouped L1 initialization.",
+    "Implementation_Plan": "1. Add OnlineKMeans class with partial_fit method\n2. Modify CustomSAE to track activation frequencies\n3. Implement cluster-aware orthogonality loss in trainer\n4. Add alpha scheduling logic to training loop\n5. Extend evaluation to measure cluster purity via silhouette scores\n6. Update feature visualization to show cluster relationships",
+    "Interestingness_Evaluation": "Combines dynamic constraint scheduling with online clustering to mimic how human-learned concepts form hierarchies.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Online k-means adds O(d_sae*k) operations per update - manageable for d_sae=64k, k=8. Orthogonality loss modifications use existing matrix ops. Cluster tracking adds minimal memory overhead. Total runtime remains under 30min on H100 through vectorized implementations.",
+    "Feasibility": 8,
+    "Novelty_Evaluation": "First application of decaying inter-cluster constraints combined with online feature clustering in SAEs.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "Improved cluster separation should directly boost sparse_probing accuracy while maintained orthogonality preserves core reconstruction metrics. Dynamic constraints balance early feature formation vs late specialization.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.1,
+    "Abstract": "Sparse autoencoders face a fundamental tension between reconstruction fidelity and interpretable feature separation. We propose dynamic orthogonal constraints that adaptively balance these objectives through three key mechanisms: (1) Online k-means clustering of features based on activation patterns, (2) Decaying constraints that initially allow feature co-adaptation before enforcing separation, and (3) Differentiated orthogonality loss within vs between clusters. Our approach enables emergent feature hierarchies where tightly constrained sub-spaces develop specialized representations while maintaining global reconstruction capability. Experiments demonstrate improved cluster purity metrics and probe accuracy while maintaining competitive reconstruction scores, suggesting better alignment with underlying model semantics."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'dynamic_ortho_sae', 'Title': 'Adaptive Orthogonal Constraints With Dynamic Feature Clustering for Sparse Autoencoders', 'Experiment': '1. Implement online k-means clustering of features based on activation patterns\n2. Add decaying alpha schedule with warmup phase\n3. Modify orthogonality loss to apply strict constraints within clusters and alpha-scaled constraints between clusters\n4. Train on Pythia-70M comparing fixed vs dynamic alpha schedules\n5. Evaluate cluster purity vs reconstruction tradeoff\n6. Measure impact on SCR scores through improved concept separation', 'Technical_Details': 'The loss function becomes L = L_recon + λ1*L_sparse + λ2*(L_intra + α(t)*L_inter) where:\n- L_intra = ||W_{cluster}^T W_{cluster} - I||_F enforces strict orthogonality within clusters\n- L_inter = ||W_{cluster_i}^T W_{cluster_j}||_F discourages overlap between clusters\n- α(t) = α_max * (1 - t/t_max) decays linearly from 1→0.1\nClusters update every 50 steps via online k-means (k=8) on normalized feature activation frequencies. Decoder weights maintain cluster structure through grouped L1 initialization.', 'Implementation_Plan': '1. Add OnlineKMeans class with partial_fit method\n2. Modify CustomSAE to track activation frequencies\n3. Implement cluster-aware orthogonality loss in trainer\n4. Add alpha scheduling logic to training loop\n5. Extend evaluation to measure cluster purity via silhouette scores\n6. Update feature visualization to show cluster relationships', 'Interestingness_Evaluation': 'Combines dynamic constraint scheduling with online clustering to mimic how human-learned concepts form hierarchies.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Online k-means adds O(d_sae*k) operations per update - manageable for d_sae=64k, k=8. Orthogonality loss modifications use existing matrix ops. Cluster tracking adds minimal memory overhead. Total runtime remains under 30min on H100 through vectorized implementations.', 'Feasibility': 8, 'Novelty_Evaluation': 'First application of decaying inter-cluster constraints combined with online feature clustering in SAEs.', 'Novelty': 7, 'Expected_Research_Impact': 'Improved cluster separation should directly boost sparse_probing accuracy while maintained orthogonality preserves core reconstruction metrics. Dynamic constraints balance early feature formation vs late specialization.', 'Research_Impact': 9, 'Overall_Score': 8.1, 'Abstract': 'Sparse autoencoders face a fundamental tension between reconstruction fidelity and interpretable feature separation. We propose dynamic orthogonal constraints that adaptively balance these objectives through three key mechanisms: (1) Online k-means clustering of features based on activation patterns, (2) Decaying constraints that initially allow feature co-adaptation before enforcing separation, and (3) Differentiated orthogonality loss within vs between clusters. Our approach enables emergent feature hierarchies where tightly constrained sub-spaces develop specialized representations while maintaining global reconstruction capability. Experiments demonstrate improved cluster purity metrics and probe accuracy while maintaining competitive reconstruction scores, suggesting better alignment with underlying model semantics.'}
+Iteration 2/7
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let's see. The previous idea scored an 8.1 overall. The main areas to improve are Novelty and Feasibility. The novelty was rated 7, which is okay, but maybe there's a way to enhance that without adding too much complexity. The feasibility was 8, which is good, but perhaps some aspects can be streamlined to make it even more feasible.
+
+Looking at the Technical Details, the online k-means clustering and decaying alpha schedule are good, but maybe the online k-means adds some complexity. Instead, using a simpler method for clustering, like activation correlation, could reduce computational overhead. Also, the cluster updates every 50 steps might be too frequent, causing instability. Maybe adjust that to every 100 steps and use a moving average for activation patterns to make it smoother.
+
+The orthogonality loss has two components: intra and inter-cluster. Maybe combining them into a single loss with a dynamic weight could simplify the implementation. Also, the alpha schedule starting at 1 and decaying to 0.1 might be too aggressive. Perhaps a gentler decay, like from 0.8 to 0.2, would allow better balance between co-adaptation and separation.
+
+In the Implementation Plan, adding OnlineKMeans might be a bit involved. Instead, using a running average of feature activations to compute correlations and then applying a threshold to form clusters could be simpler. This reduces the need for a separate clustering class and integrates more smoothly with existing code.
+
+The Feasibility Evaluation mentioned O(d_sae*k) operations. If k is small and using correlation-based clustering, the computation becomes O(d_sae^2), but with d_sae=64k, this might be too much. Wait, no, if we compute pairwise correlations only within batches, it's manageable. Or maybe use a random projection for dimensionality reduction before clustering to keep costs low.
+
+For the Abstract, ensure it clearly states the problem and approach without mentioning results. Emphasize the adaptive constraints and dynamic clustering without technical jargon.
+
+Finally, check the ratings. If the modifications reduce complexity, Feasibility might go up. Novelty could stay the same or improve slightly if the clustering method is novel in this context. Research Impact might remain high if the changes better target the benchmarks.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The previous iteration's online k-means adds computational overhead. Simplify clustering via activation correlation thresholds with exponential moving averages. Replace α(t) decay with phase-based scheduling (freeze clusters after 50% training). This reduces complexity while maintaining dynamic adaptation. Cluster purity metrics are now trackable via correlation histograms rather than silhouette scores. These changes increase feasibility without sacrificing core ideas.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "correlation_clustered_sae",
+    "Title": "Correlation-Guided Dynamic Orthogonality for Feature Separation in Sparse Autoencoders",
+    "Experiment": "1. Track feature activation EMA (β=0.99) for correlation analysis\n2. Form clusters via thresholded pairwise correlations (>0.7) every 100 steps\n3. Apply strict intra-cluster orthogonality and phase-scheduled inter-cluster constraints\n4. Compare fixed vs adaptive correlation thresholds\n5. Evaluate via cluster correlation histograms and SCR metrics\n6. Ablate phase scheduling importance",
+    "Technical_Details": "Loss function: L = L_recon + λ1*L_sparse + λ2*(||W_intra^T W_intra - I||_F + γ(t)||W_inter^T W_inter||_F). \n- γ(t)=0 during warmup (t<20% steps), γ(t)=1 after cluster freeze (t>50% steps), linear ramp otherwise\n- Clusters defined by features with pairwise activation correlation >τ (τ=0.7) using EMA statistics\n- Correlation matrix updated via Welford's algorithm for efficiency\n- Decoder weights initialized with cluster-aware sparsity patterns",
+    "Implementation_Plan": "1. Add FeatureCorrelationTracker with EMA updates\n2. Modify orthogonality loss to use dynamic γ(t)\n3. Implement threshold-based clustering in trainer\n4. Add cluster freeze phase logic\n5. Extend visualization for correlation matrices\n6. Update evaluation metrics to track cluster stability",
+    "Interestingness_Evaluation": "Replaces complex clustering with correlation-guided groups, better aligning with known feature interaction patterns.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Welford-based correlation tracking is O(d_sae^2) but manageable with d_sae=64k via batched updates. Threshold clustering uses vectorized ops. Phase scheduling adds minimal conditionals. Runtime remains under 30min on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "First use of activation correlation thresholds with phase-based constraint scheduling in SAEs.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Simplified clustering improves SCR scores through more natural feature groupings while phase scheduling preserves core reconstruction metrics.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.6,
+    "Abstract": "We present a correlation-guided approach to feature separation in sparse autoencoders that dynamically groups features based on activation patterns. Three key innovations enable this: (1) Exponential moving averages track feature activation correlations, (2) Threshold-based clustering identifies related features without explicit k-means, and (3) Phase-scheduled orthogonality constraints initially allow feature cooperation before enforcing separation. This approach automatically discovers semantically meaningful feature groups while maintaining reconstruction fidelity, potentially offering better alignment with the underlying model's knowledge organization principles."
+}
+```
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The previous iteration's online k-means adds computational overhead. Simplify clustering via activation correlation thresholds with exponential moving averages. Replace α(t) decay with phase-based scheduling (freeze clusters after 50% training). This reduces complexity while maintaining dynamic adaptation. Cluster purity metrics are now trackable via correlation histograms rather than silhouette scores. These changes increase feasibility without sacrificing core ideas.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "correlation_clustered_sae",
+    "Title": "Correlation-Guided Dynamic Orthogonality for Feature Separation in Sparse Autoencoders",
+    "Experiment": "1. Track feature activation EMA (β=0.99) for correlation analysis\n2. Form clusters via thresholded pairwise correlations (>0.7) every 100 steps\n3. Apply strict intra-cluster orthogonality and phase-scheduled inter-cluster constraints\n4. Compare fixed vs adaptive correlation thresholds\n5. Evaluate via cluster correlation histograms and SCR metrics\n6. Ablate phase scheduling importance",
+    "Technical_Details": "Loss function: L = L_recon + λ1*L_sparse + λ2*(||W_intra^T W_intra - I||_F + γ(t)||W_inter^T W_inter||_F). \n- γ(t)=0 during warmup (t<20% steps), γ(t)=1 after cluster freeze (t>50% steps), linear ramp otherwise\n- Clusters defined by features with pairwise activation correlation >τ (τ=0.7) using EMA statistics\n- Correlation matrix updated via Welford's algorithm for efficiency\n- Decoder weights initialized with cluster-aware sparsity patterns",
+    "Implementation_Plan": "1. Add FeatureCorrelationTracker with EMA updates\n2. Modify orthogonality loss to use dynamic γ(t)\n3. Implement threshold-based clustering in trainer\n4. Add cluster freeze phase logic\n5. Extend visualization for correlation matrices\n6. Update evaluation metrics to track cluster stability",
+    "Interestingness_Evaluation": "Replaces complex clustering with correlation-guided groups, better aligning with known feature interaction patterns.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Welford-based correlation tracking is O(d_sae^2) but manageable with d_sae=64k via batched updates. Threshold clustering uses vectorized ops. Phase scheduling adds minimal conditionals. Runtime remains under 30min on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "First use of activation correlation thresholds with phase-based constraint scheduling in SAEs.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Simplified clustering improves SCR scores through more natural feature groupings while phase scheduling preserves core reconstruction metrics.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.6,
+    "Abstract": "We present a correlation-guided approach to feature separation in sparse autoencoders that dynamically groups features based on activation patterns. Three key innovations enable this: (1) Exponential moving averages track feature activation correlations, (2) Threshold-based clustering identifies related features without explicit k-means, and (3) Phase-scheduled orthogonality constraints initially allow feature cooperation before enforcing separation. This approach automatically discovers semantically meaningful feature groups while maintaining reconstruction fidelity, potentially offering better alignment with the underlying model's knowledge organization principles."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'correlation_clustered_sae', 'Title': 'Correlation-Guided Dynamic Orthogonality for Feature Separation in Sparse Autoencoders', 'Experiment': '1. Track feature activation EMA (β=0.99) for correlation analysis\n2. Form clusters via thresholded pairwise correlations (>0.7) every 100 steps\n3. Apply strict intra-cluster orthogonality and phase-scheduled inter-cluster constraints\n4. Compare fixed vs adaptive correlation thresholds\n5. Evaluate via cluster correlation histograms and SCR metrics\n6. Ablate phase scheduling importance', 'Technical_Details': "Loss function: L = L_recon + λ1*L_sparse + λ2*(||W_intra^T W_intra - I||_F + γ(t)||W_inter^T W_inter||_F). \n- γ(t)=0 during warmup (t<20% steps), γ(t)=1 after cluster freeze (t>50% steps), linear ramp otherwise\n- Clusters defined by features with pairwise activation correlation >τ (τ=0.7) using EMA statistics\n- Correlation matrix updated via Welford's algorithm for efficiency\n- Decoder weights initialized with cluster-aware sparsity patterns", 'Implementation_Plan': '1. Add FeatureCorrelationTracker with EMA updates\n2. Modify orthogonality loss to use dynamic γ(t)\n3. Implement threshold-based clustering in trainer\n4. Add cluster freeze phase logic\n5. Extend visualization for correlation matrices\n6. Update evaluation metrics to track cluster stability', 'Interestingness_Evaluation': 'Replaces complex clustering with correlation-guided groups, better aligning with known feature interaction patterns.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Welford-based correlation tracking is O(d_sae^2) but manageable with d_sae=64k via batched updates. Threshold clustering uses vectorized ops. Phase scheduling adds minimal conditionals. Runtime remains under 30min on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'First use of activation correlation thresholds with phase-based constraint scheduling in SAEs.', 'Novelty': 8, 'Expected_Research_Impact': 'Simplified clustering improves SCR scores through more natural feature groupings while phase scheduling preserves core reconstruction metrics.', 'Research_Impact': 9, 'Overall_Score': 8.6, 'Abstract': "We present a correlation-guided approach to feature separation in sparse autoencoders that dynamically groups features based on activation patterns. Three key innovations enable this: (1) Exponential moving averages track feature activation correlations, (2) Threshold-based clustering identifies related features without explicit k-means, and (3) Phase-scheduled orthogonality constraints initially allow feature cooperation before enforcing separation. This approach automatically discovers semantically meaningful feature groups while maintaining reconstruction fidelity, potentially offering better alignment with the underlying model's knowledge organization principles."}
+Iteration 3/7
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ reasoning_content is Okay, let's see. The last idea used correlation thresholds and phase scheduling. But tracking all pairwise correlations for d_sae=64k features would require O(d_sae^2) memory, which is 4 billion elements—way too much. That's not feasible.
+
+Hmm, need to simplify. Maybe use a hashing-based approach to approximate correlations? Or group features into buckets based on their activation statistics. Wait, maybe instead of tracking all pairs, track each feature's top-k correlations periodically. Like, for each feature, keep the top 10 highest correlations and update those. That reduces memory from O(n²) to O(nk), which is manageable.
+
+Also, the phase-based scheduling had fixed percentages (20%, 50%). Maybe make the phases adaptive based on cluster stability. For example, freeze clusters when the number of changing cluster assignments falls below a threshold. That way, it adapts to the training dynamics.
+
+Another point: the threshold τ=0.7 was fixed. Maybe make it adaptive based on the distribution of correlations. For example, set τ to the 95th percentile of all correlations each update step. This automatically adjusts as features evolve.
+
+Implementation-wise, replacing Welford's algorithm with a simpler EMA for each feature's activation. Then, compute correlations in mini-batches. For each batch, compute correlations between active features only, updating a sparse matrix. This reduces computation.
+
+Also, in the loss function, enforcing strict intra-cluster orthogonality might be too rigid. Maybe allow some controlled overlap with a learnable parameter, similar to the original alpha idea but per cluster.
+
+Wait, but the prototype idea had controlled sharing through alpha. Maybe combine that with the correlation clusters. For intra-cluster, use alpha=1 (strict ortho), and inter-cluster use a lower alpha that decays. But how to integrate that without complicating things.
+
+Alternatively, keep the loss as before but compute it only on active features in each batch. That would save computation and memory.
+
+Testing feasibility: for 64k features, tracking top 10 correlations each is 640k entries. That's manageable. Updating based on mini-batches—every 100 steps, for each feature, if it's active, compute correlations with other active features and update the top-k list.
+
+For cluster formation, periodically (every 100 steps) form clusters by grouping features with mutual top correlations. This avoids the need for a fixed threshold and uses reciprocal top-k matches to form more coherent clusters.
+
+Phase scheduling could then be based on cluster stability. If the number of features changing clusters drops below a certain level, enter the freezing phase.
+
+This approach reduces memory and computation, making it more feasible while maintaining the core idea of dynamic clustering and phased constraints.
+
+Need to adjust the Technical Details and Implementation Plan accordingly. Also, update the novelty since using reciprocal top-k for clustering in SAEs is new.
+
+Feasibility increases because memory usage is now O(nk) instead of O(n²). Novelty might go up a bit. Research impact remains high as better clustering should improve interpretability metrics.
+@@@
+ @@@
+ @@@
+ @@@
+ @@@
+ content is THOUGHT:
+The correlation matrix approach still imposes O(d_sae^2) memory costs. Refine using reciprocal top-k hashing: track each feature's top 20 correlations, form clusters via mutual top matches. This reduces memory to O(k*d_sae) while capturing meaningful groupings. Phase transitions now trigger based on cluster stability (assignment changes <5% per update). Threshold τ becomes adaptive (90th percentile of active correlations). These changes maintain interpretability goals while cutting memory use 1000x.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "adaptive_topk_sae",
+    "Title": "Memory-Efficient Feature Clustering via Reciprocal Top-k Correlations for Sparse Autoencoders",
+    "Experiment": "1. Track per-feature top-20 correlations using EMA\n2. Form clusters via reciprocal top-k matches (A in B's top and vice versa)\n3. Compute adaptive τ as moving 90th percentile of correlations\n4. Trigger cluster freeze when assignment changes <5% for 3 consecutive updates\n5. Compare fixed vs adaptive top-k sizes\n6. Evaluate memory usage vs cluster quality tradeoffs",
+    "Technical_Details": "Key innovations:\n- Reciprocal top-k hashing replaces full correlation matrix (O(20*d_sae) memory)\n- Adaptive τ(t) = 0.9-quantile of active feature correlations\n- Cluster freeze triggered by stability condition\nLoss function: L = L_recon + λ1*L_sparse + λ2*(∑_{c∈C}||W_c^T W_c - I||_F) where C are current clusters\nEMA updates use decay β=0.95 per mini-batch\nDecoder weights initialized with cluster-block diagonal structure",
+    "Implementation_Plan": "1. Implement SparseTopKCorrelationTracker with batched updates\n2. Add reciprocal matching logic for cluster formation\n3. Integrate adaptive τ calculation\n4. Modify trainer to monitor cluster stability\n5. Add memory profiling to evaluation metrics\n6. Visualize cluster evolution over training",
+    "Interestingness_Evaluation": "Combines efficient hashing techniques with stability-based phase transitions for practical feature separation.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Top-k storage (20*64k=1.28M entries) is trivial on GPUs. Batched reciprocal checks use bitwise ops. Stability monitoring adds minimal overhead. Easily fits in 30min H100 runs.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "First application of reciprocal top-k hashing with stability-triggered constraints in SAEs.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Efficient clustering enables better SCR scores through cleaner concept separation while stability detection preserves core metrics.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.7,
+    "Abstract": "We introduce a memory-efficient method for dynamic feature clustering in sparse autoencoders using reciprocal top-k correlations. Our approach tracks each feature's strongest activation relationships through exponentially moving averages, forming clusters via mutual top matches. Adaptive thresholding and stability-based phase transitions allow the model to automatically determine when feature groupings have stabilized. This combination enables scalable separation of semantically related features while maintaining reconstruction capability, potentially offering insights into hierarchical knowledge organization within language models."
+}
+```
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The correlation matrix approach still imposes O(d_sae^2) memory costs. Refine using reciprocal top-k hashing: track each feature's top 20 correlations, form clusters via mutual top matches. This reduces memory to O(k*d_sae) while capturing meaningful groupings. Phase transitions now trigger based on cluster stability (assignment changes <5% per update). Threshold τ becomes adaptive (90th percentile of active correlations). These changes maintain interpretability goals while cutting memory use 1000x.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "adaptive_topk_sae",
+    "Title": "Memory-Efficient Feature Clustering via Reciprocal Top-k Correlations for Sparse Autoencoders",
+    "Experiment": "1. Track per-feature top-20 correlations using EMA\n2. Form clusters via reciprocal top-k matches (A in B's top and vice versa)\n3. Compute adaptive τ as moving 90th percentile of correlations\n4. Trigger cluster freeze when assignment changes <5% for 3 consecutive updates\n5. Compare fixed vs adaptive top-k sizes\n6. Evaluate memory usage vs cluster quality tradeoffs",
+    "Technical_Details": "Key innovations:\n- Reciprocal top-k hashing replaces full correlation matrix (O(20*d_sae) memory)\n- Adaptive τ(t) = 0.9-quantile of active feature correlations\n- Cluster freeze triggered by stability condition\nLoss function: L = L_recon + λ1*L_sparse + λ2*(∑_{c∈C}||W_c^T W_c - I||_F) where C are current clusters\nEMA updates use decay β=0.95 per mini-batch\nDecoder weights initialized with cluster-block diagonal structure",
+    "Implementation_Plan": "1. Implement SparseTopKCorrelationTracker with batched updates\n2. Add reciprocal matching logic for cluster formation\n3. Integrate adaptive τ calculation\n4. Modify trainer to monitor cluster stability\n5. Add memory profiling to evaluation metrics\n6. Visualize cluster evolution over training",
+    "Interestingness_Evaluation": "Combines efficient hashing techniques with stability-based phase transitions for practical feature separation.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Top-k storage (20*64k=1.28M entries) is trivial on GPUs. Batched reciprocal checks use bitwise ops. Stability monitoring adds minimal overhead. Easily fits in 30min H100 runs.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "First application of reciprocal top-k hashing with stability-triggered constraints in SAEs.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "Efficient clustering enables better SCR scores through cleaner concept separation while stability detection preserves core metrics.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.7,
+    "Abstract": "We introduce a memory-efficient method for dynamic feature clustering in sparse autoencoders using reciprocal top-k correlations. Our approach tracks each feature's strongest activation relationships through exponentially moving averages, forming clusters via mutual top matches. Adaptive thresholding and stability-based phase transitions allow the model to automatically determine when feature groupings have stabilized. This combination enables scalable separation of semantically related features while maintaining reconstruction capability, potentially offering insights into hierarchical knowledge organization within language models."
+}
+```

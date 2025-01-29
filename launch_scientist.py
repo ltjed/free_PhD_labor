@@ -146,13 +146,16 @@ def do_idea(
         topk_results = json.load(f)
     with open(osp.join(base_dir, "run_0", "final_info_jumprelu.json"), "r") as f:
         jumprelu_results = json.load(f)
+    with open(osp.join(base_dir, "run_0", "final_info_standard.json"), "r") as f:
+        standard_results = json.load(f)
 
     # Create dictionaries for both results
     topk_results = {k: v for k, v in topk_results.items()}
     jumprelu_results = {k: v for k, v in jumprelu_results.items()}
+    standard_results = {k: v for k, v in standard_results.items()}
 
     # Format the output string
-    baseline_results = f"Baseline results from TopK SAE: \n{topk_results}\nBaseline results from jumprelu SAE: \n{jumprelu_results}"
+    baseline_results = f"Baseline results from TopK SAE: \n{topk_results}\nBaseline results from jumprelu SAE: \n{jumprelu_results}\nBaseline results from standard SAE: \n{standard_results}"
     exp_file = osp.join(folder_name, "experiment.py")
     vis_file = osp.join(folder_name, "plot.py")
     notes = osp.join(folder_name, "notes.txt")
@@ -315,16 +318,16 @@ if __name__ == "__main__":
     # Create client, used for coding assistant (aider) during perform_experiment()
     client, client_model = create_client(args.model)
 
-    # reasoning model used for idea generation and writeup
-    reasoner_client, reasoner_client_model_ = create_client("deepseek-reasoner")
+    # reasoning model used for writeup
+    reasoner_client, reasoner_client_model = create_client("deepseek-reasoner")
 
 
     base_dir = osp.join("templates", args.experiment)
     results_dir = osp.join("results", args.experiment)
     ideas = generate_ideas(
         base_dir,
-        client=reasoner_client,
-        model=reasoner_client_model,
+        client=client,
+        model=client_model,
         skip_generation=args.skip_idea_generation,
         max_num_generations=args.num_ideas,
         num_reflections=NUM_REFLECTIONS,
@@ -333,8 +336,8 @@ if __name__ == "__main__":
         ideas = check_idea_novelty(
             ideas,
             base_dir=base_dir,
-            client=reasoner_client,
-            model=reasoner_client_model,
+            client=client,
+            model=client_model,
         )
 
     if not args.skip_idea_generation:
