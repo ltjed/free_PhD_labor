@@ -18,9 +18,11 @@ You can also refer to other information in the idea: {context_information}
 
 You are given a total of up to {max_runs} runs to complete the necessary experiments. You do not need to use all {max_runs}.
 
-First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run.
+If the experiments in the idea is already implemented in 'experiment.py' you are given with, you should try to improve its result by further enhancing the implementation.
 
-Note that we already provide the vanilla baseline results, so you do not need to re-run it.
+First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run (you can try to run with different hyperparameters in the same run across different iterations.).
+
+Note that we already provide the baseline results, so you do not need to re-run it.
 
 For reference, the baseline results are as follows:
 
@@ -75,7 +77,7 @@ def run_experiment(folder_name, run_num, timeout=10800):
             next_prompt = f"""Run {run_num} completed. Here are the results:
 {results}
 
-Decide if you need to re-plan your experiments given the result (you often will not need to).
+Decide if you need to re-plan your experiments given the result (you often will not need to). Be sure you understand the meaning of the scores in the benchmarks, e.g. for absoprtion, lower score (lower absorption rate) means better performance.
 
 Someone else will be using `notes.txt` to perform a writeup on this in the future.
 Please include *all* relevant information for the writeup on Run {run_num}, including an experiment description and the run number. Be as verbose as necessary.

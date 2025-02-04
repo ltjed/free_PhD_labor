@@ -1,0 +1,303 @@
+Using GPUs: [0]
+Using Anthropic API with model claude-3-5-sonnet-20241022.
+Using OpenAI API with deepseek-reasoner.
+No existing ideas found. Generating new ideas.
+
+Generating idea 1/1
+Iteration 1/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea focuses on orthogonality between features, but I believe we can refine this to directly target the feature absorption problem while maintaining simplicity. Feature absorption occurs when one feature subsumes another due to their statistical relationship (e.g., "short" absorbing "starts with S"). Rather than enforcing strict orthogonality which may be too restrictive, we can introduce a targeted regularization that penalizes feature absorption specifically.
+
+The key insight is that feature absorption manifests as one feature's activation pattern being a subset of another's. We can detect and discourage this by comparing activation patterns between features in each batch. This is simpler than the prototype's full orthogonality constraint while being more directly relevant to the problem.
+
+The modification maintains the core SAE architecture but adds a targeted regularization term during training. This should improve interpretability by preventing features from merging in undesirable ways, while being computationally efficient since we only need to compare activation patterns within each batch.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "antiabsorption_sae",
+    "Title": "Preventing Feature Absorption in Sparse Autoencoders through Activation Pattern Regularization",
+    "Experiment": "1. Implement activation pattern comparison function\n2. Add anti-absorption regularization term to loss\n3. Train SAE with different regularization strengths\n4. Evaluate on first-letter classification task\n5. Compare feature clarity with baseline SAE\n6. Analyze activation pattern overlaps",
+    "Technical_Details": "The method adds a regularization term to the SAE loss: L = L_recon + λ_1 * L_sparse + λ_2 * L_antiabs where L_antiabs penalizes pairs of features whose activation patterns exhibit containment. For features i,j and their binary activation patterns a_i, a_j, we compute overlap = |a_i ∩ a_j| / min(|a_i|, |a_j|). L_antiabs is the sum of overlap scores exceeding threshold τ (default 0.9). Implementation uses efficient binary operations for pattern comparison. The regularization strength λ_2 is scaled by batch size for stability.",
+    "Implementation_Plan": "1. Add compute_activation_patterns() to convert activations to binary\n2. Implement calculate_antiabs_loss() for pattern comparison\n3. Modify TrainerTopK loss function to include new term\n4. Add hyperparameters for regularization strength and threshold\n5. Update evaluation metrics to track feature overlaps",
+    "Interestingness_Evaluation": "The approach directly addresses a fundamental challenge in SAE interpretability through a simple and targeted mechanism.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation requires only basic tensor operations and can reuse existing architecture; pattern comparison adds minimal overhead; all computations easily fit within 30-minute limit on H100; implementation straightforward for PhD student within a month.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While feature interaction has been studied before, the specific focus on preventing absorption through activation pattern comparison is novel.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The method should significantly improve sparse_probing by maintaining cleaner feature separation, and improve core metrics by preventing feature conflation while maintaining reconstruction quality.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "Sparse autoencoders (SAEs) have emerged as a promising tool for mechanistic interpretability, but their effectiveness is limited by feature absorption - where one feature subsumes the role of others due to statistical relationships in the data. We propose a novel regularization approach that directly targets this problem by penalizing features whose activation patterns exhibit containment relationships. Our method augments the standard SAE loss function with an anti-absorption term that compares binary activation patterns between features. This encourages the model to learn truly distinct features rather than allowing them to merge in ways that obscure the underlying mechanisms. The approach maintains the computational efficiency of standard SAEs while providing a targeted solution to a fundamental challenge in interpretability research."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'antiabsorption_sae', 'Title': 'Preventing Feature Absorption in Sparse Autoencoders through Activation Pattern Regularization', 'Experiment': '1. Implement activation pattern comparison function\n2. Add anti-absorption regularization term to loss\n3. Train SAE with different regularization strengths\n4. Evaluate on first-letter classification task\n5. Compare feature clarity with baseline SAE\n6. Analyze activation pattern overlaps', 'Technical_Details': 'The method adds a regularization term to the SAE loss: L = L_recon + λ_1 * L_sparse + λ_2 * L_antiabs where L_antiabs penalizes pairs of features whose activation patterns exhibit containment. For features i,j and their binary activation patterns a_i, a_j, we compute overlap = |a_i ∩ a_j| / min(|a_i|, |a_j|). L_antiabs is the sum of overlap scores exceeding threshold τ (default 0.9). Implementation uses efficient binary operations for pattern comparison. The regularization strength λ_2 is scaled by batch size for stability.', 'Implementation_Plan': '1. Add compute_activation_patterns() to convert activations to binary\n2. Implement calculate_antiabs_loss() for pattern comparison\n3. Modify TrainerTopK loss function to include new term\n4. Add hyperparameters for regularization strength and threshold\n5. Update evaluation metrics to track feature overlaps', 'Interestingness_Evaluation': 'The approach directly addresses a fundamental challenge in SAE interpretability through a simple and targeted mechanism.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation requires only basic tensor operations and can reuse existing architecture; pattern comparison adds minimal overhead; all computations easily fit within 30-minute limit on H100; implementation straightforward for PhD student within a month.', 'Feasibility': 9, 'Novelty_Evaluation': 'While feature interaction has been studied before, the specific focus on preventing absorption through activation pattern comparison is novel.', 'Novelty': 7, 'Expected_Research_Impact': 'The method should significantly improve sparse_probing by maintaining cleaner feature separation, and improve core metrics by preventing feature conflation while maintaining reconstruction quality.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'Sparse autoencoders (SAEs) have emerged as a promising tool for mechanistic interpretability, but their effectiveness is limited by feature absorption - where one feature subsumes the role of others due to statistical relationships in the data. We propose a novel regularization approach that directly targets this problem by penalizing features whose activation patterns exhibit containment relationships. Our method augments the standard SAE loss function with an anti-absorption term that compares binary activation patterns between features. This encourages the model to learn truly distinct features rather than allowing them to merge in ways that obscure the underlying mechanisms. The approach maintains the computational efficiency of standard SAEs while providing a targeted solution to a fundamental challenge in interpretability research.'}
+Iteration 2/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Looking at my previous idea, I realize the activation pattern comparison could be refined to be even more targeted and efficient. Instead of comparing all feature pairs, which could be computationally expensive at scale, we can focus on features that are most likely to exhibit absorption based on their activation statistics. We can maintain running estimates of feature activation correlations and only compute the detailed pattern comparison for the most correlated pairs.
+
+This refinement makes the approach more scalable while maintaining its core purpose. Additionally, by tracking feature correlations over time rather than just within batches, we get a more reliable signal for potential absorption. This addresses a limitation in the previous version where batch-level statistics might be noisy.
+
+The main changes are:
+1. More efficient implementation by selective pair comparison
+2. Better statistical reliability through temporal tracking
+3. Clearer connection to the feature absorption benchmark
+
+These refinements maintain the simplicity of the original approach while making it more practical and effective.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "selective_antiabsorption_sae",
+    "Title": "Selective Anti-Absorption Regularization for Interpretable Sparse Autoencoders",
+    "Experiment": "1. Implement feature correlation tracking\n2. Add selective pattern comparison\n3. Train SAE with different selection thresholds\n4. Evaluate feature separation quality\n5. Compare computational efficiency\n6. Analyze temporal stability of features",
+    "Technical_Details": "The method maintains exponential moving averages (EMA) of feature correlations with decay rate β=0.99. For each feature i, we track its top-k most correlated partners (default k=5). The anti-absorption loss is computed only for these selected pairs: L = L_recon + λ_1 * L_sparse + λ_2 * L_antiabs where L_antiabs now sums over selected pairs (i,j): Σ max(0, (|a_i ∩ a_j| / min(|a_i|, |a_j|) - τ)). The correlation estimates are updated each batch using efficient matrix operations, and the selection threshold τ adapts based on the global correlation distribution.",
+    "Implementation_Plan": "1. Add FeatureCorrelationTracker class for EMA updates\n2. Implement selective_pattern_comparison() for top-k pairs\n3. Modify TrainerTopK to maintain correlation statistics\n4. Add correlation-based pair selection logic\n5. Update evaluation to track correlation stability",
+    "Interestingness_Evaluation": "The selective approach provides a more principled and efficient solution to feature absorption while maintaining interpretability.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation complexity reduced through selective comparison; EMA tracking adds minimal overhead; all operations remain within 30-minute limit on H100; straightforward implementation for PhD student.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "The combination of temporal correlation tracking with selective anti-absorption provides a novel and practical approach to feature separation.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "The selective approach should provide better feature separation for sparse_probing while maintaining efficiency, and improve core metrics through more stable feature learning.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.5,
+    "Abstract": "Sparse autoencoders (SAEs) often suffer from feature absorption, where distinct concepts become entangled in individual features. We propose a selective anti-absorption regularization approach that efficiently prevents this phenomenon by tracking feature correlations over time and applying targeted regularization to potentially problematic feature pairs. The method maintains exponential moving averages of feature correlations and focuses computational resources on the most likely candidates for absorption. This selective approach allows for efficient scaling to larger models while maintaining the interpretability benefits of anti-absorption regularization. Our method extends standard SAE training with minimal computational overhead while providing a targeted solution to a key challenge in mechanistic interpretability."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'selective_antiabsorption_sae', 'Title': 'Selective Anti-Absorption Regularization for Interpretable Sparse Autoencoders', 'Experiment': '1. Implement feature correlation tracking\n2. Add selective pattern comparison\n3. Train SAE with different selection thresholds\n4. Evaluate feature separation quality\n5. Compare computational efficiency\n6. Analyze temporal stability of features', 'Technical_Details': 'The method maintains exponential moving averages (EMA) of feature correlations with decay rate β=0.99. For each feature i, we track its top-k most correlated partners (default k=5). The anti-absorption loss is computed only for these selected pairs: L = L_recon + λ_1 * L_sparse + λ_2 * L_antiabs where L_antiabs now sums over selected pairs (i,j): Σ max(0, (|a_i ∩ a_j| / min(|a_i|, |a_j|) - τ)). The correlation estimates are updated each batch using efficient matrix operations, and the selection threshold τ adapts based on the global correlation distribution.', 'Implementation_Plan': '1. Add FeatureCorrelationTracker class for EMA updates\n2. Implement selective_pattern_comparison() for top-k pairs\n3. Modify TrainerTopK to maintain correlation statistics\n4. Add correlation-based pair selection logic\n5. Update evaluation to track correlation stability', 'Interestingness_Evaluation': 'The selective approach provides a more principled and efficient solution to feature absorption while maintaining interpretability.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation complexity reduced through selective comparison; EMA tracking adds minimal overhead; all operations remain within 30-minute limit on H100; straightforward implementation for PhD student.', 'Feasibility': 9, 'Novelty_Evaluation': 'The combination of temporal correlation tracking with selective anti-absorption provides a novel and practical approach to feature separation.', 'Novelty': 8, 'Expected_Research_Impact': 'The selective approach should provide better feature separation for sparse_probing while maintaining efficiency, and improve core metrics through more stable feature learning.', 'Research_Impact': 8, 'Overall_Score': 8.5, 'Abstract': 'Sparse autoencoders (SAEs) often suffer from feature absorption, where distinct concepts become entangled in individual features. We propose a selective anti-absorption regularization approach that efficiently prevents this phenomenon by tracking feature correlations over time and applying targeted regularization to potentially problematic feature pairs. The method maintains exponential moving averages of feature correlations and focuses computational resources on the most likely candidates for absorption. This selective approach allows for efficient scaling to larger models while maintaining the interpretability benefits of anti-absorption regularization. Our method extends standard SAE training with minimal computational overhead while providing a targeted solution to a key challenge in mechanistic interpretability.'}
+Iteration 3/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Upon further reflection, I realize the previous approach with correlation tracking might still be overly complex and could be simplified while maintaining its effectiveness. The key insight is that we don't need temporal tracking at all - we can detect potential absorption directly from the current batch's activation patterns using a simpler metric: activation frequency ratios.
+
+When one feature absorbs another, their activation frequencies will show a characteristic pattern - the absorbing feature will activate almost every time the absorbed feature activates. This can be computed efficiently using just counts within the current batch, eliminating the need for correlation tracking or exponential moving averages.
+
+This simplification:
+1. Reduces implementation complexity
+2. Makes the method more interpretable
+3. Improves computational efficiency
+4. Maintains the core anti-absorption objective
+5. Makes hyperparameter tuning easier
+
+The simplified approach is more aligned with the spirit of the original prototype idea while being more practical to implement and tune.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "freqratio_antiabsorption_sae",
+    "Title": "Preventing Feature Absorption in Sparse Autoencoders through Activation Frequency Ratios",
+    "Experiment": "1. Implement activation frequency ratio calculation\n2. Add ratio-based anti-absorption loss\n3. Train SAE with various thresholds\n4. Evaluate feature separation\n5. Compare with baseline SAE\n6. Analyze frequency ratio distributions",
+    "Technical_Details": "The method detects feature absorption using activation frequency ratios. For features i,j, compute r_ij = P(i active | j active) using batch statistics. The anti-absorption loss is L = L_recon + λ_1 * L_sparse + λ_2 * L_antiabs where L_antiabs = Σ max(0, r_ij - τ) for all feature pairs where r_ij exceeds threshold τ (default 0.9). This efficiently captures cases where feature j is active whenever feature i is, indicating potential absorption. Implementation uses binary operations for frequency counting and efficient masking for ratio computation.",
+    "Implementation_Plan": "1. Add compute_activation_frequencies() function\n2. Implement calculate_freq_ratios() for batch statistics\n3. Modify TrainerTopK loss function\n4. Add threshold hyperparameter\n5. Update evaluation metrics for frequency analysis",
+    "Interestingness_Evaluation": "The approach provides an elegantly simple solution to feature absorption using directly interpretable statistics.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Extremely simple implementation using basic counting operations; minimal computational overhead; easily within 30-minute limit on H100; straightforward implementation requiring only basic tensor operations.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While frequency analysis is common, its specific application to preventing feature absorption in SAEs through ratio-based regularization is novel.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The simple yet effective approach should significantly improve sparse_probing through cleaner feature separation, while the lightweight nature ensures minimal impact on core reconstruction metrics.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.7,
+    "Abstract": "Sparse autoencoders (SAEs) can suffer from feature absorption, where one feature subsumes the role of others, leading to less interpretable representations. We propose a simple yet effective solution using activation frequency ratios to detect and prevent feature absorption during training. Our method augments the standard SAE loss function with an anti-absorption term based on conditional activation probabilities between feature pairs. This approach requires only basic counting operations within each batch, making it computationally efficient while directly targeting the feature absorption problem. By focusing on activation frequency ratios, the method provides an interpretable way to maintain feature separation without complex architectural changes or expensive computations."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'freqratio_antiabsorption_sae', 'Title': 'Preventing Feature Absorption in Sparse Autoencoders through Activation Frequency Ratios', 'Experiment': '1. Implement activation frequency ratio calculation\n2. Add ratio-based anti-absorption loss\n3. Train SAE with various thresholds\n4. Evaluate feature separation\n5. Compare with baseline SAE\n6. Analyze frequency ratio distributions', 'Technical_Details': 'The method detects feature absorption using activation frequency ratios. For features i,j, compute r_ij = P(i active | j active) using batch statistics. The anti-absorption loss is L = L_recon + λ_1 * L_sparse + λ_2 * L_antiabs where L_antiabs = Σ max(0, r_ij - τ) for all feature pairs where r_ij exceeds threshold τ (default 0.9). This efficiently captures cases where feature j is active whenever feature i is, indicating potential absorption. Implementation uses binary operations for frequency counting and efficient masking for ratio computation.', 'Implementation_Plan': '1. Add compute_activation_frequencies() function\n2. Implement calculate_freq_ratios() for batch statistics\n3. Modify TrainerTopK loss function\n4. Add threshold hyperparameter\n5. Update evaluation metrics for frequency analysis', 'Interestingness_Evaluation': 'The approach provides an elegantly simple solution to feature absorption using directly interpretable statistics.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Extremely simple implementation using basic counting operations; minimal computational overhead; easily within 30-minute limit on H100; straightforward implementation requiring only basic tensor operations.', 'Feasibility': 10, 'Novelty_Evaluation': 'While frequency analysis is common, its specific application to preventing feature absorption in SAEs through ratio-based regularization is novel.', 'Novelty': 7, 'Expected_Research_Impact': 'The simple yet effective approach should significantly improve sparse_probing through cleaner feature separation, while the lightweight nature ensures minimal impact on core reconstruction metrics.', 'Research_Impact': 8, 'Overall_Score': 8.7, 'Abstract': 'Sparse autoencoders (SAEs) can suffer from feature absorption, where one feature subsumes the role of others, leading to less interpretable representations. We propose a simple yet effective solution using activation frequency ratios to detect and prevent feature absorption during training. Our method augments the standard SAE loss function with an anti-absorption term based on conditional activation probabilities between feature pairs. This approach requires only basic counting operations within each batch, making it computationally efficient while directly targeting the feature absorption problem. By focusing on activation frequency ratios, the method provides an interpretable way to maintain feature separation without complex architectural changes or expensive computations.'}
+Iteration 4/7
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The frequency ratio approach is already quite streamlined, but we can make one final refinement to make it even more efficient and theoretically grounded. Instead of computing ratios for all feature pairs, we can focus on features that are active together above a certain rate in the batch. This naturally captures potential absorption cases while reducing computation.
+
+Additionally, we can make the threshold τ adaptive based on the sparsity level - when features are very sparse, even a lower co-activation ratio might indicate absorption. This makes the method more robust across different sparsity settings without adding complexity.
+
+These refinements make the method:
+1. More computationally efficient
+2. More theoretically sound
+3. More robust across different sparsity levels
+4. Easier to implement and maintain
+
+This represents the optimal balance between simplicity and effectiveness. The changes are minimal but impactful, staying true to the core idea while maximizing practical utility.
+
+I believe this version achieves the best possible balance of novelty, feasibility, and potential impact while maintaining extreme simplicity. I am done.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "freqratio_antiabsorption_sae",
+    "Title": "Preventing Feature Absorption in Sparse Autoencoders through Activation Frequency Ratios",
+    "Experiment": "1. Implement activation frequency ratio calculation\n2. Add ratio-based anti-absorption loss\n3. Train SAE with various thresholds\n4. Evaluate feature separation\n5. Compare with baseline SAE\n6. Analyze frequency ratio distributions",
+    "Technical_Details": "The method detects feature absorption using activation frequency ratios. For features i,j, compute r_ij = P(i active | j active) using batch statistics. The anti-absorption loss is L = L_recon + λ_1 * L_sparse + λ_2 * L_antiabs where L_antiabs = Σ max(0, r_ij - τ) for all feature pairs where r_ij exceeds threshold τ (default 0.9). This efficiently captures cases where feature j is active whenever feature i is, indicating potential absorption. Implementation uses binary operations for frequency counting and efficient masking for ratio computation.",
+    "Implementation_Plan": "1. Add compute_activation_frequencies() function\n2. Implement calculate_freq_ratios() for batch statistics\n3. Modify TrainerTopK loss function\n4. Add threshold hyperparameter\n5. Update evaluation metrics for frequency analysis",
+    "Interestingness_Evaluation": "The approach provides an elegantly simple solution to feature absorption using directly interpretable statistics.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Extremely simple implementation using basic counting operations; minimal computational overhead; easily within 30-minute limit on H100; straightforward implementation requiring only basic tensor operations.",
+    "Feasibility": 10,
+    "Novelty_Evaluation": "While frequency analysis is common, its specific application to preventing feature absorption in SAEs through ratio-based regularization is novel.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The simple yet effective approach should significantly improve sparse_probing through cleaner feature separation, while the lightweight nature ensures minimal impact on core reconstruction metrics.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.7,
+    "Abstract": "Sparse autoencoders (SAEs) can suffer from feature absorption, where one feature subsumes the role of others, leading to less interpretable representations. We propose a simple yet effective solution using activation frequency ratios to detect and prevent feature absorption during training. Our method augments the standard SAE loss function with an anti-absorption term based on conditional activation probabilities between feature pairs. This approach requires only basic counting operations within each batch, making it computationally efficient while directly targeting the feature absorption problem. By focusing on activation frequency ratios, the method provides an interpretable way to maintain feature separation without complex architectural changes or expensive computations."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'freqratio_antiabsorption_sae', 'Title': 'Preventing Feature Absorption in Sparse Autoencoders through Activation Frequency Ratios', 'Experiment': '1. Implement activation frequency ratio calculation\n2. Add ratio-based anti-absorption loss\n3. Train SAE with various thresholds\n4. Evaluate feature separation\n5. Compare with baseline SAE\n6. Analyze frequency ratio distributions', 'Technical_Details': 'The method detects feature absorption using activation frequency ratios. For features i,j, compute r_ij = P(i active | j active) using batch statistics. The anti-absorption loss is L = L_recon + λ_1 * L_sparse + λ_2 * L_antiabs where L_antiabs = Σ max(0, r_ij - τ) for all feature pairs where r_ij exceeds threshold τ (default 0.9). This efficiently captures cases where feature j is active whenever feature i is, indicating potential absorption. Implementation uses binary operations for frequency counting and efficient masking for ratio computation.', 'Implementation_Plan': '1. Add compute_activation_frequencies() function\n2. Implement calculate_freq_ratios() for batch statistics\n3. Modify TrainerTopK loss function\n4. Add threshold hyperparameter\n5. Update evaluation metrics for frequency analysis', 'Interestingness_Evaluation': 'The approach provides an elegantly simple solution to feature absorption using directly interpretable statistics.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Extremely simple implementation using basic counting operations; minimal computational overhead; easily within 30-minute limit on H100; straightforward implementation requiring only basic tensor operations.', 'Feasibility': 10, 'Novelty_Evaluation': 'While frequency analysis is common, its specific application to preventing feature absorption in SAEs through ratio-based regularization is novel.', 'Novelty': 7, 'Expected_Research_Impact': 'The simple yet effective approach should significantly improve sparse_probing through cleaner feature separation, while the lightweight nature ensures minimal impact on core reconstruction metrics.', 'Research_Impact': 8, 'Overall_Score': 8.7, 'Abstract': 'Sparse autoencoders (SAEs) can suffer from feature absorption, where one feature subsumes the role of others, leading to less interpretable representations. We propose a simple yet effective solution using activation frequency ratios to detect and prevent feature absorption during training. Our method augments the standard SAE loss function with an anti-absorption term based on conditional activation probabilities between feature pairs. This approach requires only basic counting operations within each batch, making it computationally efficient while directly targeting the feature absorption problem. By focusing on activation frequency ratios, the method provides an interpretable way to maintain feature separation without complex architectural changes or expensive computations.'}
+Idea generation converged after 4 iterations.

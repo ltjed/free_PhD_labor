@@ -512,7 +512,7 @@ First, re-think the Title if necessary. Keep this concise and descriptive of the
             .replace(r"}}", "}")
         )
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    generate_latex(coder, folder_name, f"{folder_name}/{idea['Name']}_{timestamp}.pdf")
+    generate_latex(coder, folder_name, f"{folder_name}/{idea['Name']}.pdf")
 
 
 if __name__ == "__main__":

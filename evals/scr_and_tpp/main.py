@@ -815,7 +815,10 @@ def run_eval(
                 existing_data = json.load(f)
         else:
             existing_data = {}
-        existing_data.update({"scr and tpp evaluations results":asdict(eval_output)})
+        if config.perform_scr:
+            existing_data.update({"scr evaluations results":asdict(eval_output)})
+        else:
+            existing_data.update({"tpp evaluations results":asdict(eval_output)})
         with open(all_info_path, "w") as f:
             json.dump(existing_data, indent=2, fp=f)        
             

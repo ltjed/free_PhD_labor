@@ -19,7 +19,7 @@ from ai_scientist.perform_experiments import perform_experiments
 from ai_scientist.perform_review import perform_review, load_paper, perform_improvement
 from ai_scientist.perform_writeup import perform_writeup, generate_latex
 
-NUM_REFLECTIONS = 7
+NUM_REFLECTIONS = 15
 
 
 def print_time():
@@ -155,7 +155,7 @@ def do_idea(
     standard_results = {k: v for k, v in standard_results.items()}
 
     # Format the output string
-    baseline_results = f"Baseline results from TopK SAE: \n{topk_results}\nBaseline results from jumprelu SAE: \n{jumprelu_results}\nBaseline results from standard SAE: \n{standard_results}"
+    baseline_results = f"Baseline results from TopK SAE: \n{topk_results}\nBaseline results from standard SAE: \n{standard_results}"
     exp_file = osp.join(folder_name, "experiment.py")
     vis_file = osp.join(folder_name, "plot.py")
     notes = osp.join(folder_name, "notes.txt")
@@ -352,7 +352,7 @@ if __name__ == "__main__":
     novel_ideas = [idea for idea in ideas if idea["novel"]]
     
     novel_ideas = list(reversed(novel_ideas))
-    print(novel_ideas)
+
     
 
     if args.parallel > 0:

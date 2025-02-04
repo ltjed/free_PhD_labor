@@ -39,16 +39,23 @@ def get_forget_retain_data(
         raise Exception("Unknown retain corpora")
 
     forget_dataset = []
-
-    # @todo use a better way to locate the file.
-    # for line in open(f"../../../evals/unlearning/data/{forget_corpora}.jsonl", "r"):
-    for line in open(f"../../evals/unlearning/data/{forget_corpora}.jsonl", "r"):
-        if "bio-forget-corpus" in forget_corpora:
-            raw_text = json.loads(line)["text"]
-        else:
-            raw_text = line
-        if len(raw_text) > min_len:
-            forget_dataset.append(str(raw_text))
+    if not os.path.exists(f"../../../evals/unlearning/data/{forget_corpora}.jsonl"):
+        for line in open(f"../../evals/unlearning/data/{forget_corpora}.jsonl", "r"):
+            if "bio-forget-corpus" in forget_corpora:
+                raw_text = json.loads(line)["text"]
+            else:
+                raw_text = line
+            if len(raw_text) > min_len:
+                forget_dataset.append(str(raw_text))
+    else:
+        for line in open(f"../../../evals/unlearning/data/{forget_corpora}.jsonl", "r"):
+            if "bio-forget-corpus" in forget_corpora:
+                raw_text = json.loads(line)["text"]
+            else:
+                raw_text = line
+            if len(raw_text) > min_len:
+                forget_dataset.append(str(raw_text))
+    
 
     return forget_dataset, retain_dataset
 

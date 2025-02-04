@@ -17,27 +17,142 @@ idea_first_prompt = """{task_description}
 {code}
 </experiment.py>
 
-Come up with an impactful and creative idea for research and experiments.
+Come up with an impactful and creative improvement idea from the following previous result.
 
-Here is a prototype idea from which you should develop, improve, and modify. The idea you come up with should NOT be a completely different idea from the prototype idea, but should be more mature, more considerate, more detailed and specific. The idea you generate should not be more complex than the prototype idea. DO NOT INTRODUCE ANY EXTRA ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
+Here is the previous idea from which you should develop and improve. The idea you come up with should NOT be a completely different idea from the previous idea, but should be more mature development. DO NOT INTRODUCE ANY UNDUELY MORE COMPLEX ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
 
 <PROTOTYPE_IDEA>
-        "Name": "Orthogonal_sae",
-        "Title": "Orthogonal Feature Learning for Optimal Knowledge Separation in Sparse Autoencoders",
-        "Experiment": "1. Implement adaptive orthogonality loss with controlled feature sharing\n2. Add batch-wise feature grouping with periodic updates\n3. Train on Pythia-70M using WMDP-bio and WikiText datasets\n4. Compare unlearning performance against baseline and fixed orthogonal SAE\n5. Analyze condition numbers of feature subspaces\n6. Evaluate impact of different \u03b1 values for controlled sharing",
-        "Technical_Details": "The method uses an adaptive objective: L = L_recon + \u03bb_1 * L_sparse + \u03bb_2(t) * L_ortho where \u03bb_2(t) = \u03bb_2_max * min(1, t/t_0) increases linearly until step t_0. L_ortho = ||W_1^T W_2 - \u03b1I||_F allows controlled feature sharing through parameter \u03b1. Feature groups are updated every n=100 steps using efficient batch statistics. Implementation includes early stopping based on condition number thresholds. The decoder uses group-specific bias terms while sharing weights to balance separation and reconstruction quality.",
-        "Research_Impact": "A key challenge in selective unlearning is finding the optimal balance between knowledge separation and model performance. Current approaches either sacrifice reconstruction quality for separation or vice versa. This research addresses the challenge through adaptive training and controlled feature sharing, achieving better separation while maintaining performance. The theoretical framework provides precise control over the separation-performance trade-off.",
-        "Implementation_Plan": "1. Add AdaptiveOrthogonalityLoss with scheduling\n2. Implement efficient batch-wise feature grouping\n3. Modify CustomSAE to include group-specific biases\n4. Add condition number calculation utilities\n5. Update CustomTrainer with adaptive loss weight\n6. Add evaluation metrics for controlled sharing",
-        "Interestingness_Evaluation": "The combination of theoretical insights about feature sharing with practical adaptive training creates a more nuanced and effective approach to knowledge separation.",
+        "Name": "sparse_orthogonal_sae",
+        "Title": "Sparsity-Guided Orthogonality Constraints for Interpretable Feature Separation",
+        "Experiment": "1. Use existing sparsity masks to identify competing features\n2. Add sparsity-weighted orthogonality loss\n3. Train on google/gemma-2-2b using standard datasets\n4. Compare benchmark performance against baseline and other orthogonal SAEs\n5. Analyze feature competition patterns\n6. Evaluate impact of competition thresholds",
+        "Technical_Details": "The method uses a sparsity-based orthogonality loss: L = L_recon + \u03bb_1 * L_sparse + \u03bb_2 * \u03a3_(i,j) c_(ij) * |f_i^T f_j| where c_(ij) is the normalized intersection size of sparsity masks for features i and j over a batch. Features that frequently activate on the same inputs face stronger orthogonality constraints, encouraging them to learn distinct concepts. The competition coefficients c_(ij) are computed directly from the existing top-k activation masks with no additional overhead.",
+        "Implementation_Plan": "1. Add function to compute mask intersections from top-k indices\n2. Modify AutoEncoderTopK to use sparsity patterns\n3. Add sparsity-weighted orthogonality loss\n4. Add configuration for competition threshold\n5. Add evaluation metrics for feature competition\n6. Update training loop to use activation masks",
+        "Interestingness_Evaluation": "Using sparsity patterns to guide orthogonality provides a direct and elegant connection between the two key mechanisms for feature separation.",
         "Interestingness": 9,
-        "Feasibility_Evaluation": "The implementation remains efficient with batch-wise updates and simple matrix operations; adaptive weighting adds minimal overhead; controlled sharing through \u03b1 provides easy tuning; all computations well within 30-minute limit on H100.",
-        "Feasibility": 9,
-        "Novelty_Evaluation": "The adaptive approach with controlled feature sharing provides a novel theoretical framework for knowledge separation that bridges the gap between strict orthogonality and practical performance.",
+        "Feasibility_Evaluation": "Implementation uses only existing top-k masks; no additional computation needed; standard matrix operations; easily within 30-minute limit on H100; minimal code changes required.",
+        "Feasibility": 10,
+        "Novelty_Evaluation": "Leveraging sparsity patterns to guide orthogonality constraints is a novel and principled approach that directly targets feature competition.",
         "Novelty": 9,
-        "Overall_Score": 9.0,
-        "novel": true
+        "Expected_Research_Impact": "The direct connection between sparsity and orthogonality should provide more interpretable feature separation while maintaining computational efficiency.",
+        "Research_Impact": 9,
+        "Overall_Score": 9.4,
 </PROTOTYPE_IDEA>
 
+
+Here is information from the previous experiment log:
+
+<log>
+# Title: Sparsity-Guided Orthogonality Constraints for Interpretable Feature Separation
+# Experiment description: 1. Use existing sparsity masks to identify competing features
+2. Add sparsity-weighted orthogonality loss
+3. Train on google/gemma-2-2b using standard datasets
+4. Compare benchmark performance against baseline and other orthogonal SAEs
+5. Analyze feature competition patterns
+6. Evaluate impact of competition thresholds
+
+# Generated Figures Analysis
+
+## absorption_comparison.png
+This figure shows the mean absorption scores across different model configurations. Absorption scores measure how well individual features capture specific concepts. Key observations:
+- Run 4 (optimal dictionary size) achieved the highest absorption score (0.025), nearly 3x the baseline (0.009)
+- Increasing orthogonality weight alone (Runs 1-3) showed steady improvement in absorption
+- Dictionary size increase beyond optimal (Run 5) led to decreased absorption, suggesting feature dilution
+- Strong orthogonality with optimal dictionary size (Run 6) maintained good absorption but didn't exceed Run 4
+
+## scr_comparison.png 
+Shows Sparsity-Constrained Reconstruction (SCR) metrics at k=2 and k=20 thresholds. SCR measures feature selectivity and independence. Notable findings:
+- All orthogonal variants showed improved SCR scores over baseline
+- Run 4's configuration achieved best SCR metrics (0.172 at k=2), indicating cleaner feature separation
+- Higher orthogonality weights correlated with better SCR scores up to a point
+- Larger dictionary sizes didn't necessarily improve feature selectivity
+- The gap between k=2 and k=20 metrics narrowed with orthogonality, suggesting more consistent feature behavior
+
+## reconstruction_quality.png
+Compares MSE and cosine similarity metrics for reconstruction quality. Unexpected findings:
+- Despite stronger constraints, reconstruction quality remained remarkably stable across all runs
+- MSE stayed consistently around 1.41 with minimal variation
+- Cosine similarity maintained ~0.93 even with highest orthogonality weight
+- No significant degradation with increased dictionary size
+- The stability suggests orthogonality constraints don't compromise reconstruction ability
+
+## sparse_probing.png
+Shows top-1 and top-20 accuracy for sparse probing tasks. Key insights:
+- All orthogonal variants improved over baseline probing accuracy
+- Run 4 achieved best balance of top-1 (0.961) and top-20 (0.959) accuracy
+- Larger dictionary sizes maintained high accuracy but didn't provide additional benefits
+- Strong orthogonality (Run 6) preserved probing performance while improving interpretability
+- The small gap between top-1 and top-20 accuracy suggests high feature precision
+
+Overall, the figures demonstrate that sparsity-guided orthogonality constraints with optimal dictionary size (Run 4) achieve the best balance of:
+- Improved feature separation (absorption and SCR metrics)
+- Maintained reconstruction quality
+- Enhanced interpretability (probing accuracy)
+- Efficient resource usage (dictionary size)
+
+The results suggest that careful tuning of orthogonality constraints and dictionary size can significantly improve feature disentanglement without sacrificing model performance.
+
+## Run 1: Initial Orthogonality Test
+Description: Testing orthogonality loss with weight=0.01 to establish baseline behavior
+Results:
+- Core metrics show good reconstruction (mse=1.41, cossim=0.93) with expected sparsity (L0=320)
+- Absorption scores improved vs baseline (0.019 vs 0.009) suggesting better feature separation
+- SCR metrics show stronger feature selectivity (scr_dir1_threshold_2=0.196 vs 0.132 baseline)
+- Sparse probing accuracy improved (0.961 vs 0.958) indicating maintained interpretability
+- Orthogonality loss successfully reduced feature competition while preserving performance
+
+## Run 2: Increased Orthogonality Weight
+Description: Testing stronger orthogonality constraint with weight=0.1 to analyze tradeoffs
+Results:
+- Reconstruction quality remained good but slightly decreased (mse=1.41, cossim=0.93) compared to Run 1
+- SCR metrics showed substantial improvement (scr_dir1_threshold_2=0.158 vs 0.132 baseline)
+- Sparse probing accuracy improved further (0.960 vs 0.958 Run 1)
+- Absorption scores maintained (0.011 vs 0.009 baseline) despite stronger orthogonality
+- Feature competition reduced while maintaining interpretability
+- Higher orthogonality weight successfully increased feature separation without major performance tradeoffs
+
+## Run 3: Balanced Orthogonality
+Description: Testing moderate orthogonality constraint with weight=0.05 to find optimal balance
+Results:
+- Core metrics show good reconstruction (mse=1.41, cossim=0.93) with expected sparsity (L0=320)
+- Absorption scores significantly improved (0.0215 vs 0.009 baseline) indicating better feature separation
+- SCR metrics show substantial improvement (scr_dir1_threshold_2=0.181 vs 0.132 baseline)
+- Sparse probing accuracy improved (0.959 vs 0.951 baseline) demonstrating maintained interpretability
+- Balanced orthogonality weight successfully improved feature separation while preserving performance
+- Feature competition reduced more effectively than Run 1 while avoiding Run 2's reconstruction tradeoffs
+
+## Run 4: Increased Dictionary Size
+Description: Testing orthogonality loss with weight=0.075 and increased dictionary size (18432 vs 2304) to analyze capacity-competition tradeoff
+Results:
+- Core metrics maintained good reconstruction (mse=1.41, cossim=0.93) with target sparsity (L0=320)
+- Absorption scores showed strongest improvement yet (0.025 vs 0.009 baseline) indicating enhanced feature separation
+- SCR metrics reached best performance (scr_dir1_threshold_2=0.172 vs 0.132 baseline)
+- Sparse probing accuracy significantly improved (0.961 vs 0.951 baseline) showing better interpretability
+- Increased dictionary size with stronger orthogonality successfully reduced feature competition
+- Higher capacity allowed features to specialize more effectively while maintaining reconstruction quality
+- Results suggest larger dictionaries can help balance sparsity and orthogonality constraints
+
+## Run 5: Further Dictionary Size Increase
+Description: Testing orthogonality loss with weight=0.075 and further increased dictionary size (32768 vs 18432) to explore capacity scaling limits
+Results:
+- Core metrics remained stable (mse=1.40, cossim=0.93) maintaining target sparsity (L0=320)
+- Absorption scores decreased slightly (0.017 vs 0.025 previous) but still above baseline
+- SCR metrics showed slight decline (scr_dir1_threshold_2=0.125 vs 0.172 previous)
+- Sparse probing accuracy maintained improvement (0.959 vs 0.951 baseline)
+- Larger dictionary size did not yield additional benefits for feature separation
+- Results suggest optimal dictionary size around 18432 features for this configuration
+- Further increases may not improve performance without adjusting other hyperparameters
+
+## Run 6: Optimal Dictionary Size with Strong Orthogonality
+Description: Testing orthogonality loss with increased weight=0.1 and optimal dictionary size (18432) to maximize feature separation
+Results:
+- Core metrics showed slight degradation (mse=1.41, cossim=0.93) while maintaining target sparsity (L0=320)
+- Absorption scores improved (0.012 vs 0.009 baseline) but lower than Run 4's peak
+- SCR metrics showed strong improvement (scr_dir1_threshold_2=0.158 vs 0.132 baseline)
+- Sparse probing accuracy significantly improved (0.961 vs 0.951 baseline)
+- Higher orthogonality weight successfully increased feature competition reduction
+- Results suggest trade-off between reconstruction quality and feature separation
+- Optimal configuration appears to be Run 4's parameters (dict_size=18432, ortho_weight=0.075)
+</log>
 
 Respond in the following format:
 
@@ -116,7 +231,7 @@ In <JSON>, provide the new idea in JSON format with the following fields:
 - "Novelty": A rating from 1 to 10 (lowest to highest).
 - "Expected_Research_Impact": Your primary target is to improve performance on the benchmarks "sparse_probing" and "core". Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
 - "Research_Impact": A rating from 1 to 10 (lowest to highest).
-- "Overall_Score": A single number rating computed by 0.1 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.2 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION. Note a 9.0 score would yield an oral presentation at a top-tier conference, while a 7.5 score would yield a poster presentation at a top-tier conference.
+- "Overall_Score": A single number rating computed by 0.2 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.2 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION. Note a 9.0 score would yield an oral presentation at a top-tier conference, while a 7.5 score would yield a poster presentation at a top-tier conference.
 - "Abstract": An abstract of the idea, which will be used for the report writing. The style, length, and content should be similar to a conference paper abstract. **BUT OMIT ALL RESULTS ABOUT IMPROVED PERFORMANCE SINCE THE IDEA HAS NOT BEEN IMPLEMENTED YET (EVEN IF YOU EXPECT SUCH RESULTS).**
 
 Be cautious and critical on your ratings.
@@ -129,10 +244,10 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 
 
 idea_reflection_prompt = """Round {current_round}/{num_reflections}.
-In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, especially the "Overall_Score".
+In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, especially the "Overall_Score" which should be at least 8.5, and each other rating should be at least 8.
 Include any other factors that you think are important in evaluating the idea.
 Ensure the idea is clear and concise, and the JSON is the correct format. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
-In the next attempt, try and refine and improve your last idea. Stick to the spirit of the last idea and make sure your do not deviate too much from the prototype idea. DO NOT INTRODUCE ANY EXTRA ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL), FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
+In the next attempt, try and refine and improve your last idea. Stick to the spirit of the idea of TEMPORAL SAE and make sure your do not deviate too much from the prototype idea. DO NOT INTRODUCE ANY EXTRA ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL), FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
 
 Respond in the same format as before:
 THOUGHT:
@@ -246,7 +361,6 @@ def generate_ideas(
 
     with open(osp.join(base_dir, "ideas.json"), "w") as f:
         json.dump(ideas, f, indent=4)
-
     return ideas
 
 

@@ -655,10 +655,24 @@ def evaluate_trained_sae(
     }
     
     # Create required directories                                                                                                                                                                                                    
-    os.makedirs("artifacts/autointerp/google", exist_ok=True)                                                                                                                                                                        
-    os.makedirs("artifacts/absorption", exist_ok=True)                                                                                                                                                                               
-    os.makedirs("artifacts/scr_and_tpp", exist_ok=True)                                                                                                                                                                              
-    os.makedirs("artifacts/sparse_probing", exist_ok=True)
+    import os
+    import shutil
+
+    # List of directories to be created
+    directories = [
+        "artifacts/autointerp/google",
+        "artifacts/absorption",
+        "artifacts/scr_and_tpp",
+        "artifacts/sparse_probing"
+    ]
+
+    for dir_path in directories:
+        # If directory exists, delete it and its contents
+        if os.path.exists(dir_path):
+            shutil.rmtree(dir_path)
+        
+        # Recreate the directory
+        os.makedirs(dir_path)
     
     # Run selected evaluations
     for eval_type in eval_types:
