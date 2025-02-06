@@ -794,7 +794,6 @@ def evaluate_trained_sae(
     
     # Run selected evaluations
     prev_eval_type = None
-    time_checkpoint = datetime.now()
     for eval_type in eval_types:
         if eval_type in eval_runners:
             if prev_eval_type:

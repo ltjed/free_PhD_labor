@@ -7,6 +7,7 @@ import torch.nn as nn
 import numpy as np
 from collections import namedtuple
 from huggingface_hub import hf_hub_download
+
 from dataclasses import dataclass
 from typing import Optional, Tuple
 from datetime import datetime
@@ -17,14 +18,13 @@ import argparse
 import time
 from torch.autograd import Function
 
-import einops
-import torch as t
+from dataclasses import dataclass
+from typing import Optional
+import torch
 import torch.nn as nn
-from collections import namedtuple
-
-from dictionary_learning.config import DEBUG
-from dictionary_learning.dictionary import Dictionary
-from dictionary_learning.trainers.trainer import SAETrainer
+from torch.autograd import Function
+from torch.optim import Adam
+from torch.optim.lr_scheduler import LambdaLR
 
 # added support for tracking time spent on each step
 def print_time(message=" "):
@@ -32,347 +32,6 @@ def print_time(message=" "):
     print(f"\n[{current_time.strftime('%Y-%m-%d %H:%M:%S')}] {message}")
     return current_time
 
-@t.no_grad()
-def geometric_median(points: t.Tensor, max_iter: int = 100, tol: float = 1e-5):
-    """Compute the geometric median `points`. Used for initializing decoder bias."""
-    # Initialize our guess as the mean of the points
-    guess = points.mean(dim=0)
-    prev = t.zeros_like(guess)
-
-    # Weights for iteratively reweighted least squares
-    weights = t.ones(len(points), device=points.device)
-
-    for _ in range(max_iter):
-        prev = guess
-
-        # Compute the weights
-        weights = 1 / t.norm(points - guess, dim=1)
-
-        # Normalize the weights
-        weights /= weights.sum()
-
-        # Compute the new geometric median
-        guess = (weights.unsqueeze(1) * points).sum(dim=0)
-
-        # Early stopping condition
-        if t.norm(guess - prev) < tol:
-            break
-
-    return guess
-
-
-class AutoEncoderTopK(nn.Module):
-    """
-    The top-k autoencoder architecture using parameters instead of nn.Linear layers.
-    """
-    def __init__(
-        self,
-        d_in: int,
-        d_sae: int,
-        hook_layer: int,
-        model_name: str = "EleutherAI/pythia-70m-deduped",
-        hook_name: Optional[str] = None,
-        k: int = 100,
-    ):
-        super().__init__()
-        self.activation_dim = d_in
-        self.dict_size = d_sae
-        self.k = k
-
-        # Initialize encoder parameters
-        self.W_enc = nn.Parameter(torch.empty(d_in, d_sae))
-        nn.init.kaiming_uniform_(self.W_enc, nonlinearity='relu')
-        self.b_enc = nn.Parameter(torch.zeros(d_sae))
-        
-        # Initialize decoder parameters (transposed and normalized)
-        self.W_dec = nn.Parameter(torch.empty(d_sae, d_in))
-        self.W_dec.data = self.W_enc.data.T.clone()
-        self.b_dec = nn.Parameter(torch.zeros(d_in))
-        self.set_decoder_norm_to_unit_norm()
-
-
-        if hook_name is None:
-            hook_name = f"blocks.{hook_layer}.hook_resid_post"
-        # Configuration
-        self.cfg = CustomSAEConfig(
-            model_name=model_name,
-            d_in=d_in,
-            d_sae=d_sae,
-            hook_name=hook_name,
-            hook_layer=hook_layer,
-            architecture="TopK",
-            activation_fn_str="TopK",
-            apply_b_dec_to_input=True,
-        )
-        
-
-    def encode(self, x: torch.Tensor, return_topk: bool = False):
-        pre_acts = (x - self.b_dec) @ self.W_enc + self.b_enc
-        post_relu_feat_acts_BF = torch.relu(pre_acts)
-        post_topk = post_relu_feat_acts_BF.topk(self.k, sorted=False, dim=-1)
-
-        # Scatter topk values to form encoded activations
-        tops_acts_BK, top_indices_BK = post_topk.values, post_topk.indices
-        encoded_acts_BF = torch.zeros_like(post_relu_feat_acts_BF).scatter_(
-            dim=-1, index=top_indices_BK, src=tops_acts_BK
-        )
-
-        if return_topk:
-            return encoded_acts_BF, tops_acts_BK, top_indices_BK
-        else:
-            return encoded_acts_BF
-
-    def decode(self, x: torch.Tensor) -> torch.Tensor:
-        return x @ self.W_dec + self.b_dec
-
-    def forward(self, x: torch.Tensor, output_features: bool = False):
-        encoded_acts = self.encode(x)
-        x_hat = self.decode(encoded_acts)
-        return (x_hat, encoded_acts) if output_features else x_hat
-
-    def to(self, *args, **kwargs):
-        super().to(*args, **kwargs)
-        device = kwargs.get("device", None)
-        dtype = kwargs.get("dtype", None)
-        if device:
-            self.device = device
-        if dtype:
-            self.dtype = dtype
-        return self
-
-    @torch.no_grad()
-    def set_decoder_norm_to_unit_norm(self):
-        eps = torch.finfo(self.W_dec.dtype).eps
-        norm = torch.norm(self.W_dec.data, dim=1, keepdim=True)
-        self.W_dec.data /= norm + eps
-
-    @torch.no_grad()
-    def remove_gradient_parallel_to_decoder_directions(self):
-        if self.W_dec.grad is None:
-            return
-
-        # Compute parallel component for each dictionary element (rows of W_dec)
-        parallel_component = torch.einsum(
-            'sd,sd->s', 
-            self.W_dec.grad, 
-            self.W_dec.data
-        )
-        # Subtract parallel component from gradient
-        self.W_dec.grad -= torch.einsum(
-            's,sd->sd', 
-            parallel_component, 
-            self.W_dec.data
-        )
-
-    @classmethod
-    def from_pretrained(cls, path: str, k: int, device=None):
-        state_dict = torch.load(path)
-        # Original encoder weight: (d_sae, d_in) -> Transpose to (d_in, d_sae)
-        d_sae, d_in = state_dict["encoder.weight"].shape
-        autoencoder = cls(d_in, d_sae, hook_layer=0, k=k)  # Default hook_layer
-        
-        # Map original state_dict to new parameter names
-        new_state_dict = {
-            'W_enc': state_dict['encoder.weight'].T,
-            'b_enc': state_dict['encoder.bias'],
-            'W_dec': state_dict['decoder.weight'].T,
-            'b_dec': state_dict['b_dec']
-        }
-        autoencoder.load_state_dict(new_state_dict)
-        
-        if device is not None:
-            autoencoder.to(device)
-        return autoencoder
-
-
-class TrainerTopK(SAETrainer):
-    """
-    Top-K SAE training scheme.
-    """
-
-    def __init__(
-        self,
-        dict_class=AutoEncoderTopK,
-        activation_dim=512,
-        dict_size=64 * 512,
-        k=100,
-        auxk_alpha=1 / 32,  # see Appendix A.2
-        decay_start=24000,  # when does the lr decay start
-        steps=30000,  # when when does training end
-        seed=None,
-        device=None,
-        layer=None,
-        lm_name=None,
-        wandb_name="AutoEncoderTopK",
-        submodule_name=None,
-    ):
-        super().__init__(seed)
-
-        assert layer is not None and lm_name is not None
-        self.layer = layer
-        self.lm_name = lm_name
-        self.submodule_name = submodule_name
-
-        self.wandb_name = wandb_name
-        self.steps = steps
-        self.k = k
-        if seed is not None:
-            t.manual_seed(seed)
-            t.cuda.manual_seed_all(seed)
-
-        # Initialise autoencoder
-        self.ae =  AutoEncoderTopK(
-            d_in=activation_dim,
-            d_sae=dict_size,
-            hook_layer=layer,
-            model_name=lm_name,
-            k = k
-            )
-
-
-        if device is None:
-            self.device = "cuda" if t.cuda.is_available() else "cpu"
-        else:
-            self.device = device
-        self.ae.to(self.device)
-
-        # Auto-select LR using 1 / sqrt(d) scaling law from Figure 3 of the paper
-        scale = dict_size / (2**14)
-        self.lr = 2e-4 / scale**0.5
-        self.auxk_alpha = auxk_alpha
-        self.dead_feature_threshold = 10_000_000
-
-        # Optimizer and scheduler
-        self.optimizer = t.optim.Adam(self.ae.parameters(), lr=self.lr, betas=(0.9, 0.999))
-
-        def lr_fn(step):
-            if step < decay_start:
-                return 1.0
-            else:
-                return (steps - step) / (steps - decay_start)
-
-        self.scheduler = t.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_fn)
-
-        # Training parameters
-        self.num_tokens_since_fired = t.zeros(dict_size, dtype=t.long, device=device)
-
-        # Log the effective L0, i.e. number of features actually used, which should a constant value (K)
-        # Note: The standard L0 is essentially a measure of dead features for Top-K SAEs)
-        self.logging_parameters = ["effective_l0", "dead_features"]
-        self.effective_l0 = -1
-        self.dead_features = -1
-
-    def loss(self, x, step=None, logging=False):
-        # Run the SAE
-        f, top_acts, top_indices = self.ae.encode(x, return_topk=True)
-        x_hat = self.ae.decode(f)
-
-        # Measure goodness of reconstruction
-        e = x_hat - x
-        total_variance = (x - x.mean(0)).pow(2).sum(0)
-
-        # Update the effective L0 (again, should just be K)
-        self.effective_l0 = top_acts.size(1)
-
-        # Update "number of tokens since fired" for each features
-        num_tokens_in_step = x.size(0)
-        did_fire = t.zeros_like(self.num_tokens_since_fired, dtype=t.bool)
-        did_fire[top_indices.flatten()] = True
-        self.num_tokens_since_fired += num_tokens_in_step
-        self.num_tokens_since_fired[did_fire] = 0
-
-        # Compute dead feature mask based on "number of tokens since fired"
-        dead_mask = (
-            self.num_tokens_since_fired > self.dead_feature_threshold
-            if self.auxk_alpha > 0
-            else None
-        ).to(f.device)
-        self.dead_features = int(dead_mask.sum())
-
-        # If dead features: Second decoder pass for AuxK loss
-        if dead_mask is not None and (num_dead := int(dead_mask.sum())) > 0:
-            # Heuristic from Appendix B.1 in the paper
-            k_aux = x.shape[-1] // 2
-
-            # Reduce the scale of the loss if there are a small number of dead latents
-            scale = min(num_dead / k_aux, 1.0)
-            k_aux = min(k_aux, num_dead)
-
-            # Don't include living latents in this loss
-            auxk_latents = t.where(dead_mask[None], f, -t.inf)
-
-            # Top-k dead latents
-            auxk_acts, auxk_indices = auxk_latents.topk(k_aux, sorted=False)
-
-            auxk_buffer_BF = t.zeros_like(f)
-            auxk_acts_BF = auxk_buffer_BF.scatter_(dim=-1, index=auxk_indices, src=auxk_acts)
-
-            # Encourage the top ~50% of dead latents to predict the residual of the
-            # top k living latents
-            e_hat = self.ae.decode(auxk_acts_BF)
-            auxk_loss = (e_hat - e).pow(2)  # .sum(0)
-            auxk_loss = scale * t.mean(auxk_loss / total_variance)
-        else:
-            auxk_loss = x_hat.new_tensor(0.0)
-
-        l2_loss = e.pow(2).sum(dim=-1).mean()
-        auxk_loss = auxk_loss.sum(dim=-1).mean()
-        loss = l2_loss + self.auxk_alpha * auxk_loss
-
-        if not logging:
-            return loss
-        else:
-            return namedtuple("LossLog", ["x", "x_hat", "f", "losses"])(
-                x,
-                x_hat,
-                f,
-                {"l2_loss": l2_loss.item(), "auxk_loss": auxk_loss.item(), "loss": loss.item()},
-            )
-
-    def update(self, step, x):
-        # Initialise the decoder bias
-        if step == 0:
-            median = geometric_median(x)
-            self.ae.b_dec.data = median
-
-        # Make sure the decoder is still unit-norm
-        self.ae.set_decoder_norm_to_unit_norm()
-
-        # compute the loss
-        x = x.to(self.device)
-        loss = self.loss(x, step=step)
-        loss.backward()
-
-        # clip grad norm and remove grads parallel to decoder directions
-        t.nn.utils.clip_grad_norm_(self.ae.parameters(), 1.0)
-        self.ae.remove_gradient_parallel_to_decoder_directions()
-
-        # do a training step
-        self.optimizer.step()
-        self.optimizer.zero_grad()
-        self.scheduler.step()
-        return loss.item()
-
-    @property
-    def config(self):
-        return {
-            "trainer_class": "TrainerTopK",
-            "dict_class": "AutoEncoderTopK",
-            "lr": self.lr,
-            "steps": self.steps,
-            "seed": self.seed,
-            "activation_dim": self.ae.activation_dim,
-            "dict_size": self.ae.dict_size,
-            "k": self.ae.k,
-            "device": self.device,
-            "layer": self.layer,
-            "lm_name": self.lm_name,
-            "wandb_name": self.wandb_name,
-            "submodule_name": self.submodule_name,
-        }
-
-
-# Do not modify CustomSAEConfig class as this defines the right format for SAE to be evaluated!
 @dataclass
 class CustomSAEConfig:
     model_name: str
@@ -399,68 +58,281 @@ class CustomSAEConfig:
     training_tokens: int = -100_000
     sae_lens_training_version: Optional[str] = None
     neuronpedia_id: Optional[str] = None
+    jump_coeff: float = 0.1
 
+class JumpReLUFunc(Function):
+    @staticmethod
+    def forward(ctx, pre_acts, jump_coeff):
+        ctx.save_for_backward(pre_acts)
+        ctx.jump_coeff = jump_coeff
+        jump_term = jump_coeff * (pre_acts > 0).to(dtype=pre_acts.dtype)
+        return torch.relu(pre_acts) + jump_term
 
+    @staticmethod
+    def backward(ctx, grad_output):
+        pre_acts, = ctx.saved_tensors
+        jump_coeff = ctx.jump_coeff
+        mask = (pre_acts > 0).to(dtype=pre_acts.dtype)
+        grad_input = grad_output * (1 + jump_coeff) * mask
+        return grad_input, None
 
+class JumpReLUSAE(nn.Module):
+    def __init__(
+        self,
+        d_in: int,
+        d_sae: int,
+        hook_layer: int,
+        model_name: str = "EleutherAI/pythia-70m-deduped",
+        hook_name: Optional[str] = None,
+        jump_coeff: float = 0.1,
+    ):
+        super().__init__()
+        self.W_enc = nn.Parameter(torch.zeros(d_in, d_sae))
+        self.W_dec = nn.Parameter(torch.zeros(d_sae, d_in))
+        self.b_enc = nn.Parameter(torch.zeros(d_sae))
+        self.b_dec = nn.Parameter(torch.zeros(d_in))
 
+        nn.init.kaiming_uniform_(self.W_enc, nonlinearity='relu')
+        nn.init.kaiming_uniform_(self.W_dec, nonlinearity='relu')
+        nn.init.uniform_(self.b_enc, -0.01, 0.01)
+        nn.init.uniform_(self.b_dec, -0.01, 0.01)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        self.activation_dim = d_in
+        self.dict_size = d_sae
+        self.dtype = torch.float32
+        
+        if hook_name is None:
+            hook_name = f"blocks.{hook_layer}.hook_resid_post"
 
+        self.cfg = CustomSAEConfig(
+            model_name=model_name,
+            d_in=d_in,
+            d_sae=d_sae,
+            hook_name=hook_name,
+            hook_layer=hook_layer,
+            architecture="JumpReLU",
+            activation_fn_str="jumprelu",
+            apply_b_dec_to_input=True,
+            jump_coeff=jump_coeff,
+        )
 
-class ConstrainedAdam(torch.optim.Adam):
-    """A variant of Adam where some parameters are constrained to have unit norm."""
-    def __init__(self, params, constrained_params, lr):
-        super().__init__(params, lr=lr)
-        self.constrained_params = list(constrained_params)
-    
-    def step(self, closure=None):
-        with torch.no_grad():
-            for p in self.constrained_params:
-                normed_p = p / p.norm(dim=0, keepdim=True)
-                p.grad -= (p.grad * normed_p).sum(dim=0, keepdim=True) * normed_p
-        super().step(closure=closure)
-        with torch.no_grad():
-            for p in self.constrained_params:
-                p /= p.norm(dim=0, keepdim=True)
+    def encode(self, input_acts):
+        pre_acts = (input_acts - self.b_dec) @ self.W_enc + self.b_enc
+        acts = JumpReLUFunc.apply(pre_acts, self.cfg.jump_coeff)
+        return acts
 
+    def decode(self, acts):
+        return (acts @ self.W_dec) + self.b_dec
+
+    def forward(self, acts, output_features=False):
+        encoded = self.encode(acts)
+        decoded = self.decode(encoded)
+        return (decoded, encoded) if output_features else decoded
+
+    def to(self, *args, **kwargs):
+        super().to(*args, **kwargs)
+        return self
+
+def set_decoder_norm_to_unit_norm(decoder_weight, activation_dim, dict_size):
+    with torch.no_grad():
+        decoder_weight.data = decoder_weight / decoder_weight.norm(dim=0, keepdim=True)
+    return decoder_weight
+
+def remove_gradient_parallel_to_decoder_directions(decoder_weight, grad, activation_dim, dict_size):
+    parallel_component = torch.einsum('ij,ij->j', grad, decoder_weight)
+    grad -= parallel_component.unsqueeze(0) * decoder_weight
+    return grad
 
 class SAETrainer:
-    """Base class for implementing SAE training algorithms."""
     def __init__(self, seed=None):
         self.seed = seed
         self.logging_parameters = []
 
     def update(self, step, activations):
-        """Update step for training. To be implemented by subclasses."""
         pass
 
     def get_logging_parameters(self):
-        stats = {}
-        for param in self.logging_parameters:
-            if hasattr(self, param):
-                stats[param] = getattr(self, param)
-            else:
-                print(f"Warning: {param} not found in {self}")
-        return stats
-    
+        return {param: getattr(self, param) for param in self.logging_parameters if hasattr(self, param)}
+
+    @property
+    def config(self):
+        return {'wandb_name': 'trainer'}
+
+class JumpReLUTrainer(SAETrainer):
+    def __init__(
+        self,
+        activation_dim=512,
+        dict_size=64*512,
+        lr=7e-5,
+        l1_penalty=1e-1,
+        warmup_steps=1000,
+        resample_steps=None,
+        steps = None,
+        seed=None,
+        device=None,
+        layer=None,
+        lm_name=None,
+        wandb_name='JumpReLUTrainer',
+        submodule_name=None,
+        jump_coeff: float = 0.1,
+        bandwidth: float = 0.001,
+        sparsity_penalty: float = 1.0,
+        sparsity_warmup_steps: int = 2000,
+        target_l0: float = 20.0,
+    ):
+        super().__init__(seed)
+        assert layer is not None and lm_name is not None
+        self.layer = layer
+        self.lm_name = lm_name
+        self.submodule_name = submodule_name
+        self.resample_steps = int(steps * 0.3)
+        self.resample_counter = 0
+        torch.manual_seed(seed or 42)
+        self.device = device or 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.ae = JumpReLUSAE(
+            d_in=activation_dim,
+            d_sae=dict_size,
+            hook_layer=layer,
+            model_name=lm_name,
+            jump_coeff=jump_coeff,
+        ).to(self.device)
+
+        self.lr = lr
+        self.sparsity_penalty = sparsity_penalty
+        self.warmup_steps = warmup_steps
+        self.sparsity_warmup_steps = sparsity_warmup_steps
+        self.target_l0 = target_l0
+        self.bandwidth = bandwidth
+        self.resample_steps = resample_steps
+
+        self.optimizer = Adam(
+            self.ae.parameters(),
+            lr=lr,
+            betas=(0.0, 0.999),
+            eps=1e-8
+        )
+
+        self.lr_scheduler = LambdaLR(
+            self.optimizer,
+            lr_lambda=lambda step: min(step / warmup_steps, 1.0)
+        )
+
+        self.sparsity_warmup_fn = lambda step: min(step / sparsity_warmup_steps, 1.0)
+        self.num_tokens_since_fired = torch.zeros(dict_size, device=self.device)
+        self.logging_parameters.extend(['dead_features'])
+
+    def loss(self, x, step, logging=False):
+        x = x.to(self.ae.W_enc.dtype)
+        pre_acts = (x - self.ae.b_dec) @ self.ae.W_enc + self.ae.b_enc
+        f = JumpReLUFunc.apply(pre_acts, self.ae.cfg.jump_coeff)
+        
+        active_neurons = (f > 0).any(dim=0)
+        self.num_tokens_since_fired[active_neurons] = 0
+        self.num_tokens_since_fired[~active_neurons] += x.size(0)
+        dead_features = (self.num_tokens_since_fired > 1e6).sum().item()
+
+        recon = self.ae.decode(f)
+        recon_loss = (x - recon).pow(2).sum(dim=-1).mean()
+        l0 = (pre_acts > 0).float().sum(dim=-1).mean()
+        
+        sparsity_scale = self.sparsity_warmup_fn(step)
+        sparsity_loss = self.sparsity_penalty * ((l0 / self.target_l0) - 1).pow(2) * sparsity_scale
+        total_loss = recon_loss + sparsity_loss
+
+        if logging:
+            return {
+                "loss": total_loss.item(),
+                "mse_loss": recon_loss.item(),
+                "sparsity_loss": sparsity_loss.item(),
+                "l0": l0.item(),
+                "dead_features": dead_features
+            }
+        return total_loss
+
+    def update(self, step, activations):
+        activations = activations.to(self.device)
+        self.optimizer.zero_grad()
+        loss = self.loss(activations, step)
+        loss.backward()
+
+        with torch.no_grad():
+            self.ae.W_dec.grad = remove_gradient_parallel_to_decoder_directions(
+                self.ae.W_dec.T,
+                self.ae.W_dec.grad.T,
+                self.ae.activation_dim,
+                self.ae.dict_size
+            ).T
+
+        torch.nn.utils.clip_grad_norm_(self.ae.parameters(), 1.0)
+        self.optimizer.step()
+        self.lr_scheduler.step()
+
+        with torch.no_grad():
+            self.ae.W_dec.data = set_decoder_norm_to_unit_norm(
+                self.ae.W_dec.T,
+                self.ae.activation_dim,
+                self.ae.dict_size
+            ).T
+
+        if self.resample_steps and step % self.resample_steps == 0:
+            print("\n\n\nRESAMPLEING\n\n\n")
+            self.resample_neurons(activations)
+            self.resample_counter += 1
+            if (self.resample_counter == 2):
+                self.resample_counter = 0
+                self.resample_steps = None
+
+        return self.loss(activations, step, logging=True)
+
+    def resample_neurons(self, activations):
+        dead_mask = self.num_tokens_since_fired > self.resample_steps
+        if not dead_mask.any():
+            return
+        print("\n\n\n{dead_mask.sum()}\n\n\n")
+        losses = (activations - self.ae(activations)).norm(dim=-1)
+        n_resample = min(dead_mask.sum().item(), losses.size(0))
+        indices = torch.multinomial(losses, n_resample, replacement=False)
+        sampled = activations[indices]
+
+        with torch.no_grad():
+            alive_norm = self.ae.W_enc[:, ~dead_mask].norm(dim=0).mean()
+            self.ae.W_enc[:, dead_mask] = sampled.T * alive_norm * 0.2
+            self.ae.b_enc[dead_mask] = 0
+            self.ae.W_dec[dead_mask] = sampled / sampled.norm(dim=1, keepdim=True)
+
+            self.optimizer.state_dict()['state'][self.ae.W_enc]['exp_avg'][:, dead_mask] = 0
+            self.optimizer.state_dict()['state'][self.ae.W_enc]['exp_avg_sq'][:, dead_mask] = 0
+
     @property
     def config(self):
         return {
-            'wandb_name': 'trainer',
+            'trainer_class': 'JumpReLUTrainer',
+            'activation_dim': self.ae.activation_dim,
+            'dict_size': self.ae.dict_size,
+            'lr': self.lr,
+            'sparsity_penalty': self.sparsity_penalty,
+            'warmup_steps': self.warmup_steps,
+            'resample_steps': self.resample_steps,
+            'device': self.device,
+            'layer': self.layer,
+            'lm_name': self.lm_name,
+            'wandb_name': 'JumpReLUTrainer',
+            'jump_coeff': self.ae.cfg.jump_coeff,
+            'target_l0': self.target_l0,
+            'bandwidth': self.bandwidth
         }
 
-
 def special_slice(list1, m=5, num_k=20):
-    # Compute N
     N = (len(list1) - m) // num_k
-
-    # Create dictionary with step indices
     result = {}
     for k in range(num_k):
         for i in range(m):
             idx = k * N + i
             if idx < len(list1):
                 result[f"step {idx}"] = list1[idx]
-    
     return result
+
 
 def run_sae_training(
     layer: int,
@@ -480,6 +352,7 @@ def run_sae_training(
     wandb_logging: bool = False,
     wandb_entity: str = None,
     wandb_project: str = None,
+    jump_coeff: float = 0.01,  # New parameter
 ):
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
@@ -520,19 +393,19 @@ def run_sae_training(
     )
 
     # Initialize trainer
-    trainer = TrainerTopK(
+    trainer = JumpReLUTrainer(
         activation_dim=activation_dim,
-        dict_class=AutoEncoderTopK,
         dict_size=dict_size,
-        k=320,
-        auxk_alpha = 1/32,
-        decay_start=steps/8*7,
+        lr=learning_rate,
+        l1_penalty=sparsity_penalty,
         steps = steps,
+        warmup_steps=warmup_steps,
         seed=seed,
         device=device,
         layer=layer,
         lm_name=model_name,
         submodule_name=submodule_name,
+        jump_coeff=jump_coeff,
     )
     training_log = []
     for step in range(steps):
@@ -550,7 +423,7 @@ def run_sae_training(
     # Prepare final results
     final_info = {
         "training_steps": steps,
-        "final_loss": training_log[-1] if training_log else None,
+        "final_loss": training_log[-1]["loss"] if training_log else None,
         "layer": layer,
         "dict_size": dict_size,
         "learning_rate": learning_rate,
@@ -585,6 +458,7 @@ def run_sae_training(
     with open(all_info_path, "w") as f:
         json.dump(existing_data, indent=2, fp=f)
     print(f"all info: {all_info_path}") 
+    return trainer.ae
     return trainer.ae
 
 import os
@@ -711,24 +585,9 @@ def evaluate_trained_sae(
                 dtype=llm_dtype,
             )
         ),
-        "scr": (
+        "scr_and_tpp": (
             lambda: scr_and_tpp.run_eval(
                 scr_and_tpp.ScrAndTppEvalConfig(
-                    model_name=model_name,
-                    random_seed=RANDOM_SEED,
-                    llm_batch_size=llm_batch_size,
-                    llm_dtype=llm_dtype,
-                ),
-                selected_saes,
-                device,
-                out_dir,
-                force_rerun,
-            )
-        ),
-        "tpp": (
-            lambda: scr_and_tpp.run_eval(
-                scr_and_tpp.ScrAndTppEvalConfig(
-                    perform_scr = False,
                     model_name=model_name,
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
@@ -772,29 +631,13 @@ def evaluate_trained_sae(
     }
     
     # Create required directories                                                                                                                                                                                                    
-    import os
-    import shutil
-
-    # List of directories to be created
-    directories = [
-        "artifacts/autointerp/google",
-        "artifacts/absorption",
-        "artifacts/scr",
-        "artifacts/tpp",
-        "artifacts/sparse_probing"
-    ]
-
-    for dir_path in directories:
-        # If directory exists, delete it and its contents
-        if os.path.exists(dir_path):
-            shutil.rmtree(dir_path)
-        
-        # Recreate the directory
-        os.makedirs(dir_path)
+    os.makedirs("artifacts/autointerp/google", exist_ok=True)                                                                                                                                                                        
+    os.makedirs("artifacts/absorption", exist_ok=True)                                                                                                                                                                               
+    os.makedirs("artifacts/scr_and_tpp", exist_ok=True)                                                                                                                                                                              
+    os.makedirs("artifacts/sparse_probing", exist_ok=True)
     
     # Run selected evaluations
     prev_eval_type = None
-    time_checkpoint = datetime.now()
     for eval_type in eval_types:
         if eval_type in eval_runners:
             if prev_eval_type:
@@ -859,6 +702,7 @@ if __name__ == "__main__":
     wandb_logging=not no_wandb_logging,
     wandb_entity=None,
     wandb_project=None,
+    jump_coeff=0.1
     )) 
 
 
@@ -900,6 +744,7 @@ if __name__ == "__main__":
         for sae_name, sae in selected_saes:
             sae = sae.to(dtype=str_to_dtype(llm_dtype))
             sae.cfg.dtype = llm_dtype
+
         evaluate_trained_sae(
             selected_saes=selected_saes,
             model_name=model_name,
@@ -908,7 +753,7 @@ if __name__ == "__main__":
             llm_batch_size=llm_batch_size,
             llm_dtype=llm_dtype,
             api_key=api_key,
-            force_rerun=True,
+            force_rerun=False,
             save_activations=False,
             out_dir=save_dir
         )

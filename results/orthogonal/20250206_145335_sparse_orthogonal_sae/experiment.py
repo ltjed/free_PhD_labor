@@ -1,5 +1,6 @@
 import sys
 import os
+from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 import torch
@@ -106,6 +107,21 @@ class AutoEncoderTopK(nn.Module):
         )
         
 
+    def compute_mask_intersections(self, indices_BK):
+        """Compute normalized intersection sizes between feature masks"""
+        B = indices_BK.size(0)
+        F = self.dict_size
+        
+        # Convert indices to binary masks
+        masks = torch.zeros((B, F), device=indices_BK.device)
+        masks.scatter_(1, indices_BK, 1.0)
+        
+        # Compute intersections between all pairs
+        intersect = masks.T @ masks  # FxF matrix of intersection counts
+        
+        # Normalize by batch size
+        return intersect / B
+
     def encode(self, x: torch.Tensor, return_topk: bool = False):
         pre_acts = (x - self.b_dec) @ self.W_enc + self.b_enc
         post_relu_feat_acts_BF = torch.relu(pre_acts)
@@ -116,6 +132,9 @@ class AutoEncoderTopK(nn.Module):
         encoded_acts_BF = torch.zeros_like(post_relu_feat_acts_BF).scatter_(
             dim=-1, index=top_indices_BK, src=tops_acts_BK
         )
+
+        # Store activation patterns for orthogonality loss
+        self.last_activation_indices = top_indices_BK
 
         if return_topk:
             return encoded_acts_BF, tops_acts_BK, top_indices_BK
@@ -271,6 +290,10 @@ class TrainerTopK(SAETrainer):
         e = x_hat - x
         total_variance = (x - x.mean(0)).pow(2).sum(0)
 
+        # Compute sparsity-weighted orthogonality loss
+        competition_coef = self.ae.compute_mask_intersections(top_indices)
+        ortho_loss = torch.sum(competition_coef * torch.abs(f.T @ f)) / (f.size(0) ** 2)
+
         # Update the effective L0 (again, should just be K)
         self.effective_l0 = top_acts.size(1)
 
@@ -317,7 +340,8 @@ class TrainerTopK(SAETrainer):
 
         l2_loss = e.pow(2).sum(dim=-1).mean()
         auxk_loss = auxk_loss.sum(dim=-1).mean()
-        loss = l2_loss + self.auxk_alpha * auxk_loss
+        # Add orthogonality loss with weight 0.01
+        loss = l2_loss + self.auxk_alpha * auxk_loss + 0.01 * ortho_loss
 
         if not logging:
             return loss
