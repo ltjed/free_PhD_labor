@@ -19,12 +19,13 @@ from ai_scientist.perform_experiments import perform_experiments
 from ai_scientist.perform_review import perform_review, load_paper, perform_improvement
 from ai_scientist.perform_writeup import perform_writeup, generate_latex
 
-NUM_REFLECTIONS = 15
+NUM_REFLECTIONS = 5
 
-
-def print_time():
-    print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
+# added support for tracking time spent on each step
+def print_time(message=" "):
+    current_time = datetime.now()
+    print(f"\n[{current_time.strftime('%Y-%m-%d %H:%M:%S')}] {message}")
+    return current_time
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run AI scientist experiments")
@@ -183,26 +184,36 @@ def do_idea(
         if model == "deepseek-coder":
             main_model = Model("deepseek/deepseek-coder")
         elif model == "deepseek-reasoner":
-            main_model = Model("deepseek/deepseek-reasoner")
+            # main_model = Model("deepseek/deepseek-reasoner")
+            # # using r1 as architect and sonnet as editor
+            main_model = Model(model="deepseek/deepseek-reasoner",editor_model="claude-3-5-sonnet-20241022",)
         elif model == "llama3.1-405b":
             main_model = Model("openrouter/meta-llama/llama-3.1-405b-instruct")
         else:
             main_model = Model(model)
         try:
-            coder = Coder.create(
+            if model == "deepseek-reasoner":
+                coder = Coder.create(
                 main_model=main_model,
                 fnames=fnames,
                 io=io,
                 stream=False,
                 use_git=False,
-                edit_format="diff",
-            )
+                edit_format="architect",
+                )
+            else:
+                coder = Coder.create(
+                    main_model=main_model,
+                    fnames=fnames,
+                    io=io,
+                    stream=False,
+                    use_git=False,
+                    edit_format="diff",
+                )
         except Exception as e:
             print(f"Failed to create coder: {e}")
         
-
-        print_time()
-        print(f"*Starting Experiments*")
+        start_time = print_time("Starting experiments execution")
         try:
             success = perform_experiments(idea, folder_name, coder, baseline_results)
         except Exception as e:
@@ -214,7 +225,10 @@ def do_idea(
             print(f"Experiments failed for idea {idea_name}")
             return False
 
-        print_time()
+
+        
+        print(f"Time spent on performing experiments: {(datetime.now() - start_time).total_seconds():.2f}s")
+        start_time = print_time()
         print(f"*Starting Writeup*")
         ## PERFORM WRITEUP
         if writeup == "latex":
@@ -235,7 +249,8 @@ def do_idea(
                 edit_format="diff",
             )
             try:
-                perform_writeup(idea, folder_name, coder, reasoner_client, reasoner_client_model)
+                # perform_writeup(idea, folder_name, coder, reasoner_client, reasoner_client_model)
+                perform_writeup(idea, folder_name, coder, client, client_model)
             except Exception as e:
                 print(f"Failed to perform writeup: {e}")
                 return False
@@ -244,6 +259,8 @@ def do_idea(
             raise ValueError(f"Writeup format {writeup} not supported.")
 
         print_time()
+        
+        print(f"Time spent on latex writeup: {(datetime.now() - start_time).total_seconds():.2f}s")
         print(f"*Starting Review*")
         ## REVIEW PAPER
         if writeup == "latex":
@@ -318,8 +335,8 @@ if __name__ == "__main__":
     # Create client, used for coding assistant (aider) during perform_experiment()
     client, client_model = create_client(args.model)
 
-    # reasoning model used for writeup
-    reasoner_client, reasoner_client_model = create_client("deepseek-reasoner")
+    # # reasoning model used for writeup
+    # reasoner_client, reasoner_client_model = create_client("deepseek-reasoner")
 
 
     base_dir = osp.join("templates", args.experiment)

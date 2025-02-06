@@ -1,0 +1,401 @@
+
+# aider chat started at 2025-02-05 18:16:15
+
+
+#### Your goal is to implement the following idea: Orthogonal Feature Learning for Optimal Knowledge Separation in Sparse Autoencoders. Pay attention to the following details from the idea:  
+#### The proposed experiment is as follows: 1. Implement adaptive orthogonality loss with controlled feature sharing  
+#### 2. Add batch-wise feature grouping with periodic updates  
+#### 3. Train on Pythia-70M using WMDP-bio and WikiText datasets  
+#### 4. Compare unlearning performance against baseline and fixed orthogonal SAE  
+#### 5. Analyze condition numbers of feature subspaces  
+#### 6. Evaluate impact of different α values for controlled sharing.  
+#### The implementation plan is as follows: 1. Add AdaptiveOrthogonalityLoss with scheduling  
+#### 2. Implement efficient batch-wise feature grouping  
+#### 3. Modify CustomSAE to include group-specific biases  
+#### 4. Add condition number calculation utilities  
+#### 5. Update CustomTrainer with adaptive loss weight  
+#### 6. Add evaluation metrics for controlled sharing.  
+####   
+#### You can also refer to other information in the idea: {'Name': 'Orthogonal_sae', 'Title': 'Orthogonal Feature Learning for Optimal Knowledge Separation in Sparse Autoencoders', 'Experiment': '1. Implement adaptive orthogonality loss with controlled feature sharing\n2. Add batch-wise feature grouping with periodic updates\n3. Train on Pythia-70M using WMDP-bio and WikiText datasets\n4. Compare unlearning performance against baseline and fixed orthogonal SAE\n5. Analyze condition numbers of feature subspaces\n6. Evaluate impact of different α values for controlled sharing', 'Technical_Details': 'The method uses an adaptive objective: L = L_recon + λ_1 * L_sparse + λ_2(t) * L_ortho where λ_2(t) = λ_2_max * min(1, t/t_0) increases linearly until step t_0. L_ortho = ||W_1^T W_2 - αI||_F allows controlled feature sharing through parameter α. Feature groups are updated every n=100 steps using efficient batch statistics. Implementation includes early stopping based on condition number thresholds. The decoder uses group-specific bias terms while sharing weights to balance separation and reconstruction quality.', 'Research_Impact': 'A key challenge in selective unlearning is finding the optimal balance between knowledge separation and model performance. Current approaches either sacrifice reconstruction quality for separation or vice versa. This research addresses the challenge through adaptive training and controlled feature sharing, achieving better separation while maintaining performance. The theoretical framework provides precise control over the separation-performance trade-off.', 'Implementation_Plan': '1. Add AdaptiveOrthogonalityLoss with scheduling\n2. Implement efficient batch-wise feature grouping\n3. Modify CustomSAE to include group-specific biases\n4. Add condition number calculation utilities\n5. Update CustomTrainer with adaptive loss weight\n6. Add evaluation metrics for controlled sharing', 'Interestingness_Evaluation': 'The combination of theoretical insights about feature sharing with practical adaptive training creates a more nuanced and effective approach to knowledge separation.', 'Interestingness': 9, 'Feasibility_Evaluation': 'The implementation remains efficient with batch-wise updates and simple matrix operations; adaptive weighting adds minimal overhead; controlled sharing through α provides easy tuning; all computations well within 30-minute limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'The adaptive approach with controlled feature sharing provides a novel theoretical framework for knowledge separation that bridges the gap between strict orthogonality and practical performance.', 'Novelty': 9, 'Overall_Score': 9.0, 'novel': True}  
+####   
+#### You are given a total of up to 10 runs to complete the necessary experiments. You do not need to use all 10.  
+####   
+#### If the experiments in the idea is already implemented in 'experiment.py' you are given with, you should try to improve its result by further enhancing the implementation.  
+####   
+#### First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run (you can try to run with different hyperparameters in the same run across different iterations.).  
+####   
+#### Note that we already provide the baseline results, so you do not need to re-run it.  
+####   
+#### For reference, the baseline results are as follows:  
+####   
+#### Baseline results from TopK SAE:   
+#### {'training results for layer 12': {'config': {'trainer_class': 'TrainerTopK', 'dict_class': 'AutoEncoderTopK', 'lr': 0.0001885618083164127, 'steps': 4882, 'seed': 42, 'activation_dim': 2304, 'dict_size': 18432, 'k': 320, 'device': 'cuda', 'layer': 12, 'lm_name': 'google/gemma-2-2b', 'wandb_name': 'AutoEncoderTopK', 'submodule_name': 'resid_post_layer_12'}, 'final_info': {'training_steps': 4882, 'final_loss': 2490.71484375, 'layer': 12, 'dict_size': 18432, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}}, 'absorption evaluation results': {'eval_type_id': 'absorption_first_letter', 'eval_config': {'model_name': 'google/gemma-2-2b', 'random_seed': 42, 'f1_jump_threshold': 0.03, 'max_k_value': 10, 'prompt_template': '{word} has the first letter:', 'prompt_token_pos': -6, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'k_sparse_probe_l1_decay': 0.01, 'k_sparse_probe_batch_size': 4096, 'k_sparse_probe_num_epochs': 50}, 'eval_id': '8a77b97b-0aa7-4019-b88e-1d5fc86e7e35', 'datetime_epoch_millis': 1738260105364, 'eval_result_metrics': {'mean': {'mean_absorption_score': 0.011311560801835012, 'mean_num_split_features': 1.2380952380952381}}, 'eval_result_details': [{'first_letter': 'a', 'absorption_rate': 0.0003755163349605708, 'num_absorption': 1, 'num_probe_true_positives': 2663, 'num_split_features': 2}, {'first_letter': 'b', 'absorption_rate': 0.0006333122229259025, 'num_absorption': 1, 'num_probe_true_positives': 1579, 'num_split_features': 1}, {'first_letter': 'd', 'absorption_rate': 0.0012515644555694619, 'num_absorption': 2, 'num_probe_true_positives': 1598, 'num_split_features': 1}, {'first_letter': 'e', 'absorption_rate': 0.002476780185758514, 'num_absorption': 4, 'num_probe_true_positives': 1615, 'num_split_features': 1}, {'first_letter': 'g', 'absorption_rate': 0.0017543859649122807, 'num_absorption': 2, 'num_probe_true_positives': 1140, 'num_split_features': 1}, {'first_letter': 'h', 'absorption_rate': 0.002061855670103093, 'num_absorption': 2, 'num_probe_true_positives': 970, 'num_split_features': 1}, {'first_letter': 'i', 'absorption_rate': 0.0005770340450086555, 'num_absorption': 1, 'num_probe_true_positives': 1733, 'num_split_features': 1}, {'first_letter': 'j', 'absorption_rate': 0.0026041666666666665, 'num_absorption': 1, 'num_probe_true_positives': 384, 'num_split_features': 2}, {'first_letter': 'k', 'absorption_rate': 0.0661764705882353, 'num_absorption': 45, 'num_probe_true_positives': 680, 'num_split_features': 1}, {'first_letter': 'm', 'absorption_rate': 0.002730748225013654, 'num_absorption': 5, 'num_probe_true_positives': 1831, 'num_split_features': 1}, {'first_letter': 'n', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 835, 'num_split_features': 1}, {'first_letter': 'o', 'absorption_rate': 0.06350710900473934, 'num_absorption': 67, 'num_probe_true_positives': 1055, 'num_split_features': 1}, {'first_letter': 'p', 'absorption_rate': 0.000869187309865276, 'num_absorption': 2, 'num_probe_true_positives': 2301, 'num_split_features': 1}, {'first_letter': 'r', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 1592, 'num_split_features': 1}, {'first_letter': 's', 'absorption_rate': 0.0010615711252653928, 'num_absorption': 3, 'num_probe_true_positives': 2826, 'num_split_features': 1}, {'first_letter': 't', 'absorption_rate': 0.0718266253869969, 'num_absorption': 116, 'num_probe_true_positives': 1615, 'num_split_features': 1}, {'first_letter': 'u', 'absorption_rate': 0.0025188916876574307, 'num_absorption': 2, 'num_probe_true_positives': 794, 'num_split_features': 1}, {'first_letter': 'v', 'absorption_rate': 0.0012315270935960591, 'num_absorption': 1, 'num_probe_true_positives': 812, 'num_split_features': 1}, {'first_letter': 'w', 'absorption_rate': 0.0014705882352941176, 'num_absorption': 1, 'num_probe_true_positives': 680, 'num_split_features': 2}, {'first_letter': 'y', 'absorption_rate': 0.005681818181818182, 'num_absorption': 1, 'num_probe_true_positives': 176, 'num_split_features': 2}, {'first_letter': 'z', 'absorption_rate': 0.008733624454148471, 'num_absorption': 2, 'num_probe_true_positives': 229, 'num_split_features': 2}], 'sae_bench_commit_hash': '60adde367f8d77d5f375d2bc8d39ed57e71595f0', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 18432, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'TopK', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'TopK', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'core evaluation results': {'unique_id': 'google/gemma-2-2b_layer_12_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_12_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': 0.9909258540372671, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 0.09130859375}, 'model_performance_preservation': {'ce_loss_score': 0.9917763157894737, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 3.015625, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': 0.77734375, 'mse': 1.4140625, 'cossim': 0.9296875}, 'shrinkage': {'l2_norm_in': 149.0, 'l2_norm_out': 139.0, 'l2_ratio': 0.9296875, 'relative_reconstruction_bias': 1.0}, 'sparsity': {'l0': 320.0, 'l1': 952.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}, 'unlearning evaluation results': {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.005, 0.01, 0.02], 'n_features_list': [10, 100, 1000], 'multipliers': [10, 25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': '934ed73e-60b9-4548-8843-7eb782da85b6', 'datetime_epoch_millis': 1738206942591, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0018726587295532227}}, 'eval_result_details': [], 'sae_bench_commit_hash': '60adde367f8d77d5f375d2bc8d39ed57e71595f0', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 4608, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'scr and tpp evaluations results': {'eval_type_id': 'scr', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'canrager/amazon_reviews_mcauley_1and5'], 'perform_scr': True, 'early_stopping_patience': 20, 'train_set_size': 4000, 'test_set_size': 1000, 'context_length': 128, 'probe_train_batch_size': 16, 'probe_test_batch_size': 500, 'probe_epochs': 20, 'probe_lr': 0.001, 'probe_l1_penalty': 0.001, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'lower_vram_usage': False, 'model_name': 'google/gemma-2-2b', 'n_values': [2, 5, 10, 20, 50, 100, 500], 'column1_vals_lookup': {'LabHC/bias_in_bios_class_set1': [['professor', 'nurse'], ['architect', 'journalist'], ['surgeon', 'psychologist'], ['attorney', 'teacher']], 'canrager/amazon_reviews_mcauley_1and5': [['Books', 'CDs_and_Vinyl'], ['Software', 'Electronics'], ['Pet_Supplies', 'Office_Products'], ['Industrial_and_Scientific', 'Toys_and_Games']]}}, 'eval_id': 'eca00384-2815-4f3b-9a0f-c43a9641dd09', 'datetime_epoch_millis': 1738262060787, 'eval_result_metrics': {'scr_metrics': {'scr_dir1_threshold_2': 0.1666135003720485, 'scr_metric_threshold_2': 0.117377050053775, 'scr_dir2_threshold_2': 0.11814089683053615, 'scr_dir1_threshold_5': 0.26866832487791314, 'scr_metric_threshold_5': 0.16687787413342567, 'scr_dir2_threshold_5': 0.17085293805429583, 'scr_dir1_threshold_10': 0.29196175141811176, 'scr_metric_threshold_10': 0.19463704992358133, 'scr_dir2_threshold_10': 0.19872197015917717, 'scr_dir1_threshold_20': 0.28666004993807526, 'scr_metric_threshold_20': 0.24151138199522765, 'scr_dir2_threshold_20': 0.24088549186443128, 'scr_dir1_threshold_50': 0.25061022779634345, 'scr_metric_threshold_50': 0.2917936325253217, 'scr_dir2_threshold_50': 0.28765504613083787, 'scr_dir1_threshold_100': 0.20003832117510784, 'scr_metric_threshold_100': 0.3192698599244855, 'scr_dir2_threshold_100': 0.3136981258782174, 'scr_dir1_threshold_500': 0.026976481243512648, 'scr_metric_threshold_500': 0.23864530477936774, 'scr_dir2_threshold_500': 0.22937694760332222}}, 'eval_result_details': [{'dataset_name': 'LabHC/bias_in_bios_class_set1_scr_professor_nurse_results', 'scr_dir1_threshold_2': 0.37500011641541114, 'scr_metric_threshold_2': 0.017199085925573582, 'scr_dir2_threshold_2': 0.017199085925573582, 'scr_dir1_threshold_5': 0.4843747235133985, 'scr_metric_threshold_5': 0.017199085925573582, 'scr_dir2_threshold_5': 0.017199085925573582, 'scr_dir1_threshold_10': 0.5156252764866015, 'scr_metric_threshold_10': 0.02948408453723957, 'scr_dir2_threshold_10': 0.02948408453723957, 'scr_dir1_threshold_20': 0.4375002910385279, 'scr_metric_threshold_20': 0.05896816907447914, 'scr_dir2_threshold_20': 0.05896816907447914, 'scr_dir1_threshold_50': 0.2968751309673376, 'scr_metric_threshold_50': 0.09582316490947711, 'scr_dir2_threshold_50': 0.09582316490947711, 'scr_dir1_threshold_100': 0.3124999417922944, 'scr_metric_threshold_100': 0.09828013534206324, 'scr_dir2_threshold_100': 0.09828013534206324, 'scr_dir1_threshold_500': 0.34374956344220814, 'scr_metric_threshold_500': 0.027027114104653437, 'scr_dir2_threshold_500': 0.027027114104653437}, {'dataset_name': 'LabHC/bias_in_bios_class_set1_scr_architect_journalist_results', 'scr_dir1_threshold_2': 0.05825226425346908, 'scr_metric_threshold_2': 0.1346704699783852, 'scr_dir2_threshold_2': 0.1346704699783852, 'scr_dir1_threshold_5': 0.26213605716954286, 'scr_metric_threshold_5': 0.1719197888799928, 'scr_dir2_threshold_5': 0.1719197888799928, 'scr_dir1_threshold_10': 0.26213605716954286, 'scr_metric_threshold_10': 0.19770776575133966, 'scr_dir2_threshold_10': 0.19770776575133966, 'scr_dir1_threshold_20': 0.29126189995330004, 'scr_metric_threshold_20': 0.26647564714594496, 'scr_dir2_threshold_20': 0.26647564714594496, 'scr_dir1_threshold_50': 0.16504817849915482, 'scr_metric_threshold_50': 0.32951294291889943, 'scr_dir2_threshold_50': 0.32951294291889943, 'scr_dir1_threshold_100': -0.20388379291607375, 'scr_metric_threshold_100': 0.3839541894724186, 'scr_dir2_threshold_100': 0.3839541894724186, 'scr_dir1_threshold_500': -0.7475731357776643, 'scr_metric_threshold_500': 0.07163317420543075, 'scr_dir2_threshold_500': 0.07163317420543075}, {'dataset_name': 'LabHC/bias_in_bios_class_set1_scr_surgeon_psychologist_results', 'scr_dir1_threshold_2': 0.42857142857142855, 'scr_metric_threshold_2': 0.03544318161412681, 'scr_dir2_threshold_2': 0.03544318161412681, 'scr_dir1_threshold_5': 0.5873013770560047, 'scr_metric_threshold_5': 0.058227846955206435, 'scr_dir2_threshold_5': 0.058227846955206435, 'scr_dir1_threshold_10': 0.6349207400434262, 'scr_metric_threshold_10': 0.09113926495559606, 'scr_dir2_threshold_10': 0.09113926495559606, 'scr_dir1_threshold_20': 0.5714285714285714, 'scr_metric_threshold_20': 0.10886085576265946, 'scr_dir2_threshold_20': 0.10886085576265946, 'scr_dir1_threshold_50': 0.36507925995657375, 'scr_metric_threshold_50': 0.1518987246267203, 'scr_dir2_threshold_50': 0.1518987246267203, 'scr_dir1_threshold_100': 0.42857142857142855, 'scr_metric_threshold_100': 0.20000012071825551, 'scr_dir2_threshold_100': 0.20000012071825551, 'scr_dir1_threshold_500': -0.17460275411200937, 'scr_metric_threshold_500': 0.05063300880745302, 'scr_dir2_threshold_500': 0.05063300880745302}, {'dataset_name': 'LabHC/bias_in_bios_class_set1_scr_attorney_teacher_results', 'scr_dir1_threshold_2': 0.1171878346939954, 'scr_metric_threshold_2': 0.041543020933079725, 'scr_dir2_threshold_2': 0.041543020933079725, 'scr_dir1_threshold_5': 0.31250011641530273, 'scr_metric_threshold_5': 0.0890208602099569, 'scr_dir2_threshold_5': 0.0890208602099569, 'scr_dir1_threshold_10': 0.20312514551912844, 'scr_metric_threshold_10': 0.11572710058610643, 'scr_dir2_threshold_10': 0.11572710058610643, 'scr_dir1_threshold_20': 0.07031251455191284, 'scr_metric_threshold_20': 0.14836798243767776, 'scr_dir2_threshold_20': 0.14836798243767776, 'scr_dir1_threshold_50': 0.08593777648634401, 'scr_metric_threshold_50': 0.22551938282841538, 'scr_dir2_threshold_50': 0.22551938282841538, 'scr_dir1_threshold_100': 0.06250011641530274, 'scr_metric_threshold_100': 0.25816026467998676, 'scr_dir2_threshold_100': 0.25816026467998676, 'scr_dir1_threshold_500': 0.25, 'scr_metric_threshold_500': -0.03857552332699319, 'scr_dir2_threshold_500': -0.03857552332699319}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_scr_Books_CDs_and_Vinyl_results', 'scr_dir1_threshold_2': 0.04371592886659017, 'scr_metric_threshold_2': 0.49019597301756745, 'scr_dir2_threshold_2': 0.49019597301756745, 'scr_dir1_threshold_5': 0.03278678379574697, 'scr_metric_threshold_5': 0.6274509483096945, 'scr_dir2_threshold_5': 0.6274509483096945, 'scr_dir1_threshold_10': 0.04371592886659017, 'scr_metric_threshold_10': 0.662745071456604, 'scr_dir2_threshold_10': 0.662745071456604, 'scr_dir1_threshold_20': 0.03278678379574697, 'scr_metric_threshold_20': 0.6823528916778143, 'scr_dir2_threshold_20': 0.6823528916778143, 'scr_dir1_threshold_50': 0.09836067709563222, 'scr_metric_threshold_50': 0.6862744089733254, 'scr_dir2_threshold_50': 0.6862744089733254, 'scr_dir1_threshold_100': -0.03278678379574697, 'scr_metric_threshold_100': 0.6823528916778143, 'scr_dir2_threshold_100': 0.6823528916778143, 'scr_dir1_threshold_500': -0.3114752603305745, 'scr_metric_threshold_500': 0.6823528916778143, 'scr_dir2_threshold_500': 0.6823528916778143}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_scr_Software_Electronics_results', 'scr_dir1_threshold_2': 0.09743586922067994, 'scr_metric_threshold_2': 0.0927419335456348, 'scr_dir2_threshold_2': 0.0927419335456348, 'scr_dir1_threshold_5': 0.16410229135546164, 'scr_metric_threshold_5': 0.13306447154960044, 'scr_dir2_threshold_5': 0.13306447154960044, 'scr_dir1_threshold_10': 0.21538460127700665, 'scr_metric_threshold_10': 0.1572581866250075, 'scr_dir2_threshold_10': 0.1572581866250075, 'scr_dir1_threshold_20': 0.29230760766203984, 'scr_metric_threshold_20': 0.20967734182539205, 'scr_dir2_threshold_20': 0.20967734182539205, 'scr_dir1_threshold_50': 0.29743574695473746, 'scr_metric_threshold_50': 0.2943548639067476, 'scr_dir2_threshold_50': 0.2943548639067476, 'scr_dir1_threshold_100': 0.2666666055336954, 'scr_metric_threshold_100': 0.3145161329087304, 'scr_dir2_threshold_100': 0.3145161329087304, 'scr_dir1_threshold_500': 0.29230760766203984, 'scr_metric_threshold_500': 0.4112902721865048, 'scr_dir2_threshold_500': 0.4112902721865048}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_scr_Pet_Supplies_Office_Products_results', 'scr_dir1_threshold_2': 0.15695053001361284, 'scr_metric_threshold_2': 0.0714287044746317, 'scr_dir2_threshold_2': 0.0714287044746317, 'scr_dir1_threshold_5': 0.2331838049629021, 'scr_metric_threshold_5': 0.16517854648243513, 'scr_dir2_threshold_5': 0.16517854648243513, 'scr_dir1_threshold_10': 0.33632283160029924, 'scr_metric_threshold_10': 0.17857149509445872, 'scr_dir2_threshold_10': 0.17857149509445872, 'scr_dir1_threshold_20': 0.42600884875093514, 'scr_metric_threshold_20': 0.2857142857142857, 'scr_dir2_threshold_20': 0.2857142857142857, 'scr_dir1_threshold_50': 0.5201793805874345, 'scr_metric_threshold_50': 0.37499990021545476, 'scr_dir2_threshold_50': 0.37499990021545476, 'scr_dir1_threshold_100': 0.5650223891627525, 'scr_metric_threshold_100': 0.415178479959405, 'scr_dir2_threshold_100': 0.415178479959405, 'scr_dir1_threshold_500': 0.3273543367994015, 'scr_metric_threshold_500': 0.4687500083153788, 'scr_dir2_threshold_500': 0.4687500083153788}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_scr_Industrial_and_Scientific_Toys_and_Games_results', 'scr_dir1_threshold_2': 0.05579403094120067, 'scr_metric_threshold_2': 0.05579403094120067, 'scr_dir2_threshold_2': 0.06190480515528994, 'scr_dir1_threshold_5': 0.07296144475494565, 'scr_metric_threshold_5': 0.07296144475494565, 'scr_dir2_threshold_5': 0.10476195612190681, 'scr_dir1_threshold_10': 0.1244634303822985, 'scr_metric_threshold_10': 0.1244634303822985, 'scr_dir2_threshold_10': 0.1571427922670651, 'scr_dir1_threshold_20': 0.17167388232356773, 'scr_metric_threshold_20': 0.17167388232356773, 'scr_dir2_threshold_20': 0.16666676127719673, 'scr_dir1_threshold_50': 0.17596567182353345, 'scr_metric_threshold_50': 0.17596567182353345, 'scr_dir2_threshold_50': 0.14285698066766273, 'scr_dir1_threshold_100': 0.20171666463720986, 'scr_metric_threshold_100': 0.20171666463720986, 'scr_dir2_threshold_100': 0.1571427922670651, 'scr_dir1_threshold_500': 0.23605149226469982, 'scr_metric_threshold_500': 0.23605149226469982, 'scr_dir2_threshold_500': 0.1619046348563358}], 'sae_bench_commit_hash': '60adde367f8d77d5f375d2bc8d39ed57e71595f0', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 18432, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'TopK', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'TopK', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'sparse probing evaluation results': {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': 'de1771b1-1543-4d2f-a6a8-28d5dd789f6e', 'datetime_epoch_millis': 1738262879913, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.9510437500000001, 'llm_top_1_test_accuracy': 0.6663687500000001, 'llm_top_2_test_accuracy': 0.7159999999999999, 'llm_top_5_test_accuracy': 0.78038125, 'llm_top_10_test_accuracy': 0.8332875, 'llm_top_20_test_accuracy': 0.87871875, 'llm_top_50_test_accuracy': 0.9227, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.9603125378489494, 'sae_top_1_test_accuracy': 0.7960375000000001, 'sae_top_2_test_accuracy': 0.8386062499999999, 'sae_top_5_test_accuracy': 0.87916875, 'sae_top_10_test_accuracy': 0.90693125, 'sae_top_20_test_accuracy': 0.9256937500000001, 'sae_top_50_test_accuracy': 0.9390124999999999, 'sae_top_100_test_accuracy': None}}, 'eval_result_details': [{'dataset_name': 'LabHC/bias_in_bios_class_set1_results', 'llm_test_accuracy': 0.9596, 'llm_top_1_test_accuracy': 0.6432, 'llm_top_2_test_accuracy': 0.6916, 'llm_top_5_test_accuracy': 0.7912, 'llm_top_10_test_accuracy': 0.8336, 'llm_top_20_test_accuracy': 0.8962, 'llm_top_50_test_accuracy': 0.9384, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9680000424385071, 'sae_top_1_test_accuracy': 0.8231999999999999, 'sae_top_2_test_accuracy': 0.8662000000000001, 'sae_top_5_test_accuracy': 0.9026, 'sae_top_10_test_accuracy': 0.9198000000000001, 'sae_top_20_test_accuracy': 0.9338000000000001, 'sae_top_50_test_accuracy': 0.9538, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'LabHC/bias_in_bios_class_set2_results', 'llm_test_accuracy': 0.9498000000000001, 'llm_top_1_test_accuracy': 0.6738000000000001, 'llm_top_2_test_accuracy': 0.7138, 'llm_top_5_test_accuracy': 0.7634000000000001, 'llm_top_10_test_accuracy': 0.8099999999999999, 'llm_top_20_test_accuracy': 0.8714000000000001, 'llm_top_50_test_accuracy': 0.9036000000000002, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9518000483512878, 'sae_top_1_test_accuracy': 0.7727999999999999, 'sae_top_2_test_accuracy': 0.8100000000000002, 'sae_top_5_test_accuracy': 0.8492000000000001, 'sae_top_10_test_accuracy': 0.9027999999999998, 'sae_top_20_test_accuracy': 0.9198000000000001, 'sae_top_50_test_accuracy': 0.9356, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'LabHC/bias_in_bios_class_set3_results', 'llm_test_accuracy': 0.9103999999999999, 'llm_top_1_test_accuracy': 0.6928000000000001, 'llm_top_2_test_accuracy': 0.7366, 'llm_top_5_test_accuracy': 0.7564, 'llm_top_10_test_accuracy': 0.8016, 'llm_top_20_test_accuracy': 0.8508000000000001, 'llm_top_50_test_accuracy': 0.8962, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9362000346183776, 'sae_top_1_test_accuracy': 0.7886000000000001, 'sae_top_2_test_accuracy': 0.8242, 'sae_top_5_test_accuracy': 0.8573999999999999, 'sae_top_10_test_accuracy': 0.8821999999999999, 'sae_top_20_test_accuracy': 0.8986000000000001, 'sae_top_50_test_accuracy': 0.9019999999999999, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_results', 'llm_test_accuracy': 0.9030000000000001, 'llm_top_1_test_accuracy': 0.6176, 'llm_top_2_test_accuracy': 0.6417999999999999, 'llm_top_5_test_accuracy': 0.6740000000000002, 'llm_top_10_test_accuracy': 0.7554000000000001, 'llm_top_20_test_accuracy': 0.8074, 'llm_top_50_test_accuracy': 0.8564, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9218000411987305, 'sae_top_1_test_accuracy': 0.7404000000000001, 'sae_top_2_test_accuracy': 0.7754, 'sae_top_5_test_accuracy': 0.8224, 'sae_top_10_test_accuracy': 0.8291999999999999, 'sae_top_20_test_accuracy': 0.8658000000000001, 'sae_top_50_test_accuracy': 0.8785999999999999, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_sentiment_results', 'llm_test_accuracy': 0.981, 'llm_top_1_test_accuracy': 0.671, 'llm_top_2_test_accuracy': 0.724, 'llm_top_5_test_accuracy': 0.766, 'llm_top_10_test_accuracy': 0.826, 'llm_top_20_test_accuracy': 0.847, 'llm_top_50_test_accuracy': 0.9325000000000001, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9785000383853912, 'sae_top_1_test_accuracy': 0.9, 'sae_top_2_test_accuracy': 0.919, 'sae_top_5_test_accuracy': 0.935, 'sae_top_10_test_accuracy': 0.949, 'sae_top_20_test_accuracy': 0.966, 'sae_top_50_test_accuracy': 0.972, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'codeparrot/github-code_results', 'llm_test_accuracy': 0.9678000000000001, 'llm_top_1_test_accuracy': 0.6456, 'llm_top_2_test_accuracy': 0.6936000000000001, 'llm_top_5_test_accuracy': 0.768, 'llm_top_10_test_accuracy': 0.7974, 'llm_top_20_test_accuracy': 0.8684, 'llm_top_50_test_accuracy': 0.9284000000000001, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9736000299453735, 'sae_top_1_test_accuracy': 0.6056, 'sae_top_2_test_accuracy': 0.7094, 'sae_top_5_test_accuracy': 0.8082, 'sae_top_10_test_accuracy': 0.8699999999999999, 'sae_top_20_test_accuracy': 0.9032, 'sae_top_50_test_accuracy': 0.9376, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'fancyzhx/ag_news_results', 'llm_test_accuracy': 0.93775, 'llm_top_1_test_accuracy': 0.65875, 'llm_top_2_test_accuracy': 0.738, 'llm_top_5_test_accuracy': 0.8182499999999999, 'llm_top_10_test_accuracy': 0.8775000000000001, 'llm_top_20_test_accuracy': 0.89675, 'llm_top_50_test_accuracy': 0.9285, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9530000388622284, 'sae_top_1_test_accuracy': 0.7965, 'sae_top_2_test_accuracy': 0.86225, 'sae_top_5_test_accuracy': 0.89575, 'sae_top_10_test_accuracy': 0.91225, 'sae_top_20_test_accuracy': 0.9247500000000001, 'sae_top_50_test_accuracy': 0.9345, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'Helsinki-NLP/europarl_results', 'llm_test_accuracy': 0.999, 'llm_top_1_test_accuracy': 0.7282, 'llm_top_2_test_accuracy': 0.7886, 'llm_top_5_test_accuracy': 0.9057999999999999, 'llm_top_10_test_accuracy': 0.9648, 'llm_top_20_test_accuracy': 0.9917999999999999, 'llm_top_50_test_accuracy': 0.9975999999999999, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9996000289916992, 'sae_top_1_test_accuracy': 0.9411999999999999, 'sae_top_2_test_accuracy': 0.9423999999999999, 'sae_top_5_test_accuracy': 0.9628, 'sae_top_10_test_accuracy': 0.9902, 'sae_top_20_test_accuracy': 0.9936, 'sae_top_50_test_accuracy': 0.998, 'sae_top_100_test_accuracy': None}], 'sae_bench_commit_hash': '60adde367f8d77d5f375d2bc8d39ed57e71595f0', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 18432, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'TopK', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'TopK', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}}  
+#### Baseline results from standard SAE:   
+#### {'scr and tpp evaluations results': {'eval_type_id': 'scr', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'canrager/amazon_reviews_mcauley_1and5'], 'perform_scr': True, 'early_stopping_patience': 20, 'train_set_size': 4000, 'test_set_size': 1000, 'context_length': 128, 'probe_train_batch_size': 16, 'probe_test_batch_size': 500, 'probe_epochs': 20, 'probe_lr': 0.001, 'probe_l1_penalty': 0.001, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'lower_vram_usage': False, 'model_name': 'google/gemma-2-2b', 'n_values': [2, 5, 10, 20, 50, 100, 500], 'column1_vals_lookup': {'LabHC/bias_in_bios_class_set1': [['professor', 'nurse'], ['architect', 'journalist'], ['surgeon', 'psychologist'], ['attorney', 'teacher']], 'canrager/amazon_reviews_mcauley_1and5': [['Books', 'CDs_and_Vinyl'], ['Software', 'Electronics'], ['Pet_Supplies', 'Office_Products'], ['Industrial_and_Scientific', 'Toys_and_Games']]}}, 'eval_id': '88e96fee-c5d3-4b15-b62c-29dcb732617d', 'datetime_epoch_millis': 1738265246728, 'eval_result_metrics': {'scr_metrics': {'scr_dir1_threshold_2': 0.024986714927972265, 'scr_metric_threshold_2': 0.043177525387746135, 'scr_dir2_threshold_2': 0.03614451488393293, 'scr_dir1_threshold_5': -0.027872434927972194, 'scr_metric_threshold_5': 0.0498206383435329, 'scr_dir2_threshold_5': 0.04332413350395067, 'scr_dir1_threshold_10': -0.07679448697169464, 'scr_metric_threshold_10': 0.046435468185911946, 'scr_dir2_threshold_10': 0.03922618427139585, 'scr_dir1_threshold_20': -0.08163246728835066, 'scr_metric_threshold_20': 0.05054452921164445, 'scr_dir2_threshold_20': 0.0492876194916143, 'scr_dir1_threshold_50': -0.2075173334645364, 'scr_metric_threshold_50': 0.06036789689420945, 'scr_dir2_threshold_50': 0.05047621256547952, 'scr_dir1_threshold_100': -0.30730415313533227, 'scr_metric_threshold_100': 0.03447109483181842, 'scr_dir2_threshold_100': 0.024344380456222475, 'scr_dir1_threshold_500': -0.29790819886806863, 'scr_metric_threshold_500': 0.03959443079463576, 'scr_dir2_threshold_500': 0.02714555176056758}}, 'eval_result_details': [{'dataset_name': 'LabHC/bias_in_bios_class_set1_scr_professor_nurse_results', 'scr_dir1_threshold_2': 0.015624810824956856, 'scr_metric_threshold_2': 0.009828028179079856, 'scr_dir2_threshold_2': 0.009828028179079856, 'scr_dir1_threshold_5': -0.23437588766751014, 'scr_metric_threshold_5': 0.03439802540241183, 'scr_dir2_threshold_5': 0.03439802540241183, 'scr_dir1_threshold_10': -0.18750052386935023, 'scr_metric_threshold_10': 0.04422605358149169, 'scr_dir2_threshold_10': 0.04422605358149169, 'scr_dir1_threshold_20': -0.18750052386935023, 'scr_metric_threshold_20': 0.08845210716298338, 'scr_dir2_threshold_20': 0.08845210716298338, 'scr_dir1_threshold_50': -0.8125013387772284, 'scr_metric_threshold_50': 0.07862407898390353, 'scr_dir2_threshold_50': 0.07862407898390353, 'scr_dir1_threshold_100': -1.2968760622906268, 'scr_metric_threshold_100': 0.13759224805838266, 'scr_dir2_threshold_100': 0.13759224805838266, 'scr_dir1_threshold_500': -1.2656264406407132, 'scr_metric_threshold_500': 0.1597051284003932, 'scr_dir2_threshold_500': 0.1597051284003932}, {'dataset_name': 'LabHC/bias_in_bios_class_set1_scr_architect_journalist_results', 'scr_dir1_threshold_2': 0.02912584278375721, 'scr_metric_threshold_2': 0.08882510185734234, 'scr_dir2_threshold_2': 0.08882510185734234, 'scr_dir1_threshold_5': -0.12621372145414522, 'scr_metric_threshold_5': 0.08309451623569147, 'scr_dir2_threshold_5': 0.08309451623569147, 'scr_dir1_threshold_10': -0.4466020428771571, 'scr_metric_threshold_10': 0.03151856249299773, 'scr_dir2_threshold_10': 0.03151856249299773, 'scr_dir1_threshold_20': -0.3592233571539762, 'scr_metric_threshold_20': 0.03151856249299773, 'scr_dir2_threshold_20': 0.03151856249299773, 'scr_dir1_threshold_50': -0.3106797071617595, 'scr_metric_threshold_50': 0.051575953742693734, 'scr_dir2_threshold_50': 0.051575953742693734, 'scr_dir1_threshold_100': -0.33980612863147136, 'scr_metric_threshold_100': 0.06590258858377988, 'scr_dir2_threshold_100': 0.06590258858377988, 'scr_dir1_threshold_500': -0.2912624786392547, 'scr_metric_threshold_500': 0.06303729577295444, 'scr_dir2_threshold_500': 0.06303729577295444}, {'dataset_name': 'LabHC/bias_in_bios_class_set1_scr_surgeon_psychologist_results', 'scr_dir1_threshold_2': -0.04761841688229979, 'scr_metric_threshold_2': 0.0075949890455728015, 'scr_dir2_threshold_2': 0.0075949890455728015, 'scr_dir1_threshold_5': -0.1587299484845761, 'scr_metric_threshold_5': 0.03291141800038962, 'scr_dir2_threshold_5': 0.03291141800038962, 'scr_dir1_threshold_10': -0.1111105854971546, 'scr_metric_threshold_10': 0.06582283600077923, 'scr_dir2_threshold_10': 0.06582283600077923, 'scr_dir1_threshold_20': -0.2380949227268642, 'scr_metric_threshold_20': 0.06582283600077923, 'scr_dir2_threshold_20': 0.06582283600077923, 'scr_dir1_threshold_50': -0.3333327025965855, 'scr_metric_threshold_50': 0.07341782504635204, 'scr_dir2_threshold_50': 0.07341782504635204, 'scr_dir1_threshold_100': -0.7777769367954473, 'scr_metric_threshold_100': 0.08354442680784264, 'scr_dir2_threshold_100': 0.08354442680784264, 'scr_dir1_threshold_500': -0.7777769367954473, 'scr_metric_threshold_500': 0.09367087767151386, 'scr_dir2_threshold_500': 0.09367087767151386}, {'dataset_name': 'LabHC/bias_in_bios_class_set1_scr_attorney_teacher_results', 'scr_dir1_threshold_2': -0.015624796273220196, 'scr_metric_threshold_2': 0.017804278163016753, 'scr_dir2_threshold_2': 0.017804278163016753, 'scr_dir1_threshold_5': 0.015625261934431176, 'scr_metric_threshold_5': 0.044510518539166266, 'scr_dir2_threshold_5': 0.044510518539166266, 'scr_dir1_threshold_10': -0.062499650754091765, 'scr_metric_threshold_10': 0.04747783927687718, 'scr_dir2_threshold_10': 0.04747783927687718, 'scr_dir1_threshold_20': -0.05468725261748167, 'scr_metric_threshold_20': 0.044510518539166266, 'scr_dir2_threshold_20': 0.044510518539166266, 'scr_dir1_threshold_50': -0.17968748544808716, 'scr_metric_threshold_50': 0.07121675891531577, 'scr_dir2_threshold_50': 0.07121675891531577, 'scr_dir1_threshold_100': -0.17187462165026607, 'scr_metric_threshold_100': 0.05934729909609648, 'scr_dir2_threshold_100': 0.05934729909609648, 'scr_dir1_threshold_500': -0.16406222351365599, 'scr_metric_threshold_500': 0.0623146198338074, 'scr_dir2_threshold_500': 0.0623146198338074}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_scr_Books_CDs_and_Vinyl_results', 'scr_dir1_threshold_2': 0.08743153202478901, 'scr_metric_threshold_2': 0.04313739148158649, 'scr_dir2_threshold_2': 0.04313739148158649, 'scr_dir1_threshold_5': 0.08743153202478901, 'scr_metric_threshold_5': 0.09019606651502937, 'scr_dir2_threshold_5': 0.09019606651502937, 'scr_dir1_threshold_10': 0.1092894964580841, 'scr_metric_threshold_10': 0.07843151462849601, 'scr_dir2_threshold_10': 0.07843151462849601, 'scr_dir1_threshold_20': 0.1311474608913792, 'scr_metric_threshold_20': 0.07450976358933016, 'scr_dir2_threshold_20': 0.07450976358933016, 'scr_dir1_threshold_50': -0.03278678379574697, 'scr_metric_threshold_50': 0.13333345799661586, 'scr_dir2_threshold_50': 0.13333345799661586, 'scr_dir1_threshold_100': 0.1092894964580841, 'scr_metric_threshold_100': -0.07450976358933016, 'scr_dir2_threshold_100': -0.07450976358933016, 'scr_dir1_threshold_500': 0.08743153202478901, 'scr_metric_threshold_500': -0.07058824629381905, 'scr_dir2_threshold_500': -0.07058824629381905}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_scr_Software_Electronics_results', 'scr_dir1_threshold_2': 0.025641002128344394, 'scr_metric_threshold_2': 0.10887099681547797, 'scr_dir2_threshold_2': 0.10887099681547797, 'scr_dir1_threshold_5': 0.020512557170790546, 'scr_metric_threshold_5': 0.04838718980952953, 'scr_dir2_threshold_5': 0.04838718980952953, 'scr_dir1_threshold_10': -0.0666667277996379, 'scr_metric_threshold_10': 0.056451601273808806, 'scr_dir2_threshold_10': 0.056451601273808806, 'scr_dir1_threshold_20': 0.025641002128344394, 'scr_metric_threshold_20': 0.056451601273808806, 'scr_dir2_threshold_20': 0.056451601273808806, 'scr_dir1_threshold_50': 0.020512557170790546, 'scr_metric_threshold_50': -0.012096617196418915, 'scr_dir2_threshold_50': -0.012096617196418915, 'scr_dir1_threshold_100': 0.05641014354938642, 'scr_metric_threshold_100': -0.05241939554166917, 'scr_dir2_threshold_100': -0.05241939554166917, 'scr_dir1_threshold_500': 0.06153828284208406, 'scr_metric_threshold_500': -0.056451601273808806, 'scr_dir2_threshold_500': -0.056451601273808806}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_scr_Pet_Supplies_Office_Products_results', 'scr_dir1_threshold_2': 0.053811503376215715, 'scr_metric_threshold_2': 0.017857176118657926, 'scr_dir2_threshold_2': 0.017857176118657926, 'scr_dir1_threshold_5': 0.12556053092505612, 'scr_metric_threshold_5': 0.017857176118657926, 'scr_dir2_threshold_5': 0.017857176118657926, 'scr_dir1_threshold_10': 0.11210752143829489, 'scr_metric_threshold_10': 0.008928721105389243, 'scr_dir2_threshold_10': 0.008928721105389243, 'scr_dir1_threshold_20': -0.008968762086312341, 'scr_metric_threshold_20': 0.0044642275066343415, 'scr_dir2_threshold_20': 0.0044642275066343415, 'scr_dir1_threshold_50': -0.0717490275488404, 'scr_metric_threshold_50': 0.02678589722404717, 'scr_dir2_threshold_50': 0.02678589722404717, 'scr_dir1_threshold_100': -0.08071752234973815, 'scr_metric_threshold_100': 0.013392948612023585, 'scr_dir2_threshold_100': 0.013392948612023585, 'scr_dir1_threshold_500': -0.08071752234973815, 'scr_metric_threshold_500': 0.017857176118657926, 'scr_dir2_threshold_500': 0.017857176118657926}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_scr_Industrial_and_Scientific_Toys_and_Games_results', 'scr_dir1_threshold_2': 0.05150224144123495, 'scr_metric_threshold_2': 0.05150224144123495, 'scr_dir2_threshold_2': -0.004761842589270712, 'scr_dir1_threshold_5': 0.047210196127387125, 'scr_metric_threshold_5': 0.047210196127387125, 'scr_dir2_threshold_5': -0.004761842589270712, 'scr_dir1_threshold_10': 0.03862661712745569, 'scr_metric_threshold_10': 0.03862661712745569, 'scr_dir2_threshold_10': -0.019047654188673074, 'scr_dir1_threshold_20': 0.03862661712745569, 'scr_metric_threshold_20': 0.03862661712745569, 'scr_dir2_threshold_20': 0.0285713393672145, 'scr_dir1_threshold_50': 0.060085820441166386, 'scr_metric_threshold_50': 0.060085820441166386, 'scr_dir2_threshold_50': -0.019047654188673074, 'scr_dir1_threshold_100': 0.042918406627421406, 'scr_metric_threshold_100': 0.042918406627421406, 'scr_dir2_threshold_100': -0.03809530837734615, 'scr_dir1_threshold_500': 0.047210196127387125, 'scr_metric_threshold_500': 0.047210196127387125, 'scr_dir2_threshold_500': -0.05238083614515829}], 'sae_bench_commit_hash': '1c64f65e68c0e3cdaf116a205182859fd51f77f7', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 18432, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'sparse probing evaluation results': {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': '47ec66f1-cfac-489c-ae4d-518b86f5565f', 'datetime_epoch_millis': 1738266791518, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.9499875, 'llm_top_1_test_accuracy': 0.6543625, 'llm_top_2_test_accuracy': 0.71773125, 'llm_top_5_test_accuracy': 0.7809625, 'llm_top_10_test_accuracy': 0.8308812499999999, 'llm_top_20_test_accuracy': 0.87641875, 'llm_top_50_test_accuracy': 0.9223499999999999, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.8769375406205654, 'sae_top_1_test_accuracy': 0.62393125, 'sae_top_2_test_accuracy': 0.6743937500000001, 'sae_top_5_test_accuracy': 0.7260875, 'sae_top_10_test_accuracy': 0.7787999999999999, 'sae_top_20_test_accuracy': 0.82108125, 'sae_top_50_test_accuracy': 0.86705625, 'sae_top_100_test_accuracy': None}}, 'eval_result_details': [{'dataset_name': 'LabHC/bias_in_bios_class_set1_results', 'llm_test_accuracy': 0.9596, 'llm_top_1_test_accuracy': 0.6432, 'llm_top_2_test_accuracy': 0.6916, 'llm_top_5_test_accuracy': 0.7912, 'llm_top_10_test_accuracy': 0.8336, 'llm_top_20_test_accuracy': 0.8962, 'llm_top_50_test_accuracy': 0.9384, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.906600046157837, 'sae_top_1_test_accuracy': 0.6292, 'sae_top_2_test_accuracy': 0.6846, 'sae_top_5_test_accuracy': 0.705, 'sae_top_10_test_accuracy': 0.7652, 'sae_top_20_test_accuracy': 0.8523999999999999, 'sae_top_50_test_accuracy': 0.9077999999999999, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'LabHC/bias_in_bios_class_set2_results', 'llm_test_accuracy': 0.9489999999999998, 'llm_top_1_test_accuracy': 0.6728, 'llm_top_2_test_accuracy': 0.7150000000000001, 'llm_top_5_test_accuracy': 0.7615999999999999, 'llm_top_10_test_accuracy': 0.807, 'llm_top_20_test_accuracy': 0.8638, 'llm_top_50_test_accuracy': 0.909, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.8836000323295593, 'sae_top_1_test_accuracy': 0.6686, 'sae_top_2_test_accuracy': 0.7066000000000001, 'sae_top_5_test_accuracy': 0.7623999999999999, 'sae_top_10_test_accuracy': 0.7846, 'sae_top_20_test_accuracy': 0.8274000000000001, 'sae_top_50_test_accuracy': 0.868, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'LabHC/bias_in_bios_class_set3_results', 'llm_test_accuracy': 0.9156000000000001, 'llm_top_1_test_accuracy': 0.689, 'llm_top_2_test_accuracy': 0.7362, 'llm_top_5_test_accuracy': 0.7598, 'llm_top_10_test_accuracy': 0.7974, 'llm_top_20_test_accuracy': 0.8460000000000001, 'llm_top_50_test_accuracy': 0.889, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.8686000347137451, 'sae_top_1_test_accuracy': 0.6617999999999998, 'sae_top_2_test_accuracy': 0.72, 'sae_top_5_test_accuracy': 0.7556, 'sae_top_10_test_accuracy': 0.7766, 'sae_top_20_test_accuracy': 0.8276, 'sae_top_50_test_accuracy': 0.8591999999999999, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_results', 'llm_test_accuracy': 0.8942, 'llm_top_1_test_accuracy': 0.6083999999999999, 'llm_top_2_test_accuracy': 0.6397999999999999, 'llm_top_5_test_accuracy': 0.6768000000000001, 'llm_top_10_test_accuracy': 0.7484, 'llm_top_20_test_accuracy': 0.8076000000000001, 'llm_top_50_test_accuracy': 0.8632, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.7710000395774841, 'sae_top_1_test_accuracy': 0.5630000000000001, 'sae_top_2_test_accuracy': 0.585, 'sae_top_5_test_accuracy': 0.6176, 'sae_top_10_test_accuracy': 0.6784, 'sae_top_20_test_accuracy': 0.7091999999999999, 'sae_top_50_test_accuracy': 0.7696, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_sentiment_results', 'llm_test_accuracy': 0.981, 'llm_top_1_test_accuracy': 0.671, 'llm_top_2_test_accuracy': 0.724, 'llm_top_5_test_accuracy': 0.766, 'llm_top_10_test_accuracy': 0.826, 'llm_top_20_test_accuracy': 0.847, 'llm_top_50_test_accuracy': 0.933, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.8995000422000885, 'sae_top_1_test_accuracy': 0.635, 'sae_top_2_test_accuracy': 0.701, 'sae_top_5_test_accuracy': 0.72, 'sae_top_10_test_accuracy': 0.84, 'sae_top_20_test_accuracy': 0.852, 'sae_top_50_test_accuracy': 0.889, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'codeparrot/github-code_results', 'llm_test_accuracy': 0.9638, 'llm_top_1_test_accuracy': 0.661, 'llm_top_2_test_accuracy': 0.6996, 'llm_top_5_test_accuracy': 0.7575999999999999, 'llm_top_10_test_accuracy': 0.806, 'llm_top_20_test_accuracy': 0.869, 'llm_top_50_test_accuracy': 0.9282, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.8808000445365906, 'sae_top_1_test_accuracy': 0.6106, 'sae_top_2_test_accuracy': 0.6536, 'sae_top_5_test_accuracy': 0.706, 'sae_top_10_test_accuracy': 0.7878000000000001, 'sae_top_20_test_accuracy': 0.8166, 'sae_top_50_test_accuracy': 0.8632, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'fancyzhx/ag_news_results', 'llm_test_accuracy': 0.9375, 'llm_top_1_test_accuracy': 0.6415, 'llm_top_2_test_accuracy': 0.75425, 'llm_top_5_test_accuracy': 0.8245, 'llm_top_10_test_accuracy': 0.86925, 'llm_top_20_test_accuracy': 0.8917499999999999, 'llm_top_50_test_accuracy': 0.922, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.8860000371932983, 'sae_top_1_test_accuracy': 0.60825, 'sae_top_2_test_accuracy': 0.6637500000000001, 'sae_top_5_test_accuracy': 0.7844999999999999, 'sae_top_10_test_accuracy': 0.8029999999999999, 'sae_top_20_test_accuracy': 0.83725, 'sae_top_50_test_accuracy': 0.8792500000000001, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'Helsinki-NLP/europarl_results', 'llm_test_accuracy': 0.9992000000000001, 'llm_top_1_test_accuracy': 0.648, 'llm_top_2_test_accuracy': 0.7814, 'llm_top_5_test_accuracy': 0.9102, 'llm_top_10_test_accuracy': 0.9593999999999999, 'llm_top_20_test_accuracy': 0.99, 'llm_top_50_test_accuracy': 0.9959999999999999, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9194000482559204, 'sae_top_1_test_accuracy': 0.615, 'sae_top_2_test_accuracy': 0.6806, 'sae_top_5_test_accuracy': 0.7575999999999999, 'sae_top_10_test_accuracy': 0.7948000000000001, 'sae_top_20_test_accuracy': 0.8462, 'sae_top_50_test_accuracy': 0.9004, 'sae_top_100_test_accuracy': None}], 'sae_bench_commit_hash': '1c64f65e68c0e3cdaf116a205182859fd51f77f7', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 18432, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'unlearning evaluation results': {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.005, 0.01, 0.02], 'n_features_list': [10, 100, 1000], 'multipliers': [10, 25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': '1082bce9-016e-4812-a308-6cc35a564822', 'datetime_epoch_millis': 1738184748213, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.02808988094329834}}, 'eval_result_details': [], 'sae_bench_commit_hash': '60adde367f8d77d5f375d2bc8d39ed57e71595f0', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 65536, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'JumpReLU', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'jumprelu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None, 'jump_coeff': 0.1}, 'eval_result_unstructured': None}, 'training results for layer 12': {'config': {'trainer_class': 'CustomTrainer', 'activation_dim': 2304, 'dict_size': 18432, 'lr': 0.0009, 'l1_penalty': 0.04, 'warmup_steps': 1000, 'resample_steps': None, 'device': 'cuda', 'layer': 12, 'lm_name': 'google/gemma-2-2b', 'wandb_name': 'CustomTrainer', 'submodule_name': 'resid_post_layer_12'}, 'final_info': {'training_steps': 4882, 'final_loss': 100.08680725097656, 'layer': 12, 'dict_size': 18432, 'learning_rate': 0.0009, 'sparsity_penalty': 0.04}}, 'absorption evaluation results': {'eval_type_id': 'absorption_first_letter', 'eval_config': {'model_name': 'google/gemma-2-2b', 'random_seed': 42, 'f1_jump_threshold': 0.03, 'max_k_value': 10, 'prompt_template': '{word} has the first letter:', 'prompt_token_pos': -6, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'k_sparse_probe_l1_decay': 0.01, 'k_sparse_probe_batch_size': 4096, 'k_sparse_probe_num_epochs': 50}, 'eval_id': 'ad2d746a-a110-461e-ad6d-ddcf9b6276e5', 'datetime_epoch_millis': 1738262973106, 'eval_result_metrics': {'mean': {'mean_absorption_score': 0.006518148628764265, 'mean_num_split_features': 1.04}}, 'eval_result_details': [{'first_letter': 'a', 'absorption_rate': 0.0003897116134060795, 'num_absorption': 1, 'num_probe_true_positives': 2566, 'num_split_features': 1}, {'first_letter': 'b', 'absorption_rate': 0.03848620910840282, 'num_absorption': 60, 'num_probe_true_positives': 1559, 'num_split_features': 1}, {'first_letter': 'c', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 2834, 'num_split_features': 1}, {'first_letter': 'd', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 1648, 'num_split_features': 1}, {'first_letter': 'e', 'absorption_rate': 0.043151969981238276, 'num_absorption': 69, 'num_probe_true_positives': 1599, 'num_split_features': 1}, {'first_letter': 'f', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 1196, 'num_split_features': 1}, {'first_letter': 'g', 'absorption_rate': 0.0027397260273972603, 'num_absorption': 3, 'num_probe_true_positives': 1095, 'num_split_features': 1}, {'first_letter': 'h', 'absorption_rate': 0.005065856129685917, 'num_absorption': 5, 'num_probe_true_positives': 987, 'num_split_features': 1}, {'first_letter': 'i', 'absorption_rate': 0.005389221556886228, 'num_absorption': 9, 'num_probe_true_positives': 1670, 'num_split_features': 2}, {'first_letter': 'j', 'absorption_rate': 0.015317286652078774, 'num_absorption': 7, 'num_probe_true_positives': 457, 'num_split_features': 1}, {'first_letter': 'k', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 718, 'num_split_features': 1}, {'first_letter': 'l', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 1137, 'num_split_features': 1}, {'first_letter': 'm', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 1869, 'num_split_features': 1}, {'first_letter': 'n', 'absorption_rate': 0.001128668171557562, 'num_absorption': 1, 'num_probe_true_positives': 886, 'num_split_features': 1}, {'first_letter': 'o', 'absorption_rate': 0.014605647517039922, 'num_absorption': 15, 'num_probe_true_positives': 1027, 'num_split_features': 1}, {'first_letter': 'p', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 2280, 'num_split_features': 1}, {'first_letter': 'q', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 178, 'num_split_features': 1}, {'first_letter': 'r', 'absorption_rate': 0.0047789725209080045, 'num_absorption': 8, 'num_probe_true_positives': 1674, 'num_split_features': 1}, {'first_letter': 's', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 2926, 'num_split_features': 1}, {'first_letter': 't', 'absorption_rate': 0.0036036036036036037, 'num_absorption': 6, 'num_probe_true_positives': 1665, 'num_split_features': 1}, {'first_letter': 'u', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 727, 'num_split_features': 1}, {'first_letter': 'v', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 828, 'num_split_features': 1}, {'first_letter': 'w', 'absorption_rate': 0.019287833827893175, 'num_absorption': 13, 'num_probe_true_positives': 674, 'num_split_features': 1}, {'first_letter': 'y', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 149, 'num_split_features': 1}, {'first_letter': 'z', 'absorption_rate': 0.009009009009009009, 'num_absorption': 2, 'num_probe_true_positives': 222, 'num_split_features': 1}], 'sae_bench_commit_hash': '1c64f65e68c0e3cdaf116a205182859fd51f77f7', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 18432, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'core evaluation results': {'unique_id': 'google/gemma-2-2b_layer_12_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_12_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': 0.7204968944099379, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 2.8125}, 'model_performance_preservation': {'ce_loss_score': 0.7138157894736842, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 5.65625, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': 0.29296875, 'mse': 4.4375, 'cossim': 0.76171875}, 'shrinkage': {'l2_norm_in': 149.0, 'l2_norm_out': 107.0, 'l2_ratio': 0.70703125, 'relative_reconstruction_bias': 0.9453125}, 'sparsity': {'l0': 48.87746810913086, 'l1': 209.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}}  
+####   
+#### After you complete each change, we will run the command `python experiment.py --out_dir=run_i' where i is the run number and evaluate the results.  
+#### YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.  
+#### You can then implement the next thing on your list.  
+
+Let me plan the experimental runs to implement the orthogonal feature learning approach:
+
+Run 1: Implement core adaptive orthogonality mechanism
+Changes:
+- Add adaptive ortho loss scheduling to TrainerTopK
+- Add alpha-controlled feature sharing in loss calculation
+- Initialize with α=0.1, λ2_max=0.1, t0=1000 steps
+- Update condition number monitoring
+
+Run 2: Add batch-wise feature grouping
+Changes:
+- Implement feature grouping based on activation patterns
+- Add group updating every 100 steps
+- Add group-specific bias terms in AutoEncoderTopK
+
+Run 3: Compare α values (α=0 vs α=0.2 vs α=0.5)
+Will run 3 separate trials with different α values
+
+Run 4: Full implementation with optimal α
+- Use best α from Run 3
+- Add early stopping based on condition numbers
+- Final architecture with all components
+
+Run 5: Extended training on WMDP-bio
+- Swap dataset to WMDP-bio
+- Compare unlearning performance
+
+Let's start with Run 1. I'll need to modify these specific sections:
+
+1. In TrainerTopK's loss function, replace the ortho_loss calculation with adaptive version
+2. Add alpha parameter and scheduling logic
+3. Add condition number calculation utilities
+
+Here are the code changes needed for Run 1:
+
+```python
+# In AutoEncoderTopK class, add:
+def compute_orthogonality(self, alpha=0.1):
+    W = self.W_enc
+    dot = torch.mm(W.T, W)
+    identity = torch.eye(W.shape[1], device=W.device)
+    return torch.norm(dot - alpha*identity, p='fro')
+
+def condition_number(self):
+    with torch.no_grad():
+        W = self.W_enc
+        _, s, _ = torch.svd(W)
+        return s[0]/s[-1] if s[-1] > 1e-6 else float('inf')
+
+# In TrainerTopK __init__:
+def __init__(...):
+    # Add these parameters
+    self.ortho_max = 0.1  # λ2_max
+    self.t0 = 1000        # Ramp-up steps
+    self.alpha = 0.1      # Controlled sharing
+    
+# Modify loss calculation in TrainerTopK:
+def loss(self, x, step=None, logging=False):
+    # Existing code...
+    
+    # Adaptive ortho weight
+    lambda_ortho = self.ortho_max * min(1.0, (step/self.t0)) if step else 0
+    
+    # Modified ortho loss
+    W = self.ae.W_enc
+    ortho_loss = torch.norm(torch.mm(W.T, W) - self.alpha*torch.eye(W.shape[1], device=W.device))**2
+    
+    # Update loss components
+    loss = l2_loss + self.auxk_alpha*auxk_loss + lambda_ortho*ortho_loss
+    
+    # Log condition number
+    self.condition_number = self.ae.condition_number().item()
+    
+    # Add to logging parameters
+    self.logging_parameters.extend(['condition_number', 'lambda_ortho'])
+    
+# Update config to include new params
+@property
+def config(self):
+    return {
+        ...,
+        "ortho_max": self.ortho_max,
+        "t0": self.t0,
+        "alpha": self.alpha,
+        "condition_number": self.condition_number
+    }
+```
+
+This implements the adaptive orthogonality loss with controlled sharing (α=0.1) and condition number tracking. The ortho weight λ₂ ramps up linearly over 1000 steps.
+
+Command: `python experiment.py --out_dir=run_1`
+
+After verifying this works, we'll proceed with Run 2 to add feature grouping.
+
+> Tokens: 52k sent, 21k cache hit, 1.4k received. Cost: $0.03 message, $0.03 session.  
+> Edit the files? (Y)es/(N)o [Yes]: y  
+
+#### Let me plan the experimental runs to implement the orthogonal feature learning approach:  
+####   
+#### Run 1: Implement core adaptive orthogonality mechanism  
+#### Changes:  
+#### - Add adaptive ortho loss scheduling to TrainerTopK  
+#### - Add alpha-controlled feature sharing in loss calculation  
+#### - Initialize with α=0.1, λ2_max=0.1, t0=1000 steps  
+#### - Update condition number monitoring  
+####   
+#### Run 2: Add batch-wise feature grouping  
+#### Changes:  
+#### - Implement feature grouping based on activation patterns  
+#### - Add group updating every 100 steps  
+#### - Add group-specific bias terms in AutoEncoderTopK  
+####   
+#### Run 3: Compare α values (α=0 vs α=0.2 vs α=0.5)  
+#### Will run 3 separate trials with different α values  
+####   
+#### Run 4: Full implementation with optimal α  
+#### - Use best α from Run 3  
+#### - Add early stopping based on condition numbers  
+#### - Final architecture with all components  
+####   
+#### Run 5: Extended training on WMDP-bio  
+#### - Swap dataset to WMDP-bio  
+#### - Compare unlearning performance  
+####   
+#### Let's start with Run 1. I'll need to modify these specific sections:  
+####   
+#### 1. In TrainerTopK's loss function, replace the ortho_loss calculation with adaptive version  
+#### 2. Add alpha parameter and scheduling logic  
+#### 3. Add condition number calculation utilities  
+####   
+#### Here are the code changes needed for Run 1:  
+####   
+#### ```python  
+#### # In AutoEncoderTopK class, add:  
+#### def compute_orthogonality(self, alpha=0.1):  
+####     W = self.W_enc  
+####     dot = torch.mm(W.T, W)  
+####     identity = torch.eye(W.shape[1], device=W.device)  
+####     return torch.norm(dot - alpha*identity, p='fro')  
+####   
+#### def condition_number(self):  
+####     with torch.no_grad():  
+####         W = self.W_enc  
+####         _, s, _ = torch.svd(W)  
+####         return s[0]/s[-1] if s[-1] > 1e-6 else float('inf')  
+####   
+#### # In TrainerTopK __init__:  
+#### def __init__(...):  
+####     # Add these parameters  
+####     self.ortho_max = 0.1  # λ2_max  
+####     self.t0 = 1000        # Ramp-up steps  
+####     self.alpha = 0.1      # Controlled sharing  
+####       
+#### # Modify loss calculation in TrainerTopK:  
+#### def loss(self, x, step=None, logging=False):  
+####     # Existing code...  
+####       
+####     # Adaptive ortho weight  
+####     lambda_ortho = self.ortho_max * min(1.0, (step/self.t0)) if step else 0  
+####       
+####     # Modified ortho loss  
+####     W = self.ae.W_enc  
+####     ortho_loss = torch.norm(torch.mm(W.T, W) - self.alpha*torch.eye(W.shape[1], device=W.device))**2  
+####       
+####     # Update loss components  
+####     loss = l2_loss + self.auxk_alpha*auxk_loss + lambda_ortho*ortho_loss  
+####       
+####     # Log condition number  
+####     self.condition_number = self.ae.condition_number().item()  
+####       
+####     # Add to logging parameters  
+####     self.logging_parameters.extend(['condition_number', 'lambda_ortho'])  
+####       
+#### # Update config to include new params  
+#### @property  
+#### def config(self):  
+####     return {  
+####         ...,  
+####         "ortho_max": self.ortho_max,  
+####         "t0": self.t0,  
+####         "alpha": self.alpha,  
+####         "condition_number": self.condition_number  
+####     }  
+#### ```  
+####   
+#### This implements the adaptive orthogonality loss with controlled sharing (α=0.1) and condition number tracking. The ortho weight λ₂ ramps up linearly over 1000 steps.  
+####   
+#### Command: `python experiment.py --out_dir=run_1`  
+####   
+#### After verifying this works, we'll proceed with Run 2 to add feature grouping.  
+
+I'll convert my proposed changes into proper SEARCH/REPLACE blocks:
+
+experiment.py
+```python
+<<<<<<< SEARCH
+    def compute_mask_intersections(self, top_indices_BK):
+        """Compute normalized intersection sizes between feature masks"""
+        B = top_indices_BK.size(0)
+        F = self.dict_size
+=======
+    def compute_orthogonality(self):
+        """Compute orthogonality measure of encoder weights"""
+        W = self.W_enc
+        dot = torch.mm(W.T, W)
+        identity = torch.eye(W.shape[1], device=W.device)
+        return torch.norm(dot - self.alpha*identity, p='fro')
+
+    def condition_number(self):
+        """Compute condition number of encoder weight matrix"""
+        with torch.no_grad():
+            W = self.W_enc
+            _, s, _ = torch.svd(W)
+            return s[0]/s[-1] if s[-1] > 1e-6 else float('inf')
+            
+    def compute_mask_intersections(self, top_indices_BK):
+        """Compute normalized intersection sizes between feature masks"""
+        B = top_indices_BK.size(0)
+        F = self.dict_size
+>>>>>>> REPLACE
+```
+
+experiment.py
+```python
+<<<<<<< SEARCH
+    def __init__(
+        self,
+        dict_class=AutoEncoderTopK,
+        activation_dim=512,
+        dict_size=64 * 512,
+        k=100,
+        auxk_alpha=1 / 32,  # see Appendix A.2
+        ortho_weight=0.01,  # weight for orthogonality loss
+        decay_start=24000,  # when does the lr decay start
+        steps=30000,  # when when does training end
+        seed=None,
+        device=None,
+        layer=None,
+        lm_name=None,
+        wandb_name="AutoEncoderTopK",
+        submodule_name=None,
+    ):
+=======
+    def __init__(
+        self,
+        dict_class=AutoEncoderTopK,
+        activation_dim=512,
+        dict_size=64 * 512,
+        k=100,
+        auxk_alpha=1 / 32,  # see Appendix A.2
+        ortho_weight=0.01,  # weight for orthogonality loss
+        decay_start=24000,  # when does the lr decay start
+        steps=30000,  # when when does training end
+        seed=None,
+        device=None,
+        layer=None,
+        lm_name=None,
+        wandb_name="AutoEncoderTopK",
+        submodule_name=None,
+        ortho_max=0.1,  # λ2_max for adaptive ortho loss
+        t0=1000,        # Ramp-up steps for ortho loss
+        alpha=0.1,      # Controlled feature sharing parameter
+    ):
+>>>>>>> REPLACE
+```
+
+experiment.py
+```python
+<<<<<<< SEARCH
+        self.ortho_weight = ortho_weight
+        self.dead_feature_threshold = 10_000_000
+=======
+        self.ortho_max = ortho_max
+        self.t0 = t0
+        self.alpha = alpha
+        self.dead_feature_threshold = 10_000_000
+        self.condition_number = float('inf')
+>>>>>>> REPLACE
+```
+
+experiment.py
+```python
+<<<<<<< SEARCH
+        # Compute sparsity-weighted orthogonality loss
+        mask_intersections = self.ae.compute_mask_intersections(top_indices)
+        feature_dots = t.einsum('bi,bj->ij', f, f) / x.size(0)  # Normalize by batch size
+        ortho_loss = (mask_intersections * feature_dots.pow(2)).mean()
+
+        l2_loss = e.pow(2).sum(dim=-1).mean()
+        auxk_loss = auxk_loss.sum(dim=-1).mean()
+        loss = l2_loss + self.auxk_alpha * auxk_loss + self.ortho_weight * ortho_loss
+=======
+        # Compute adaptive orthogonality loss
+        lambda_ortho = self.ortho_max * min(1.0, (step/self.t0)) if step else 0
+        ortho_loss = self.ae.compute_orthogonality()
+
+        l2_loss = e.pow(2).sum(dim=-1).mean()
+        auxk_loss = auxk_loss.sum(dim=-1).mean()
+        loss = l2_loss + self.auxk_alpha * auxk_loss + lambda_ortho * ortho_loss
+
+        # Update condition number
+        self.condition_number = self.ae.condition_number().item()
+>>>>>>> REPLACE
+```
+
+experiment.py
+```python
+<<<<<<< SEARCH
+        self.logging_parameters = ["effective_l0", "dead_features"]
+=======
+        self.logging_parameters = ["effective_l0", "dead_features", "condition_number"]
+>>>>>>> REPLACE
+```
+
+experiment.py
+```python
+<<<<<<< SEARCH
+            "ortho_weight": self.ortho_weight,
+=======
+            "ortho_max": self.ortho_max,
+            "t0": self.t0, 
+            "alpha": self.alpha,
+            "condition_number": self.condition_number,
+>>>>>>> REPLACE
+```
+
+These changes implement:
+1. Orthogonality and condition number calculations in AutoEncoderTopK
+2. Adaptive orthogonality loss with controlled sharing parameter α
+3. Condition number tracking and logging
+4. Configuration updates for new parameters
+
+The orthogonality loss now ramps up gradually and encourages partial feature sharing controlled by α=0.1. The condition number is tracked to monitor feature space stability.
+
+> Tokens: 38k sent, 1.5k received. Cost: $0.13 message, $0.17 session.  
+> Applied edit to experiment.py  
+
+#### Run failed with the following error ...ing.  
+#### Traceback (most recent call last):  
+####   File "/gpfs/radev/project/lafferty/tl784/free_PhD_labor/results/orthogonal_continued/20250205_181424_Orthogonal_sae/experiment.py", line 912, in <module>  
+####     saes.append(run_sae_training(  
+####                 ^^^^^^^^^^^^^^^^^  
+####   File "/gpfs/radev/project/lafferty/tl784/free_PhD_labor/results/orthogonal_continued/20250205_181424_Orthogonal_sae/experiment.py", line 614, in run_sae_training  
+####     loss_dict = trainer.update(step, activations)  
+####                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  
+####   File "/gpfs/radev/project/lafferty/tl784/free_PhD_labor/results/orthogonal_continued/20250205_181424_Orthogonal_sae/experiment.py", line 386, in update  
+####     loss = self.loss(x, step=step)  
+####            ^^^^^^^^^^^^^^^^^^^^^^^  
+####   File "/gpfs/radev/project/lafferty/tl784/free_PhD_labor/results/orthogonal_continued/20250205_181424_Orthogonal_sae/experiment.py", line 356, in loss  
+####     ortho_loss = self.ae.compute_orthogonality()  
+####                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  
+####   File "/gpfs/radev/project/lafferty/tl784/free_PhD_labor/results/orthogonal_continued/20250205_181424_Orthogonal_sae/experiment.py", line 109, in compute_orthogonality  
+####     return torch.norm(dot - self.alpha*identity, p='fro')  
+####                             ^^^^^^^^^^  
+####   File "/gpfs/radev/home/tl784/.conda/envs/ai_scientist/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1931, in __getattr__  
+####     raise AttributeError(  
+#### AttributeError: 'AutoEncoderTopK' object has no attribute 'alpha'  
+> litellm.APIError: APIError: DeepseekException - error - Expecting value: line 1 column 1 (char 0), Received response - <APIResponse [200 OK] type=<class 'openai.types.chat.chat_completion.ChatCompletion'>>, Type of response - <class 'openai._legacy_response.LegacyAPIResponse'>  
+> Retrying in 0.2 seconds...  
+>  
+>  
+> ^C again to exit  

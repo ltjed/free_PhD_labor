@@ -38,122 +38,6 @@ Here is the previous idea from which you should develop and improve. The idea yo
         "Overall_Score": 9.4,
 </PROTOTYPE_IDEA>
 
-
-Here is information from the previous experiment log:
-
-<log>
-# Title: Sparsity-Guided Orthogonality Constraints for Interpretable Feature Separation
-# Experiment description: 1. Use existing sparsity masks to identify competing features
-2. Add sparsity-weighted orthogonality loss
-3. Train on google/gemma-2-2b using standard datasets
-4. Compare benchmark performance against baseline and other orthogonal SAEs
-5. Analyze feature competition patterns
-6. Evaluate impact of competition thresholds
-
-# Generated Figures Analysis
-
-## absorption_comparison.png
-This figure shows the mean absorption scores across different model configurations. Absorption scores measure how well individual features capture specific concepts. Key observations:
-- Run 4 (optimal dictionary size) achieved the highest absorption score (0.025), nearly 3x the baseline (0.009)
-- Increasing orthogonality weight alone (Runs 1-3) showed steady improvement in absorption
-- Dictionary size increase beyond optimal (Run 5) led to decreased absorption, suggesting feature dilution
-- Strong orthogonality with optimal dictionary size (Run 6) maintained good absorption but didn't exceed Run 4
-
-## scr_comparison.png 
-Shows Sparsity-Constrained Reconstruction (SCR) metrics at k=2 and k=20 thresholds. SCR measures feature selectivity and independence. Notable findings:
-- All orthogonal variants showed improved SCR scores over baseline
-- Run 4's configuration achieved best SCR metrics (0.172 at k=2), indicating cleaner feature separation
-- Higher orthogonality weights correlated with better SCR scores up to a point
-- Larger dictionary sizes didn't necessarily improve feature selectivity
-- The gap between k=2 and k=20 metrics narrowed with orthogonality, suggesting more consistent feature behavior
-
-## reconstruction_quality.png
-Compares MSE and cosine similarity metrics for reconstruction quality. Unexpected findings:
-- Despite stronger constraints, reconstruction quality remained remarkably stable across all runs
-- MSE stayed consistently around 1.41 with minimal variation
-- Cosine similarity maintained ~0.93 even with highest orthogonality weight
-- No significant degradation with increased dictionary size
-- The stability suggests orthogonality constraints don't compromise reconstruction ability
-
-## sparse_probing.png
-Shows top-1 and top-20 accuracy for sparse probing tasks. Key insights:
-- All orthogonal variants improved over baseline probing accuracy
-- Run 4 achieved best balance of top-1 (0.961) and top-20 (0.959) accuracy
-- Larger dictionary sizes maintained high accuracy but didn't provide additional benefits
-- Strong orthogonality (Run 6) preserved probing performance while improving interpretability
-- The small gap between top-1 and top-20 accuracy suggests high feature precision
-
-Overall, the figures demonstrate that sparsity-guided orthogonality constraints with optimal dictionary size (Run 4) achieve the best balance of:
-- Improved feature separation (absorption and SCR metrics)
-- Maintained reconstruction quality
-- Enhanced interpretability (probing accuracy)
-- Efficient resource usage (dictionary size)
-
-The results suggest that careful tuning of orthogonality constraints and dictionary size can significantly improve feature disentanglement without sacrificing model performance.
-
-## Run 1: Initial Orthogonality Test
-Description: Testing orthogonality loss with weight=0.01 to establish baseline behavior
-Results:
-- Core metrics show good reconstruction (mse=1.41, cossim=0.93) with expected sparsity (L0=320)
-- Absorption scores improved vs baseline (0.019 vs 0.009) suggesting better feature separation
-- SCR metrics show stronger feature selectivity (scr_dir1_threshold_2=0.196 vs 0.132 baseline)
-- Sparse probing accuracy improved (0.961 vs 0.958) indicating maintained interpretability
-- Orthogonality loss successfully reduced feature competition while preserving performance
-
-## Run 2: Increased Orthogonality Weight
-Description: Testing stronger orthogonality constraint with weight=0.1 to analyze tradeoffs
-Results:
-- Reconstruction quality remained good but slightly decreased (mse=1.41, cossim=0.93) compared to Run 1
-- SCR metrics showed substantial improvement (scr_dir1_threshold_2=0.158 vs 0.132 baseline)
-- Sparse probing accuracy improved further (0.960 vs 0.958 Run 1)
-- Absorption scores maintained (0.011 vs 0.009 baseline) despite stronger orthogonality
-- Feature competition reduced while maintaining interpretability
-- Higher orthogonality weight successfully increased feature separation without major performance tradeoffs
-
-## Run 3: Balanced Orthogonality
-Description: Testing moderate orthogonality constraint with weight=0.05 to find optimal balance
-Results:
-- Core metrics show good reconstruction (mse=1.41, cossim=0.93) with expected sparsity (L0=320)
-- Absorption scores significantly improved (0.0215 vs 0.009 baseline) indicating better feature separation
-- SCR metrics show substantial improvement (scr_dir1_threshold_2=0.181 vs 0.132 baseline)
-- Sparse probing accuracy improved (0.959 vs 0.951 baseline) demonstrating maintained interpretability
-- Balanced orthogonality weight successfully improved feature separation while preserving performance
-- Feature competition reduced more effectively than Run 1 while avoiding Run 2's reconstruction tradeoffs
-
-## Run 4: Increased Dictionary Size
-Description: Testing orthogonality loss with weight=0.075 and increased dictionary size (18432 vs 2304) to analyze capacity-competition tradeoff
-Results:
-- Core metrics maintained good reconstruction (mse=1.41, cossim=0.93) with target sparsity (L0=320)
-- Absorption scores showed strongest improvement yet (0.025 vs 0.009 baseline) indicating enhanced feature separation
-- SCR metrics reached best performance (scr_dir1_threshold_2=0.172 vs 0.132 baseline)
-- Sparse probing accuracy significantly improved (0.961 vs 0.951 baseline) showing better interpretability
-- Increased dictionary size with stronger orthogonality successfully reduced feature competition
-- Higher capacity allowed features to specialize more effectively while maintaining reconstruction quality
-- Results suggest larger dictionaries can help balance sparsity and orthogonality constraints
-
-## Run 5: Further Dictionary Size Increase
-Description: Testing orthogonality loss with weight=0.075 and further increased dictionary size (32768 vs 18432) to explore capacity scaling limits
-Results:
-- Core metrics remained stable (mse=1.40, cossim=0.93) maintaining target sparsity (L0=320)
-- Absorption scores decreased slightly (0.017 vs 0.025 previous) but still above baseline
-- SCR metrics showed slight decline (scr_dir1_threshold_2=0.125 vs 0.172 previous)
-- Sparse probing accuracy maintained improvement (0.959 vs 0.951 baseline)
-- Larger dictionary size did not yield additional benefits for feature separation
-- Results suggest optimal dictionary size around 18432 features for this configuration
-- Further increases may not improve performance without adjusting other hyperparameters
-
-## Run 6: Optimal Dictionary Size with Strong Orthogonality
-Description: Testing orthogonality loss with increased weight=0.1 and optimal dictionary size (18432) to maximize feature separation
-Results:
-- Core metrics showed slight degradation (mse=1.41, cossim=0.93) while maintaining target sparsity (L0=320)
-- Absorption scores improved (0.012 vs 0.009 baseline) but lower than Run 4's peak
-- SCR metrics showed strong improvement (scr_dir1_threshold_2=0.158 vs 0.132 baseline)
-- Sparse probing accuracy significantly improved (0.961 vs 0.951 baseline)
-- Higher orthogonality weight successfully increased feature competition reduction
-- Results suggest trade-off between reconstruction quality and feature separation
-- Optimal configuration appears to be Run 4's parameters (dict_size=18432, ortho_weight=0.075)
-</log>
-
 Respond in the following format:
 
 THOUGHT:
@@ -191,54 +75,54 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 """
 
 
-xxx = """{task_description}
-<experiment.py>
-{code}
-</experiment.py>
+# xxx = """{task_description}
+# <experiment.py>
+# {code}
+# </experiment.py>
 
-Here are the ideas that you have already generated:
+# Here are the ideas that you have already generated:
 
-'''
-{prev_ideas_string}
-'''
+# '''
+# {prev_ideas_string}
+# '''
 
-Come up with the next impactful and creative idea for research and experiments.
+# Come up with the next impactful and creative idea for research and experiments.
 
-Respond in the following format:
+# Respond in the following format:
 
-THOUGHT:
-<THOUGHT>
+# THOUGHT:
+# <THOUGHT>
 
-NEW IDEA JSON:
-```json
-<JSON>
-```
+# NEW IDEA JSON:
+# ```json
+# <JSON>
+# ```
 
-In <THOUGHT>, first briefly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. Justify how the idea is different from the existing ones.
-Also detail the reasoning behind why they expect the modification of autoencoder you propose will work better for mechanistic interpretability purposes.
+# In <THOUGHT>, first briefly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. Justify how the idea is different from the existing ones.
+# Also detail the reasoning behind why they expect the modification of autoencoder you propose will work better for mechanistic interpretability purposes.
 
-In <JSON>, provide the new idea in JSON format with the following fields:
-- "Name": A shortened descriptor of the idea. Lowercase, no spaces, underscores allowed.
-- "Title": A title for the idea, will be used for the report writing.
-- "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
-- "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms.
-- "Implementation_Plan": A plan of steps to implement the experiment described above by modifying the code template in experiment.py.
-- "Interestingness_Evaluation": Give a one-sentence evaluation of the interestingness of the idea to justify the rating below.  
-- "Interestingness": A rating from 1 to 10 (lowest to highest). 
-- "Feasibility_Evaluation": Carefully evaluate the feasibility to justify the rating below. BE STRICT. Consider the following three factors. 1. Refer to the "Experiment" and "Technical_Details" fields you wrote above, and consider the complexity of the idea in comparison to typical ML conference papers. Note it need not and should better not introduce too deep theoretical elements such as those from pure mathematics. Be relevant and understandable to the machine learning community. 2. Refer to the "Implementation_Plan" you wrote and consider the implementation difficulties. Note the coding work to implement the experiments is to be completed by a junior CS PhD student within 1 month. 3. Refer to the "Experiment", "Technical_Details", and "Implementation_Plan" and consider the time cost of running the experiment. Note each run of the experiment has to be conducted on a single NVIDIA H100 GPU WITHIN 30 MINS.
-- "Feasibility": A rating from 1 to 10 (lowest to highest). 
-- "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
-- "Novelty": A rating from 1 to 10 (lowest to highest).
-- "Expected_Research_Impact": Your primary target is to improve performance on the benchmarks "sparse_probing" and "core". Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
-- "Research_Impact": A rating from 1 to 10 (lowest to highest).
-- "Overall_Score": A single number rating computed by 0.2 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.2 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION. Note a 9.0 score would yield an oral presentation at a top-tier conference, while a 7.5 score would yield a poster presentation at a top-tier conference.
-- "Abstract": An abstract of the idea, which will be used for the report writing. The style, length, and content should be similar to a conference paper abstract. **BUT OMIT ALL RESULTS ABOUT IMPROVED PERFORMANCE SINCE THE IDEA HAS NOT BEEN IMPLEMENTED YET (EVEN IF YOU EXPECT SUCH RESULTS).**
+# In <JSON>, provide the new idea in JSON format with the following fields:
+# - "Name": A shortened descriptor of the idea. Lowercase, no spaces, underscores allowed.
+# - "Title": A title for the idea, will be used for the report writing.
+# - "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
+# - "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms.
+# - "Implementation_Plan": A plan of steps to implement the experiment described above by modifying the code template in experiment.py.
+# - "Interestingness_Evaluation": Give a one-sentence evaluation of the interestingness of the idea to justify the rating below.  
+# - "Interestingness": A rating from 1 to 10 (lowest to highest). 
+# - "Feasibility_Evaluation": Carefully evaluate the feasibility to justify the rating below. BE STRICT. Consider the following three factors. 1. Refer to the "Experiment" and "Technical_Details" fields you wrote above, and consider the complexity of the idea in comparison to typical ML conference papers. Note it need not and should better not introduce too deep theoretical elements such as those from pure mathematics. Be relevant and understandable to the machine learning community. 2. Refer to the "Implementation_Plan" you wrote and consider the implementation difficulties. Note the coding work to implement the experiments is to be completed by a junior CS PhD student within 1 month. 3. Refer to the "Experiment", "Technical_Details", and "Implementation_Plan" and consider the time cost of running the experiment. Note each run of the experiment has to be conducted on a single NVIDIA H100 GPU WITHIN 30 MINS.
+# - "Feasibility": A rating from 1 to 10 (lowest to highest). 
+# - "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
+# - "Novelty": A rating from 1 to 10 (lowest to highest).
+# - "Expected_Research_Impact": Your primary target is to improve performance on the benchmarks "sparse_probing" and "core". Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
+# - "Research_Impact": A rating from 1 to 10 (lowest to highest).
+# - "Overall_Score": A single number rating computed by 0.2 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.2 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION. Note a 9.0 score would yield an oral presentation at a top-tier conference, while a 7.5 score would yield a poster presentation at a top-tier conference.
+# - "Abstract": An abstract of the idea, which will be used for the report writing. The style, length, and content should be similar to a conference paper abstract. **BUT OMIT ALL RESULTS ABOUT IMPROVED PERFORMANCE SINCE THE IDEA HAS NOT BEEN IMPLEMENTED YET (EVEN IF YOU EXPECT SUCH RESULTS).**
 
-Be cautious and critical on your ratings.
+# Be cautious and critical on your ratings.
 
-This JSON will be automatically parsed, so ensure the format is precise. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
-You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
-"""
+# This JSON will be automatically parsed, so ensure the format is precise. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
+# You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
+# """
 
 
 

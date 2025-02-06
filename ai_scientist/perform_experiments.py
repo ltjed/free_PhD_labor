@@ -6,7 +6,7 @@ import subprocess
 import sys
 from subprocess import TimeoutExpired
 
-MAX_ITERS = 30 # originally 10
+MAX_ITERS = 10 # originally 10
 MAX_RUNS = 10 # originally 5
 MAX_STDERR_OUTPUT = 1500
 
@@ -77,7 +77,16 @@ def run_experiment(folder_name, run_num, timeout=10800):
             next_prompt = f"""Run {run_num} completed. Here are the results:
 {results}
 
-Decide if you need to re-plan your experiments given the result (you often will not need to). Be sure you understand the meaning of the scores in the benchmarks, e.g. for absoprtion, lower score (lower absorption rate) means better performance.
+Consider carefully if you want to re-plan your experiments given the result from this run. This could mean either merely changing hyperparameters or change of implementation of the SAE architecture.
+The correct interpretation for scores are as follows: 
+For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a good target score.
+
+For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a good target score.
+
+For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a good target score
+
+For autointerp, a higher score means better performance of the underlying SAE in the run.
+
 
 Someone else will be using `notes.txt` to perform a writeup on this in the future.
 Please include *all* relevant information for the writeup on Run {run_num}, including an experiment description and the run number. Be as verbose as necessary.
@@ -144,7 +153,6 @@ def perform_experiments(idea, folder_name, coder, baseline_results) -> bool:
             break
         
         coder_out = coder.run(next_prompt)
-        # print(coder_out)
         print(f"coder_out: {coder_out}, type: {type(coder_out)}")
 
         if "ALL_COMPLETED" in coder_out:
