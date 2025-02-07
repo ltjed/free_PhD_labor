@@ -19,25 +19,6 @@ idea_first_prompt = """{task_description}
 
 Come up with an impactful and creative improvement idea from the following previous result.
 
-Here is the previous idea from which you should develop and improve. The idea you come up with should NOT be a completely different idea from the previous idea, but should be more mature development. DO NOT INTRODUCE ANY UNDUELY MORE COMPLEX ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
-
-<PROTOTYPE_IDEA>
-        "Name": "sparse_orthogonal_sae",
-        "Title": "Sparsity-Guided Orthogonality Constraints for Interpretable Feature Separation",
-        "Experiment": "1. Use existing sparsity masks to identify competing features\n2. Add sparsity-weighted orthogonality loss\n3. Train on google/gemma-2-2b using standard datasets\n4. Compare benchmark performance against baseline and other orthogonal SAEs\n5. Analyze feature competition patterns\n6. Evaluate impact of competition thresholds",
-        "Technical_Details": "The method uses a sparsity-based orthogonality loss: L = L_recon + \u03bb_1 * L_sparse + \u03bb_2 * \u03a3_(i,j) c_(ij) * |f_i^T f_j| where c_(ij) is the normalized intersection size of sparsity masks for features i and j over a batch. Features that frequently activate on the same inputs face stronger orthogonality constraints, encouraging them to learn distinct concepts. The competition coefficients c_(ij) are computed directly from the existing top-k activation masks with no additional overhead.",
-        "Implementation_Plan": "1. Add function to compute mask intersections from top-k indices\n2. Modify AutoEncoderTopK to use sparsity patterns\n3. Add sparsity-weighted orthogonality loss\n4. Add configuration for competition threshold\n5. Add evaluation metrics for feature competition\n6. Update training loop to use activation masks",
-        "Interestingness_Evaluation": "Using sparsity patterns to guide orthogonality provides a direct and elegant connection between the two key mechanisms for feature separation.",
-        "Interestingness": 9,
-        "Feasibility_Evaluation": "Implementation uses only existing top-k masks; no additional computation needed; standard matrix operations; easily within 30-minute limit on H100; minimal code changes required.",
-        "Feasibility": 10,
-        "Novelty_Evaluation": "Leveraging sparsity patterns to guide orthogonality constraints is a novel and principled approach that directly targets feature competition.",
-        "Novelty": 9,
-        "Expected_Research_Impact": "The direct connection between sparsity and orthogonality should provide more interpretable feature separation while maintaining computational efficiency.",
-        "Research_Impact": 9,
-        "Overall_Score": 9.4,
-</PROTOTYPE_IDEA>
-
 Respond in the following format:
 
 THOUGHT:
@@ -74,19 +55,33 @@ This JSON will be automatically parsed, so ensure the format is precise. BE SURE
 You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
 """
 
-
-# xxx = """{task_description}
+# # delete the autoencoder sentence for templates other than autoencoder!
+# idea_first_prompt = """{task_description}
 # <experiment.py>
 # {code}
 # </experiment.py>
 
-# Here are the ideas that you have already generated:
+# Come up with an impactful and creative improvement idea from the following previous result.
 
-# '''
-# {prev_ideas_string}
-# '''
-
-# Come up with the next impactful and creative idea for research and experiments.
+# DO NOT INTRODUCE ANY UNDUELY MORE COMPLEX ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METRIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
+# The idea you come up with should NOT be a completely different idea from the previous idea, but should be more mature development. 
+# Here is the previous idea from which you should develop and improve. 
+# <PROTOTYPE_IDEA>
+#         "Name": "sparse_orthogonal_sae",
+#         "Title": "Sparsity-Guided Orthogonality Constraints for Interpretable Feature Separation",
+#         "Experiment": "1. Use existing sparsity masks to identify competing features\n2. Add sparsity-weighted orthogonality loss\n3. Train on google/gemma-2-2b using standard datasets\n4. Compare benchmark performance against baseline and other orthogonal SAEs\n5. Analyze feature competition patterns\n6. Evaluate impact of competition thresholds",
+#         "Technical_Details": "The method uses a sparsity-based orthogonality loss: L = L_recon + \u03bb_1 * L_sparse + \u03bb_2 * \u03a3_(i,j) c_(ij) * |f_i^T f_j| where c_(ij) is the normalized intersection size of sparsity masks for features i and j over a batch. Features that frequently activate on the same inputs face stronger orthogonality constraints, encouraging them to learn distinct concepts. The competition coefficients c_(ij) are computed directly from the existing top-k activation masks with no additional overhead.",
+#         "Implementation_Plan": "1. Add function to compute mask intersections from top-k indices\n2. Modify AutoEncoderTopK to use sparsity patterns\n3. Add sparsity-weighted orthogonality loss\n4. Add configuration for competition threshold\n5. Add evaluation metrics for feature competition\n6. Update training loop to use activation masks",
+#         "Interestingness_Evaluation": "Using sparsity patterns to guide orthogonality provides a direct and elegant connection between the two key mechanisms for feature separation.",
+#         "Interestingness": 9,
+#         "Feasibility_Evaluation": "Implementation uses only existing top-k masks; no additional computation needed; standard matrix operations; easily within 30-minute limit on H100; minimal code changes required.",
+#         "Feasibility": 10,
+#         "Novelty_Evaluation": "Leveraging sparsity patterns to guide orthogonality constraints is a novel and principled approach that directly targets feature competition.",
+#         "Novelty": 9,
+#         "Expected_Research_Impact": "The direct connection between sparsity and orthogonality should provide more interpretable feature separation while maintaining computational efficiency.",
+#         "Research_Impact": 9,
+#         "Overall_Score": 9.4,
+# </PROTOTYPE_IDEA>
 
 # Respond in the following format:
 
@@ -98,7 +93,7 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 # <JSON>
 # ```
 
-# In <THOUGHT>, first briefly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. Justify how the idea is different from the existing ones.
+# In <THOUGHT>, first briefly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. **Justify how the idea refines the prototype idea without introducing too much complexity.**
 # Also detail the reasoning behind why they expect the modification of autoencoder you propose will work better for mechanistic interpretability purposes.
 
 # In <JSON>, provide the new idea in JSON format with the following fields:
@@ -115,7 +110,7 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 # - "Novelty": A rating from 1 to 10 (lowest to highest).
 # - "Expected_Research_Impact": Your primary target is to improve performance on the benchmarks "sparse_probing" and "core". Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
 # - "Research_Impact": A rating from 1 to 10 (lowest to highest).
-# - "Overall_Score": A single number rating computed by 0.2 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.2 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION. Note a 9.0 score would yield an oral presentation at a top-tier conference, while a 7.5 score would yield a poster presentation at a top-tier conference.
+# - "Overall_Score": A single number rating computed by 0.1 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.3 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION.
 # - "Abstract": An abstract of the idea, which will be used for the report writing. The style, length, and content should be similar to a conference paper abstract. **BUT OMIT ALL RESULTS ABOUT IMPROVED PERFORMANCE SINCE THE IDEA HAS NOT BEEN IMPLEMENTED YET (EVEN IF YOU EXPECT SUCH RESULTS).**
 
 # Be cautious and critical on your ratings.
@@ -123,6 +118,7 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 # This JSON will be automatically parsed, so ensure the format is precise. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
 # You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
 # """
+
 
 
 

@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 from subprocess import TimeoutExpired
-
+from ai_scientist.llm import get_response_from_llm
 MAX_ITERS = 10 # originally 10
 MAX_RUNS = 10 # originally 5
 MAX_STDERR_OUTPUT = 1500
@@ -148,6 +148,9 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
         "experiment.py",
         f"--out_dir=run_{run_num}",
     ]
+
+    # initialize results variable, to be returned later to match the format of the usage in perform_experiments()
+
     try:
         # Delete the file if it exists
         result_file = osp.join(cwd, f"run_{run_num}", "final_info.json")
@@ -173,8 +176,8 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
             with open(osp.join(cwd, f"run_{run_num}", "final_info.json"), "r") as f:
                 results = json.load(f)
             results = {k: v for k, v in results.items()}
-            plan = do_reflection(idea, results, baseline_results, NUM_EXPERIMENT_REFLECTIONS, client, client_model)
-
+            plan = do_reflection(idea, results, baseline_results, NUM_EXPERIMENT_REFLECTIONS, client, client_model, folder_name)
+            print(f"Suggested plan:\n {plan} \n")
             next_prompt = f"""Run {run_num} completed. Here are the results:
 {results}
 
@@ -188,7 +191,7 @@ For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better pe
 
 For autointerp, a higher score means better performance of the underlying SAE in the run.
 
-For reference, an expert has written some comment and suggestion of plan about what to do next which you should consider and refer to: {plan}
+An expert has written some comment and IMPORTANT suggestions about a plan of what to do next which you should consider and refer to: {plan}
 
 Someone else will be using `notes.txt` to perform a writeup on this in the future.
 Please include *all* relevant information for the writeup on Run {run_num}, including an experiment description and the run number. Be as verbose as necessary.
@@ -197,7 +200,8 @@ Then, implement the next thing on your list.
 We will then run the command `python experiment.py --out_dir=run_{run_num + 1}'.
 YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
 If you are finished with experiments, respond with 'ALL_COMPLETED'."""
-        return result.returncode, next_prompt, results
+        return result.returncode, next_prompt
+
     except TimeoutExpired:
         print(f"Run {run_num} timed out after {timeout} seconds")
         if osp.exists(osp.join(cwd, f"run_{run_num}")):
@@ -235,9 +239,9 @@ def run_plotting(folder_name, timeout=600):
 
 import re
 
-def do_reflection(idea, results, baseline_results, num_reflections, client, client_model):
+def do_reflection(idea, results, baseline_results, num_reflections, client, client_model, folder_name):
     # 1) Load notes
-    with open("notes.txt", "r") as file:
+    with open(osp.join(folder_name, "notes.txt"), "r") as file:
         notes = file.read()
 
     # 3) Format the first reflection prompt
@@ -255,13 +259,13 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
         # -- FIRST REFLECTION --
         print("Iteration 1")
         text, msg_history = get_response_from_llm(
-            prompt=reflection_prompt,
+            msg=reflection_prompt,
             system_message=system_prompt,
             client=client,
             model=client_model,
             msg_history=msg_history,
         )
-
+        print(text)
         # Attempt to extract final plan if present
         plan_match = re.search(r"<FINAL_PLAN>([\s\S]*?)</FINAL_PLAN>", text)
         if plan_match:
@@ -282,12 +286,13 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
             )
 
             text, msg_history = get_response_from_llm(
-                prompt=reflection_prompt,
+                msg=reflection_prompt,
                 system_message=system_prompt,
                 client=client,
                 model=client_model,
                 msg_history=msg_history,
             )
+            print(text)
 
             # Check if done
             plan_match = re.search(r"<FINAL_PLAN>([\s\S]*?)</FINAL_PLAN>", text)
@@ -334,7 +339,7 @@ def perform_experiments(idea, folder_name, coder, baseline_results, client, clie
             break
         
         
-        return_code, next_prompt, results = run_experiment(folder_name, run, idea, baseline_results, client, client_model)
+        return_code, next_prompt = run_experiment(folder_name, run, idea, baseline_results, client, client_model)
         if return_code == 0:
             run += 1
             current_iter = 0

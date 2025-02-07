@@ -187,12 +187,14 @@ def do_idea(
             # main_model = Model("deepseek/deepseek-reasoner")
             # # using r1 as architect and sonnet as editor
             main_model = Model(model="deepseek/deepseek-reasoner",editor_model="claude-3-5-sonnet-20241022",)
+        elif model == "deepseek/deepseek-r1:nitro":
+            main_model = Model(model="openrouter/deepseek/deepseek-r1:nitro",editor_model="claude-3-5-sonnet-20241022",)
         elif model == "llama3.1-405b":
             main_model = Model("openrouter/meta-llama/llama-3.1-405b-instruct")
         else:
             main_model = Model(model)
         try:
-            if model == "deepseek-reasoner":
+            if model in ["deepseek-reasoner", "deepseek/deepseek-r1:nitro"]:
                 coder = Coder.create(
                 main_model=main_model,
                 fnames=fnames,
@@ -238,6 +240,8 @@ def do_idea(
                 main_model = Model("deepseek/deepseek-coder")
             elif model == "llama3.1-405b":
                 main_model = Model("openrouter/meta-llama/llama-3.1-405b-instruct")
+            elif model == "deepseek/deepseek-r1:nitro":
+                main_model = Model("openrouter/deepseek/deepseek-r1:nitro")
             else:
                 main_model = Model(model)
             coder = Coder.create(

@@ -20,6 +20,7 @@ AVAILABLE_LLMS = [
     "o3-mini-2025-01-31",
     "deepseek-coder",
     "deepseek-reasoner",
+    "deepseek/deepseek-r1:nitro",
     "llama3.1-405b",
     # Anthropic Claude models via Amazon Bedrock
     "bedrock/anthropic.claude-3-sonnet-20240229-v1:0",
@@ -248,28 +249,24 @@ def get_response_from_llm(
         )
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
-    elif model == "deepseek-reasoner":
-        # print(f"msg_history at the start of iteration is {msg_history}")
+    elif model in ["deepseek-reasoner", "deepseek/deepseek-r1:nitro"]:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
-        #print(f"new_msg_history after appending msg is {new_msg_history}")
         response = client.chat.completions.create(
-            model="deepseek-reasoner",
+            model=model,
             messages=[
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            # deepseek-reasoner currently does not support setting temperature, though setting it will not trigger an error
             temperature=temperature,
             max_tokens=MAX_NUM_TOKENS,
             n=1,
-            # stop=None,
+            stop=None,
         )
-        reasoning_content = response.choices[0].message.reasoning_content
-        print(f"@@@\n @@@\n @@@\n @@@\n @@@\n reasoning_content is {reasoning_content}")
+        # reasoning_content = response.choices[0].message.reasoning_content
+        # print(f"@@@\n reasoning_content is {reasoning_content}")
         content = response.choices[0].message.content
-        print(f"@@@\n @@@\n @@@\n @@@\n @@@\n content is {content}")
+        print(f"@@@\n content is {content}")
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
-        # print(f"new_msg_history after appending content is {new_msg_history}")
     elif model in ["meta-llama/llama-3.1-405b-instruct", "llama-3-1-405b-instruct"]:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         response = client.chat.completions.create(
@@ -285,6 +282,21 @@ def get_response_from_llm(
         )
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
+    # elif model == "deepseek/deepseek-reasoner":
+    #     new_msg_history = msg_history + [{"role": "user", "content": msg}]
+    #     response = client.chat.completions.create(
+    #         model=model,
+    #         messages=[
+    #             {"role": "system", "content": system_message},
+    #             *new_msg_history,
+    #         ],
+    #         temperature=temperature,
+    #         max_tokens=MAX_NUM_TOKENS,
+    #         n=1,
+    #         stop=None,
+    #     )
+    #     content = response.choices[0].message.content
+    #     new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     else:
         raise ValueError(f"Model {model} not supported.")
 
@@ -362,5 +374,11 @@ def create_client(model):
             api_key=os.environ["OPENROUTER_API_KEY"],
             base_url="https://openrouter.ai/api/v1"
         ), "meta-llama/llama-3.1-405b-instruct"
+    elif model == "deepseek/deepseek-r1:nitro":
+        print("Using OpenRouter API with DeepSeek Reasoner.")
+        return openai.OpenAI(
+            api_key=os.environ["OPENROUTER_API_KEY"],
+            base_url="https://openrouter.ai/api/v1"
+        ), "deepseek/deepseek-r1:nitro"
     else:
         raise ValueError(f"Model {model} not supported.")
