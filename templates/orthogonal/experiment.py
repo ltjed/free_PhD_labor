@@ -524,7 +524,7 @@ def run_sae_training(
         activation_dim=activation_dim,
         dict_class=AutoEncoderTopK,
         dict_size=dict_size,
-        k=320,
+        k=40,
         auxk_alpha = 1/32,
         decay_start=steps/8*7,
         steps = steps,

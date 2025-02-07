@@ -215,7 +215,7 @@ def do_idea(
         
         start_time = print_time("Starting experiments execution")
         try:
-            success = perform_experiments(idea, folder_name, coder, baseline_results)
+            success = perform_experiments(idea, folder_name, coder, baseline_results, client, client_model)
         except Exception as e:
             print(f"Error during experiments: {e}")
             print(f"Experiments failed for idea {idea_name}")

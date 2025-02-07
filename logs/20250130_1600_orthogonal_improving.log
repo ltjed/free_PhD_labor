@@ -1,0 +1,93 @@
+Using GPUs: [0]
+Using Anthropic API with model claude-3-5-sonnet-20241022.
+Using OpenAI API with deepseek-reasoner.
+
+Generating idea 1/1
+Iteration 1/15
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea introduces temporal modeling which adds significant complexity and may not directly address the core challenges of interpretability. Instead, I propose refining the idea to focus on hierarchical feature learning through nested dictionaries (Matryoshka-style), which maintains the spirit of temporal dependencies but in a simpler, more interpretable way.
+
+The key insight is that by explicitly organizing features hierarchically during training, we can better capture natural abstractions and reduce feature absorption. Rather than tracking temporal correlations, we use nested reconstruction losses where smaller dictionaries must learn the most important features first. This encourages the model to discover natural hierarchies in the data while maintaining simplicity.
+
+The modification should improve mechanistic interpretability because:
+1. Hierarchical organization naturally aligns with how humans understand concepts
+2. Forces the model to learn progressively more specific features rather than arbitrary combinations
+3. Maintains mathematical simplicity while addressing feature absorption
+4. Requires minimal changes to existing architecture
+5. Directly targets the sparse probing benchmark by encouraging more interpretable feature organization
+
+The approach refines the prototype by:
+- Replacing temporal tracking with hierarchical nesting (simpler)
+- Using standard reconstruction loss instead of correlation matrices
+- Keeping the same basic SAE architecture
+- Focusing on feature organization rather than intervention strategies
+
+THOUGHT: Let me elaborate on why this specific approach should improve mechanistic interpretability:
+
+1. The hierarchical structure naturally encourages more interpretable feature extraction by forcing the model to learn progressively more specific features. This directly addresses the polysemanticity issue highlighted in the background paper.
+
+2. By having multiple nested dictionaries, we create implicit pressure for features to organize themselves in a meaningful hierarchy - broad patterns must be captured in the smaller dictionaries while specific details are left to the larger ones.
+
+3. The approach maintains mathematical and architectural simplicity while still providing a principled way to encourage better feature organization.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "matryoshka_sae",
+    "Title": "Matryoshka Sparse Autoencoders: Hierarchical Feature Learning for Mechanistic Interpretability",
+    "Experiment": "1. Modify SAE architecture to support nested dictionaries\n2. Implement hierarchical reconstruction loss\n3. Train on standard datasets with progressive feature learning\n4. Evaluate interpretability metrics:\n   - Feature absorption score\n   - Sparse probing accuracy\n   - Core metrics suite\n   - Feature hierarchy analysis",
+    "Technical_Details": "Architecture modifications:\n1. Dictionary nesting structure:\n   - Full dictionary D of size n\n   - Nested subdictionaries D_i of sizes n/2^i\n   - Each D_i must reconstruct input using only first n/2^i features\n\n2. Loss function:\n   L = Σ_i λ_i * L_recon(x, D_i(x))\n   where λ_i are weighting coefficients\n\n3. Training process:\n   - Forward pass computes reconstructions at each scale\n   - Backward pass updates all dictionaries simultaneously\n   - Progressive coefficient schedule:\n     λ_i(t) = min(1, t/T_i)\n     where T_i is scale-specific warmup period\n\nHyperparameters:\n- Base dictionary size: n = d_model\n- Number of scales: 3 (n, n/2, n/4)\n- Initial λ_i: [0.5, 0.3, 0.2]\n- Learning rate: 3e-4\n- Batch size: 2048",
+    "Implementation_Plan": "1. Extend AutoEncoderTopK class with nested dictionary support\n2. Add hierarchical reconstruction loss computation\n3. Implement progressive training schedule\n4. Modify training loop for multi-scale updates\n5. Add evaluation metrics for hierarchy quality\n6. Create visualization tools for feature organization",
+    "Interestingness_Evaluation": "The hierarchical organization of features provides a natural and interpretable way to understand model representations while maintaining simplicity.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation requires minimal changes to existing architecture; no complex mathematical operations; training time comparable to baseline due to efficient parallel computation of nested reconstructions; core logic implementable in ~200 lines of code; full experiment runnable in under 30 minutes on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While hierarchical representation learning exists, applying it to sparse autoencoders for mechanistic interpretability is novel.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The hierarchical structure should directly improve sparse probing by organizing features more interpretably, while the multi-scale reconstruction maintains or improves core metrics by ensuring comprehensive feature coverage.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "One of the key challenges in mechanistic interpretability is ensuring that learned features are organized in a way that reflects natural semantic structure. We propose Matryoshka Sparse Autoencoders (M-SAE), which learn hierarchical representations through nested dictionaries of different sizes. By forcing the model to reconstruct inputs using progressively larger feature sets, M-SAE encourages the discovery of natural abstractions and hierarchical relationships between features. Our approach maintains the mathematical simplicity of traditional sparse autoencoders while adding architectural constraints that promote more interpretable organization of learned features. We evaluate M-SAE on standard mechanistic interpretability benchmarks and analyze the resulting feature hierarchies."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'matryoshka_sae', 'Title': 'Matryoshka Sparse Autoencoders: Hierarchical Feature Learning for Mechanistic Interpretability', 'Experiment': '1. Modify SAE architecture to support nested dictionaries\n2. Implement hierarchical reconstruction loss\n3. Train on standard datasets with progressive feature learning\n4. Evaluate interpretability metrics:\n   - Feature absorption score\n   - Sparse probing accuracy\n   - Core metrics suite\n   - Feature hierarchy analysis', 'Technical_Details': 'Architecture modifications:\n1. Dictionary nesting structure:\n   - Full dictionary D of size n\n   - Nested subdictionaries D_i of sizes n/2^i\n   - Each D_i must reconstruct input using only first n/2^i features\n\n2. Loss function:\n   L = Σ_i λ_i * L_recon(x, D_i(x))\n   where λ_i are weighting coefficients\n\n3. Training process:\n   - Forward pass computes reconstructions at each scale\n   - Backward pass updates all dictionaries simultaneously\n   - Progressive coefficient schedule:\n     λ_i(t) = min(1, t/T_i)\n     where T_i is scale-specific warmup period\n\nHyperparameters:\n- Base dictionary size: n = d_model\n- Number of scales: 3 (n, n/2, n/4)\n- Initial λ_i: [0.5, 0.3, 0.2]\n- Learning rate: 3e-4\n- Batch size: 2048', 'Implementation_Plan': '1. Extend AutoEncoderTopK class with nested dictionary support\n2. Add hierarchical reconstruction loss computation\n3. Implement progressive training schedule\n4. Modify training loop for multi-scale updates\n5. Add evaluation metrics for hierarchy quality\n6. Create visualization tools for feature organization', 'Interestingness_Evaluation': 'The hierarchical organization of features provides a natural and interpretable way to understand model representations while maintaining simplicity.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation requires minimal changes to existing architecture; no complex mathematical operations; training time comparable to baseline due to efficient parallel computation of nested reconstructions; core logic implementable in ~200 lines of code; full experiment runnable in under 30 minutes on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While hierarchical representation learning exists, applying it to sparse autoencoders for mechanistic interpretability is novel.', 'Novelty': 7, 'Expected_Research_Impact': 'The hierarchical structure should directly improve sparse probing by organizing features more interpretably, while the multi-scale reconstruction maintains or improves core metrics by ensuring comprehensive feature coverage.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'One of the key challenges in mechanistic interpretability is ensuring that learned features are organized in a way that reflects natural semantic structure. We propose Matryoshka Sparse Autoencoders (M-SAE), which learn hierarchical representations through nested dictionaries of different sizes. By forcing the model to reconstruct inputs using progressively larger feature sets, M-SAE encourages the discovery of natural abstractions and hierarchical relationships between features. Our approach maintains the mathematical simplicity of traditional sparse autoencoders while adding architectural constraints that promote more interpretable organization of learned features. We evaluate M-SAE on standard mechanistic interpretability benchmarks and analyze the resulting feature hierarchies.'}

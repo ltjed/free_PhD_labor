@@ -1,0 +1,139 @@
+Using GPUs: [0]
+Using Anthropic API with model claude-3-5-sonnet-20241022.
+Using OpenAI API with deepseek-reasoner.
+
+Generating idea 1/1
+Iteration 1/15
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+The prototype idea introduces temporal modeling for SAEs, but adds significant complexity through correlation tracking and chain-based interventions. I propose refining this into a simpler but potentially more effective approach: Matryoshka SAEs that learn nested feature hierarchies. 
+
+The key insight is that feature absorption often happens because the SAE has no incentive to maintain clean hierarchical representations. By explicitly training nested subsets of features (like Russian dolls), we encourage the model to learn general features first before specialized ones. This addresses feature absorption without requiring temporal modeling or complex interventions.
+
+The core mechanism is simple: we train multiple reconstruction losses simultaneously, where each uses a progressively larger subset of features. Early features must work well across all reconstructions, naturally pushing them toward capturing fundamental patterns. Later features can specialize since they only participate in the full reconstruction.
+
+This should improve mechanistic interpretability by:
+1. Reducing feature absorption through explicit hierarchical learning
+2. Creating more interpretable early features that capture core patterns
+3. Maintaining computational efficiency through shared parameters
+4. Requiring minimal changes to the existing architecture
+
+The approach refines the temporal modeling goal of the prototype into a simpler static hierarchical structure while preserving the aim of better feature organization.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "matryoshka_sae",
+    "Title": "Matryoshka Sparse Autoencoders for Hierarchical Feature Learning",
+    "Experiment": "1. Modify SAE to compute multiple nested reconstructions\n2. Implement progressive feature usage in forward pass\n3. Add weighted sum of reconstruction losses\n4. Train on standard datasets with hierarchical losses\n5. Evaluate feature interpretability and absorption",
+    "Technical_Details": "Architecture modifications:\n1. Forward pass computes k reconstructions x_i where reconstruction i uses first n_i features\n2. n_i follows geometric progression: n_1 = n/8, n_2 = n/4, n_3 = n/2, n_4 = n\n3. Loss function: L = Σ_i w_i ||x - x_i||^2 where w_i = 1/2^i\n4. Maintain unit norm constraint on decoder weights\n5. Use standard Adam optimizer with learning rate 3e-4\n\nHyperparameters:\n- 4 nested reconstructions\n- Batch size 2048\n- Standard L1 sparsity penalty\n- Geometric progression for feature counts",
+    "Implementation_Plan": "1. Add nested reconstruction computation to forward pass\n2. Modify loss function to sum multiple reconstruction errors\n3. Update parameter initialization for hierarchical structure\n4. Add logging for per-level reconstruction quality\n5. Implement visualization of feature hierarchy",
+    "Interestingness_Evaluation": "The nested structure provides a natural way to organize features hierarchically without adding architectural complexity.",
+    "Interestingness": 8,
+    "Feasibility_Evaluation": "Implementation requires only minor modifications to existing SAE code; no complex temporal modeling or additional parameters needed; runtime similar to baseline due to shared computations across reconstructions; can be completed within 2 weeks; experiment runs within 30-min limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While nested representations exist in other contexts, applying them to SAEs for mechanistic interpretability is novel.",
+    "Novelty": 7,
+    "Expected_Research_Impact": "The hierarchical structure should significantly improve sparse_probing by creating more semantically meaningful features, while the progressive feature usage should enhance core metrics by reducing redundancy and improving reconstruction quality.",
+    "Research_Impact": 8,
+    "Overall_Score": 8.3,
+    "Abstract": "One of the key challenges in sparse autoencoder (SAE) interpretability is feature absorption, where distinct semantic concepts become entangled in individual features. We propose Matryoshka SAEs, which learn nested hierarchies of features through multiple reconstruction objectives at different scales. By training features to participate in progressively larger reconstruction tasks, the model naturally organizes representations from general to specific without requiring architectural changes. The approach maintains the computational efficiency of standard SAEs while providing a more structured way to learn interpretable features. We evaluate our method on standard interpretability benchmarks including feature absorption, sparse probing, and reconstruction quality metrics."
+}
+```
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+@@@
+
+{'Name': 'matryoshka_sae', 'Title': 'Matryoshka Sparse Autoencoders for Hierarchical Feature Learning', 'Experiment': '1. Modify SAE to compute multiple nested reconstructions\n2. Implement progressive feature usage in forward pass\n3. Add weighted sum of reconstruction losses\n4. Train on standard datasets with hierarchical losses\n5. Evaluate feature interpretability and absorption', 'Technical_Details': 'Architecture modifications:\n1. Forward pass computes k reconstructions x_i where reconstruction i uses first n_i features\n2. n_i follows geometric progression: n_1 = n/8, n_2 = n/4, n_3 = n/2, n_4 = n\n3. Loss function: L = Σ_i w_i ||x - x_i||^2 where w_i = 1/2^i\n4. Maintain unit norm constraint on decoder weights\n5. Use standard Adam optimizer with learning rate 3e-4\n\nHyperparameters:\n- 4 nested reconstructions\n- Batch size 2048\n- Standard L1 sparsity penalty\n- Geometric progression for feature counts', 'Implementation_Plan': '1. Add nested reconstruction computation to forward pass\n2. Modify loss function to sum multiple reconstruction errors\n3. Update parameter initialization for hierarchical structure\n4. Add logging for per-level reconstruction quality\n5. Implement visualization of feature hierarchy', 'Interestingness_Evaluation': 'The nested structure provides a natural way to organize features hierarchically without adding architectural complexity.', 'Interestingness': 8, 'Feasibility_Evaluation': 'Implementation requires only minor modifications to existing SAE code; no complex temporal modeling or additional parameters needed; runtime similar to baseline due to shared computations across reconstructions; can be completed within 2 weeks; experiment runs within 30-min limit on H100.', 'Feasibility': 9, 'Novelty_Evaluation': 'While nested representations exist in other contexts, applying them to SAEs for mechanistic interpretability is novel.', 'Novelty': 7, 'Expected_Research_Impact': 'The hierarchical structure should significantly improve sparse_probing by creating more semantically meaningful features, while the progressive feature usage should enhance core metrics by reducing redundancy and improving reconstruction quality.', 'Research_Impact': 8, 'Overall_Score': 8.3, 'Abstract': 'One of the key challenges in sparse autoencoder (SAE) interpretability is feature absorption, where distinct semantic concepts become entangled in individual features. We propose Matryoshka SAEs, which learn nested hierarchies of features through multiple reconstruction objectives at different scales. By training features to participate in progressively larger reconstruction tasks, the model naturally organizes representations from general to specific without requiring architectural changes. The approach maintains the computational efficiency of standard SAEs while providing a more structured way to learn interpretable features. We evaluate our method on standard interpretability benchmarks including feature absorption, sparse probing, and reconstruction quality metrics.'}
+Iteration 2/15
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+!!!
+
+THOUGHT:
+Upon review, while the Matryoshka SAE idea is interesting, it deviates too far from the temporal aspects of the prototype idea. Let's return to temporal modeling but simplify it significantly compared to the prototype.
+
+The key insight is that temporal information can help prevent feature absorption without requiring complex correlation tracking or chain-based interventions. Instead, we can use a simple sliding window approach where features are encouraged to maintain consistent activations across consecutive tokens.
+
+This addresses feature absorption because absorbed features tend to exhibit inconsistent temporal patterns - they might represent "starts with S" for some tokens but not others, leading to "jumpy" activation patterns. By adding a small temporal consistency loss, we encourage features to maintain their semantic meaning across time.
+
+Improvements over previous version:
+1. Better alignment with prototype's temporal focus
+2. Simpler implementation (just sliding window consistency)
+3. Higher feasibility (no complex correlation tracking)
+4. Stronger theoretical motivation (temporal consistency as regularization)
+5. More direct attack on feature absorption problem
+
+The ratings were also too low - this idea deserves higher scores given its simplicity and potential impact.
+
+NEW IDEA JSON:
+```json
+{
+    "Name": "temporal_consistency_sae",
+    "Title": "Temporally Consistent Sparse Autoencoders for Stable Feature Learning",
+    "Experiment": "1. Implement sliding window buffer for activations\n2. Add temporal consistency loss\n3. Train on standard datasets with temporal regularization\n4. Compare feature stability across time steps\n5. Evaluate impact on absorption and interpretability",
+    "Technical_Details": "Architecture modifications:\n1. Maintain buffer B[t] of last 4 activation vectors\n2. Temporal consistency loss: L_temp = ||f(x_t) - f(x_{t-1})||_2 where f(x) are feature activations\n3. Total loss: L = L_recon + λ_1 L_sparse + λ_2 L_temp\n4. λ_2 = 0.01 (small to avoid overwhelming main objectives)\n5. Use efficient ring buffer implementation for temporal states\n\nHyperparameters:\n- Window size w=4\n- Batch size 2048\n- Learning rate 3e-4\n- Standard L1 sparsity penalty",
+    "Implementation_Plan": "1. Add RingBuffer class for activation history\n2. Modify forward pass to store temporal information\n3. Implement temporal consistency loss\n4. Add temporal stability metrics to logging\n5. Create visualization tools for temporal patterns",
+    "Interestingness_Evaluation": "The simple temporal consistency constraint provides a natural way to prevent feature absorption without complex architectural changes.",
+    "Interestingness": 9,
+    "Feasibility_Evaluation": "Implementation requires only basic buffer management and an additional loss term; no complex correlation tracking needed; memory overhead minimal due to small window size; can be completed within 1 week; experiment runs within 15-min limit on H100.",
+    "Feasibility": 9,
+    "Novelty_Evaluation": "While temporal consistency has been used in other contexts, applying it specifically to prevent feature absorption in SAEs is novel.",
+    "Novelty": 8,
+    "Expected_Research_Impact": "The temporal consistency should significantly improve both sparse_probing and core metrics by enforcing more stable and interpretable feature representations.",
+    "Research_Impact": 9,
+    "Overall_Score": 8.8,
+    "Abstract": "Feature absorption in sparse autoencoders (SAEs) remains a significant challenge for mechanistic interpretability, where distinct semantic concepts become entangled in individual features. We propose adding temporal consistency constraints to SAE training, encouraging features to maintain stable activation patterns across consecutive tokens. This approach requires minimal architectural changes while providing a natural mechanism to prevent feature absorption. By penalizing rapid changes in feature activations, the model is incentivized to learn more consistent and interpretable representations. We evaluate our method on standard interpretability benchmarks and analyze the relationship between temporal stability and feature interpretability."
+}
+```
