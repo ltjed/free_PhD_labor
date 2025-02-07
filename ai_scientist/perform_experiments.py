@@ -67,11 +67,10 @@ Below is the current experiment idea, its results, baseline results, and any rel
 {notes}
 
 THOUGHT:
-- Compare these experiment results to the baseline.
+- Compare these experiment results to the baseline and results from previous runs in NOTES.
 - Discuss whether they match or contradict expectations, and why.
+- Try to explain the matching and unmatching of expectations with theoretical insights.
 - If you decide changes or further exploration are needed, describe them.
-- If no further reflection is needed, end your THOUGHT with 'I am done' 
-  and provide your final plan in <FINAL_PLAN> ... </FINAL_PLAN>.
 
 The correct interpretation for scores are as follows: 
 For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a good target score.
@@ -194,7 +193,7 @@ For autointerp, a higher score means better performance of the underlying SAE in
 An expert has written some comment and IMPORTANT suggestions about a plan of what to do next which you should consider and refer to: {plan}
 
 Someone else will be using `notes.txt` to perform a writeup on this in the future.
-Please include *all* relevant information for the writeup on Run {run_num}, including an experiment description and the run number. Be as verbose as necessary.
+Please include *all* relevant information for the writeup on Run {run_num}, including 1. an experiment description, 2. noteworthy experiment results and 3. the run number. Be as verbose as necessary.
 
 Then, implement the next thing on your list.
 We will then run the command `python experiment.py --out_dir=run_{run_num + 1}'.

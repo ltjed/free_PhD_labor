@@ -835,7 +835,7 @@ if __name__ == "__main__":
     llm_dtype = MODEL_CONFIGS[model_name]["dtype"]
     # Initialize variables that were previously args
     layers = MODEL_CONFIGS[model_name]["layers"]
-    num_tokens = 1_000_000 # Set default number of tokens, can be increased by a factor of up to 10 but takes much longer. Note training steps = num_tokens/sae_batch_size, so you can increase training be increasing num_of_tokens
+    num_tokens = 5_000_000 # Set default number of tokens, can be increased by a factor of up to 10 but takes much longer. Note training steps = num_tokens/sae_batch_size, so you can increase training be increasing num_of_tokens
     device = "cuda" if torch.cuda.is_available() else "cpu"
     no_wandb_logging = False # Set default wandb logging flag
     
@@ -876,13 +876,13 @@ if __name__ == "__main__":
     # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
 
     eval_types = [
-        # "absorption", # LOWER ABSORPTION SCORE MEANS BETTER PERFORMANCE, FOCUS ON THIS ONE
+        "absorption", # LOWER ABSORPTION SCORE MEANS BETTER PERFORMANCE, FOCUS ON THIS ONE
         # "autointerp",
         "core",
         # "scr",
         # "tpp",
-        # "sparse_probing",
-        # "unlearning",
+        "sparse_probing",
+        "unlearning",
     ]
 
     if "autointerp" in eval_types:

@@ -770,8 +770,8 @@ if __name__ == "__main__":
         "absorption", # LOWER ABSORPTION SCORE MEANS BETTER PERFORMANCE, FOCUS ON THIS ONE
         # "autointerp",
         "core",
-        # "scr",
-        # "tpp",
+        "scr",
+        "tpp",
         "sparse_probing",
         "unlearning",
     ]
