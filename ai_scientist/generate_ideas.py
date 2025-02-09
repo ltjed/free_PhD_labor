@@ -17,7 +17,13 @@ idea_first_prompt = """{task_description}
 {code}
 </experiment.py>
 
-Come up with an impactful and creative improvement idea from the following previous result.
+Here are the ideas that you have already generated:
+
+'''
+{prev_ideas_string}
+'''
+
+Come up with the next impactful and creative idea for research and experiments. Your new idea should not be more complex than those you have already generated. DO NOT INTRODUCE ANY UNDUELY MORE COMPLEX ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, METRIC.
 
 Respond in the following format:
 
@@ -29,18 +35,19 @@ NEW IDEA JSON:
 <JSON>
 ```
 
-In <THOUGHT>, first briefly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. **Justify how the idea refines the prototype idea without introducing too much complexity.**
+In <THOUGHT>, first thoroughly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. **Justify how the idea refines the prototype idea without introducing too much complexity.**
 Also detail the reasoning behind why they expect the modification of autoencoder you propose will work better for mechanistic interpretability purposes.
 
 In <JSON>, provide the new idea in JSON format with the following fields:
 - "Name": A shortened descriptor of the idea. Lowercase, no spaces, underscores allowed.
 - "Title": A title for the idea, will be used for the report writing.
 - "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
-- "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms.
+- "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms. BE SURE TO DEFINE BEFORE YOU USE NONSTANDARD TERMINOLOGY. WHENEVER POSSIBLE, USE MATHEMATICAL LANGUAGE TO AVOID AMBIGUITY.
+- "Motivation_Rationale": A detailed explanation of why the proposed experiment can be expected to improve from the baseline results and the existing methods in literature.
 - "Implementation_Plan": A plan of steps to implement the experiment described above by modifying the code template in experiment.py.
 - "Interestingness_Evaluation": Give a one-sentence evaluation of the interestingness of the idea to justify the rating below.  
 - "Interestingness": A rating from 1 to 10 (lowest to highest). 
-- "Feasibility_Evaluation": Carefully evaluate the feasibility to justify the rating below. BE STRICT. Consider the following three factors. 1. Refer to the "Experiment" and "Technical_Details" fields you wrote above, and consider the complexity of the idea in comparison to typical ML conference papers. Note it need not and should better not introduce too deep theoretical elements such as those from pure mathematics. Be relevant and understandable to the machine learning community. 2. Refer to the "Implementation_Plan" you wrote and consider the implementation difficulties. Note the coding work to implement the experiments is to be completed by a junior CS PhD student within 1 month. 3. Refer to the "Experiment", "Technical_Details", and "Implementation_Plan" and consider the time cost of running the experiment. Note each run of the experiment has to be conducted on a single NVIDIA H100 GPU WITHIN 30 MINS.
+- "Feasibility_Evaluation": Carefully evaluate the feasibility to justify the rating below. BE STRICT. Consider the following three factors. 1. Refer to the "Experiment" and "Technical_Details" fields you wrote above, and consider the complexity of the idea in comparison to typical ML conference papers. Note it need not and should better not introduce too deep theoretical elements such as those from pure mathematics. Be relevant and understandable to the machine learning community. The best ideas are simple but insightful. 2. Refer to the "Implementation_Plan" you wrote and consider the implementation difficulties. Note the coding work to implement the experiments is to be completed by a junior CS PhD student within 1 month. 3. Refer to the "Experiment", "Technical_Details", and "Implementation_Plan" and consider the time cost of running the experiment. Note each run of the experiment has to be conducted on a single NVIDIA H100 GPU WITHIN 30 MINS.
 - "Feasibility": A rating from 1 to 10 (lowest to highest). 
 - "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
 - "Novelty": A rating from 1 to 10 (lowest to highest).

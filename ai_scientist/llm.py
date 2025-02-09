@@ -136,7 +136,7 @@ def get_batch_responses_from_llm(
                 system_message,
                 print_debug=False,
                 msg_history=None,
-                temperature=temperature,
+                # temperature=temperature,
             )
             content.append(c)
             new_msg_history.append(hist)
@@ -220,6 +220,7 @@ def get_response_from_llm(
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     elif model in ["o1-preview-2024-09-12", "o1-mini-2024-09-12", "o1-2024-12-17", "o3-mini-2025-01-31",]:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        print("temp?")
         response = client.chat.completions.create(
             model=model,
             messages=[

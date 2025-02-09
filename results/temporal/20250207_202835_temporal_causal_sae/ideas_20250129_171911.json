@@ -1,0 +1,108 @@
+[
+    {
+        "Name": "adaptive_sparse_autoencoders",
+        "Title": "Adaptive Computation in Sparse Autoencoders",
+        "Experiment": "1. Implement Feature Choice and Mutual Choice sparsifying activation functions\n2. Add aux_zipf_loss and aux_k_loss auxiliary losses\n3. Train SAEs with new activation functions and losses on GPT-2 sized residual stream activations\n4. Compare performance (sparsity, reconstruction error, model loss) and feature utilization against baseline TopK SAEs\n5. Analyze distribution of features per token and feature densities\n6. Implement phased training with Mutual Choice followed by Feature Choice",
+        "Technical_Details": "The paper proposes two novel sparse autoencoder (SAE) variants: Feature Choice (FC) and Mutual Choice (MC). These allow for variable numbers of active features per token, framing the token-feature matching as a resource allocation problem with a total sparsity upper bound. The FC approach allows each feature to select m tokens to process, where m = M/F (M is total matches, F is number of features). MC combines aspects of FC and token choice. A new aux_zipf_loss is introduced to encourage feature densities to follow a Zipf distribution, mitigating feature under-utilization. The paper also suggests a phased training approach, starting with MC and transitioning to FC.",
+        "Research_Impact": "A key challenge in mechanistic interpretability is extracting meaningful, interpretable features from neural networks while maintaining computational efficiency. This research addresses this by introducing adaptive computation in SAEs, allowing more features and computation for difficult-to-reconstruct tokens. The proposed methods achieve higher reconstruction accuracy with fewer dead features compared to standard approaches, potentially leading to more robust and interpretable feature extraction in large language models.",
+        "Interestingness": 8,
+        "Feasibility": 7,
+        "Novelty": 8,
+        "novel": false
+    },
+    {
+        "Name": "gated_sparse_autoencoder",
+        "Title": "\u00a92024 Google DeepMind. All rights reservedarXiv:2404.16014v2  [cs.LG]  30 Apr 2024",
+        "Experiment": "1. Implement Gated SAE architecture with separate gating and magnitude components\n2. Modify loss function to include L1 penalty on gating activations and auxiliary reconstruction task\n3. Train Gated SAEs on activations from GELU-1L, Pythia-2.8B, and Gemma-7B models\n4. Evaluate performance using loss recovered vs. L0 sparsity metrics\n5. Compare against baseline SAEs using Pareto frontier analysis\n6. Conduct shrinkage analysis and human interpretability study",
+        "Technical_Details": "The Gated SAE architecture separates feature detection and magnitude estimation by using two sets of weights: w_gate for determining active features and w_mag for estimating magnitudes. The encoder output is computed as h = ReLU(w_gate * x + b_gate) * (w_mag * x + b_mag). The loss function includes an L1 penalty on ReLU(w_gate * x + b_gate) to encourage sparsity, and an auxiliary reconstruction task using these gating activations. Weight tying is employed between encoder and decoder. The architecture can be interpreted as a single-layer encoder with a parameterized JumpReLU activation function.",
+        "Research_Impact": "A key challenge in mechanistic interpretability is finding sparse, interpretable features in language model activations. Gated SAEs address this by improving dictionary learning, achieving better reconstruction fidelity at given sparsity levels compared to standard SAEs. They also mitigate the shrinkage problem inherent in L1 regularization, potentially leading to more accurate feature representations. This could enable more reliable extraction of interpretable features across different model sizes and activation sites, advancing our ability to understand the internal workings of large language models.",
+        "Interestingness": 8,
+        "Feasibility": 7,
+        "Novelty": 7,
+        "novel": false
+    },
+    {
+        "Name": "batchtopk_sae",
+        "Title": "Information Processing Systems (NeurIPS 2024).arXiv:2412.06410v1  [cs.LG]  9 Dec 2024",
+        "Experiment": "1. Implement BatchTopK function to replace sample-level TopK operation.2. Modify SAE training procedure to use BatchTopK for sparsity constraint.3. Implement threshold estimation method for inference.4. Train SAEs on GPT-2 Small and Gemma 2 2B activations using both TopK and BatchTopK.5. Compare reconstruction quality (normalized MSE) and impact on language modeling (cross-entropy degradation).6. Evaluate performance across different dictionary sizes (3072, 6144, 12288, 24576).7. Analyze latent activation patterns and flexibility in latent allocation.",
+        "Technical_Details": "BatchTopK is a novel training method for Sparse Autoencoders (SAEs) that replaces the sample-level TopK operation with a batch-level constraint. Instead of enforcing a fixed number of active latents per sample, BatchTopK selects the top activations across the entire batch. This allows for variable sparsity per sample, with some samples using more latents and others using fewer. The method introduces a batch dependency during training, which is addressed during inference by estimating a global threshold parameter. This threshold is calculated as the average of minimum positive activation values across multiple batches. The SAE is trained on language model activations (e.g., from the residual stream) using a large text corpus. The loss function combines L2 reconstruction error with an L0 sparsity penalty. Experiments were conducted on GPT-2 Small and Gemma 2 2B models, using dictionary sizes of 3072, 6144, 12288, and 24576, with a bandwidth parameter of 0.001 and the Adam optimizer (learning rate 3e-4).",
+        "Research_Impact": "A significant challenge in mechanistic interpretability is developing methods to effectively analyze and interpret the internal representations of large language models. BatchTopK SAEs address this challenge by providing a more flexible and efficient way to compress and represent model activations. By allowing variable sparsity per sample, BatchTopK can potentially capture more nuanced and diverse activation patterns compared to fixed-sparsity methods. This improvement in reconstruction quality, as demonstrated by lower normalized MSE and reduced cross-entropy degradation, could lead to more accurate and insightful interpretations of model behavior. Furthermore, the ability to adaptively allocate latents based on sample complexity aligns well with the varying information content in natural language, potentially revealing more about how language models process different types of inputs.",
+        "Interestingness": 8,
+        "Feasibility": 7,
+        "Novelty": 6,
+        "novel": false
+    },
+    {
+        "Name": "jumprelu_sae",
+        "Title": "\u00a92024 Google DeepMind. All rights reservedarXiv:2407.14435v3  [cs.LG]  1 Aug 2024",
+        "Experiment": "Implement JumpReLU activation function for sparse autoencoders. Modify existing SAE architecture to use JumpReLU instead of ReLU. Train JumpReLU SAEs on language model activations (e.g. Gemma 2 9B). Compare reconstruction fidelity and sparsity trade-offs against Gated and TopK SAEs. Conduct manual and automated interpretability studies on learned features.",
+        "Technical_Details": "JumpReLU SAE introduces a threshold parameter \u03c4 for each feature. The activation function zeroes out pre-activations below \u03c4. Loss function combines L2 reconstruction error and L0 sparsity penalty. Straight-through estimators are used to estimate gradients of the expected loss. Pseudo-derivatives provide gradient signals within a small window around the threshold. Training involves computing gradients over batches and using batch-wise mean for parameter updates.",
+        "Research_Impact": "Addresses the challenge of balancing reconstruction fidelity and interpretability in sparse representations of language model activations. JumpReLU SAEs achieve state-of-the-art reconstruction fidelity at given sparsity levels without sacrificing interpretability. This improves upon existing methods like Gated and TopK SAEs, potentially enabling more accurate identification of computational subgraphs and causal mechanisms in language models.",
+        "Interestingness": 8,
+        "Feasibility": 7,
+        "Novelty": 6,
+        "novel": false
+    },
+    {
+        "Name": "clustered_sparse_autoencoders",
+        "Title": "Clustered Sparse Autoencoders for Efficient Interpretability of Large Language Models",
+        "Experiment": "1. Implement clustering algorithm to group model layers2. Train single SAE for each cluster instead of per-layer3. Evaluate reconstruction performance and sparsity metrics4. Assess downstream task performance using faithfulness/completeness5. Analyze feature interpretability across clustered layers6. Compare computational efficiency to baseline per-layer approach",
+        "Technical_Details": "The approach clusters contiguous layers in a large language model and trains a single sparse autoencoder (SAE) per cluster, rather than per individual layer. This reduces the number of SAEs by a factor k, where k is the number of clusters. The method uses the JumpReLU activation function and optimizes an objective combining L2 reconstruction loss and L0 sparsity. Evaluation metrics include L2 loss, R2 score, L0 sparsity, as well as faithfulness and completeness on downstream tasks. The approach is tested with varying k values from 1 to 5, excluding the final layer of the model.",
+        "Research_Impact": "This research addresses the computational challenge of training sparse autoencoders for very large language models, which has become a bottleneck in mechanistic interpretability research. By reducing the number of required SAEs, it enables more efficient analysis of state-of-the-art models with billions of parameters. This approach could accelerate progress in understanding the inner workings of advanced AI systems, addressing a key challenge in the field of AI interpretability and safety.",
+        "Interestingness": 8,
+        "Feasibility": 7,
+        "Novelty": 6,
+        "novel": false
+    },
+    {
+        "Name": "mutual_feature_regularization",
+        "Title": "1",
+        "Experiment": "1. Implement MFR technique for SAEs:        - Add reinitializing of SAE weights when too many inactive features detected        - Implement auxiliary penalty to incentivize features present in other SAE decoders    2. Train SAEs with and without MFR on:        - Synthetic dataset with known features        - GPT-2 Small first layer MLP outputs        - EEG data from TUH EEG Corpus    3. Compare reconstruction loss and feature recovery between baseline and MFR SAEs    4. Analyze L2 distance between decoder matrices to assess feature similarity",
+        "Technical_Details": "Mutual Feature Regularization (MFR) consists of two main components:    1. Reinitialization: Check for inactive features in SAE hidden state. If too many are detected, reinitialize the weights of the affected SAE.    2. Auxiliary penalty: Add a penalty term to the loss function that encourages features to be present in decoders of other SAEs trained on the same data.        Implementation details:    - Use TopK activation function for sparsity in SAE hidden state    - Train with AdamW optimizer    - Apply cosine warmup for 100 training steps on the auxiliary penalty    - Set auxiliary penalty coefficient to make initial reconstruction loss and penalty equivalent    - Evaluate using reconstruction loss (Euclidean distance between input and output) and feature recovery metrics",
+        "Research_Impact": "MFR addresses the challenge of SAEs learning features that are not actually present in the input data, which limits their interpretability. This is a significant issue in mechanistic interpretability, where the goal is to understand the true features and computations of neural networks. By encouraging feature consistency across multiple SAEs, MFR increases the likelihood that learned features correspond to actual input features. This improvement could lead to more reliable and meaningful interpretations of neural network activations, advancing our understanding of how these models process information.",
+        "Interestingness": 7,
+        "Feasibility": 8,
+        "Novelty": 6,
+        "novel": false
+    },
+    {
+        "Name": "switch_sparse_autoencoder",
+        "Title": "Switch Sparse Autoencoders",
+        "Experiment": "1. Implement Switch layer architecture for sparse autoencoders (SAEs)\n2. Modify existing SAE training pipeline to incorporate Switch layer\n3. Train Switch SAEs on GPT-2 small residual stream activations\n4. Compare performance against TopK, ReLU, and Gated SAEs using metrics like reconstruction MSE, cross-entropy loss recovery, and feature interpretability\n5. Analyze scaling laws by training models with varying numbers of experts (16, 32, 64, 128)\n6. Evaluate expert specialization using nearest neighbor cosine similarity\n7. Perform t-SNE projections to visualize feature clustering\n8. Assess true positive and true negative rates for feature detection",
+        "Technical_Details": "The Switch Sparse Autoencoder (Switch SAE) combines the Switch layer architecture with TopK SAEs. It consists of multiple expert SAEs and a trainable routing network. The router computes a probability distribution over experts and routes input activations to the expert with the highest probability. This approach reduces computational costs by avoiding dense matrix multiplications. The model is trained on residual stream activations of GPT-2 small, optimizing for reconstruction MSE. The architecture allows for scaling to a large number of features (up to 34 million in this study) while maintaining computational efficiency. The Switch SAE demonstrates improved performance in terms of reconstruction error vs. sparsity trade-off compared to other SAE variants.",
+        "Research_Impact": "A key challenge in mechanistic interpretability is scaling sparse autoencoders to very high widths to identify all features represented in frontier models. This research directly addresses this challenge by introducing the Switch SAE architecture, which reduces the compute cost of training wide SAEs. By leveraging conditional computation, the Switch SAE enables scaling to millions of features while maintaining computational tractability. This advancement allows researchers to probe deeper into the internal representations of large language models, potentially uncovering a more comprehensive set of interpretable features and advancing our understanding of model behavior.",
+        "Interestingness": 8,
+        "Feasibility": 7,
+        "Novelty": 8,
+        "novel": false
+    },
+    {
+        "Name": "sparse_autoencoder_improvements",
+        "Title": "Sparse Autoencoder Viewer",
+        "Experiment": "1. Implement TopK activation function and compare with ReLU and ProLU.\n2. Develop Multi-TopK loss function.\n3. Train autoencoders on GPT-2 small and GPT-4 family models with varying latent sizes.\n4. Evaluate using new metrics: downstream loss, probe loss, explainability, and ablation sparsity.\n5. Analyze scaling laws for MSE, compute, and model size.\n6. Implement and test AuxK loss for reducing dead latents.\n7. Conduct ablation studies on different positions and layers of the models.",
+        "Technical_Details": "The paper introduces several technical improvements for training sparse autoencoders:\n1. TopK activation function: Only keeps the k largest latents, zeroing the rest.\n2. Multi-TopK loss: Sums multiple TopK losses with different k values to improve generalization.\n3. AuxK loss: An auxiliary loss that models reconstruction error using top-k dead latents.\n4. Optimization techniques: Using Adam optimizer with specific beta values, EMA of weights, and gradient projection.\n5. Scaling laws: Empirical observations on how MSE scales with compute, number of latents, and sparsity level.\n6. Evaluation metrics: New metrics including downstream loss, probe loss, explainability, and ablation sparsity to better quantify autoencoder quality.\n7. Parallelization strategies: Utilizing data parallel and tensor sharding techniques to handle large models.",
+        "Research_Impact": "This research addresses the challenge of training extremely wide and sparse autoencoders, which has been a limiting factor in extracting interpretable features from large language models. Specifically:\n1. It improves the reconstruction-sparsity trade-off, allowing for better feature extraction with fewer active latents.\n2. The introduction of TopK and Multi-TopK activation functions mitigates the overfitting problem observed in ReLU-based autoencoders.\n3. The new evaluation metrics provide a more comprehensive assessment of autoencoder quality, moving beyond simple reconstruction error.\n4. The scaling laws discovered offer insights into the relationship between model size, compute, and autoencoder performance, which can guide future research in this area.\n5. The techniques for reducing dead latents (like AuxK loss) address a common problem in sparse autoencoder training, potentially leading to more efficient feature extraction.",
+        "Interestingness": 8,
+        "Feasibility": 7,
+        "Novelty": 7,
+        "novel": false
+    },
+    {
+        "Name": "phased_orthogonal_sae",
+        "Title": "Two-Phase Orthogonality Training for Sparse Autoencoders",
+        "Experiment": "1. Implement two-phase training with \u03b1 scheduling\n2. Train on google/gemma-2-2b using standard datasets\n3. Compare benchmark performance against baseline and fixed orthogonal SAE\n4. Analyze feature separation patterns\n5. Evaluate impact of different phase transition points",
+        "Technical_Details": "The method uses a two-phase objective: L = L_recon + \u03bb_1 * L_sparse + \u03bb_2 * L_ortho where L_ortho = ||W_1^T W_2 - \u03b1(t)I||_F. The orthogonality parameter \u03b1(t) follows a simple schedule: \u03b1(t) = \u03b1_init * max(1 - (t - t_0)/(t_1 - t_0), \u03b1_min/\u03b1_init) for t > t_0, where t_0 is the phase transition point and t_1 is the end of transition. Phase 1 (t \u2264 t_0) focuses on reconstruction with \u03b1 = \u03b1_init = 0.1. Phase 2 gradually reduces \u03b1 to \u03b1_min = 0.01 to enforce orthogonality while maintaining learned features.",
+        "Implementation_Plan": "1. Add \u03b1 scheduling function\n2. Modify orthogonality loss to use scheduled \u03b1\n3. Update training loop with phase tracking\n4. Add phase transition utilities\n5. Implement evaluation metrics for both phases",
+        "Interestingness_Evaluation": "The two-phase approach provides a clear and principled way to balance reconstruction and feature separation.",
+        "Interestingness": 6,
+        "Feasibility_Evaluation": "Implementation requires minimal changes to existing architecture; phase-based training adds no computational overhead; all operations remain efficient; training time well within 30-minute limit on H100; code changes are extremely straightforward and can be completed within a month.",
+        "Feasibility": 10,
+        "Novelty_Evaluation": "While phase-based training is not new, its application to orthogonality constraints in SAEs provides a simple but effective approach.",
+        "Novelty": 6,
+        "Expected_Research_Impact": "The clear separation between reconstruction and orthogonalization phases should lead to consistent improvements in both sparse_probing and core metrics.",
+        "Research_Impact": 8,
+        "Overall_Score": 8.0,
+        "Abstract": "We propose a two-phase training approach for orthogonal sparse autoencoders that explicitly separates the goals of reconstruction and feature separation. The method begins with a reconstruction phase using relaxed orthogonality constraints, then transitions to a feature separation phase where orthogonality is gradually enforced. This is achieved through a simple scheduling of the orthogonality parameter that requires no additional computation or monitoring. The approach maintains the computational efficiency of traditional sparse autoencoders while providing a clear mechanism for balancing reconstruction quality and feature interpretability.",
+        "novel": true
+    }
+]

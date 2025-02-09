@@ -1,0 +1,1626 @@
+Using GPUs: [0]
+Using OpenRouter API with DeepSeek Reasoner.
+ideas
+Loaded existing ideas:
+Processing idea: optimized_stabilized_orthogonality
+
+[2025-02-08 00:51:41]  
+*Starting idea: 20250208_005139_optimized_stabilized_orthogonality*
+
+[2025-02-08 00:51:42] Starting experiments execution
+Starting experiment with prompt for coder: Your goal is to implement the following idea: Optimized Stabilized Orthogonal Regularization with Masked Dense Processing. Pay attention to the following details from the idea:
+The proposed experiment is as follows: 1. Replace sparse matrices with masked dense operations
+2. Implement efficient diagonal exclusion via index masking
+3. Simplify gradient balancing through loss ratio scaling
+4. Compare training speed against previous implementations
+5. Validate core metric preservation.
+The implementation plan is as follows: 1. In TrainerTopK:
+   a. active_mask = f > ema_mean/10
+   b. idx = torch.tril_indices(active_mask.sum(), active_mask.sum(), -1)
+   c. C = (active_acts.T @ active_acts).flatten()[idx]
+   d. S = (W_active @ W_active.T).pow(2).flatten()[idx]
+   e. L_orth = 1e-3 * (L_recon.detach()/L_orth_init) * (C * S).sum()
+2. Add weight projection hook post-optimizer step
+3. Use torch.triu_indices for efficient masking.
+
+You can also refer to other information in the idea: {'Name': 'optimized_stabilized_orthogonality', 'Title': 'Optimized Stabilized Orthogonal Regularization with Masked Dense Processing', 'Experiment': '1. Replace sparse matrices with masked dense operations\n2. Implement efficient diagonal exclusion via index masking\n3. Simplify gradient balancing through loss ratio scaling\n4. Compare training speed against previous implementations\n5. Validate core metric preservation', 'Technical_Details': 'Key changes:\n1. Use (f > μ/10).float() mask for active features\n2. Compute C = (A_mask.T @ A_mask) * (1 - I) via index filtering\n3. Scale L_orth = λ * (L_recon.detach()/L_orth_init) * ΣC_ijS_ij\n4. Maintain W_dec normalization via projection after optimizer step\n5. Diagonal exclusion through predefined index tensor', 'Motivation_Rationale': 'Masked dense ops leverage GPU matrix cores better than sparse formats. Index-based diagonal removal avoids full matrix masking. Loss ratio scaling automatically balances objectives without gradient clipping. Projective normalization ensures decoder stability.', 'Implementation_Plan': '1. In TrainerTopK:\n   a. active_mask = f > ema_mean/10\n   b. idx = torch.tril_indices(active_mask.sum(), active_mask.sum(), -1)\n   c. C = (active_acts.T @ active_acts).flatten()[idx]\n   d. S = (W_active @ W_active.T).pow(2).flatten()[idx]\n   e. L_orth = 1e-3 * (L_recon.detach()/L_orth_init) * (C * S).sum()\n2. Add weight projection hook post-optimizer step\n3. Use torch.triu_indices for efficient masking', 'Interestingness_Evaluation': 'Achieves component-level optimization while preserving methodological integrity.', 'Interestingness': 10, 'Feasibility_Evaluation': 'Masked dense ops are standard PyTorch. Index precomputation adds minimal setup. Total code <25 lines with vectorized operations. Runtime matches baseline SAE.', 'Feasibility': 10, 'Novelty_Evaluation': 'First to combine loss-ratio scaling with index-based dense masking in SAE regularization.', 'Novelty': 9, 'Expected_Research_Impact': 'Streamlined implementation should maintain metric gains while improving adoption potential.', 'Research_Impact': 10, 'Overall_Score': 9.8, 'Abstract': 'We present Optimized Stabilized Orthogonal Regularization, refining feature disentanglement through masked dense matrix operations and loss-ratio scaling. The method employs index-based diagonal exclusion and projective weight normalization to maintain decoder stability. By leveraging efficient dense tensor operations with strategic masking, our approach preserves computational performance while automatically balancing reconstruction and regularization objectives through dynamic loss scaling.', 'novel': True}
+
+You are given a total of up to 10 runs to complete the necessary experiments. You do not need to use all 10.
+
+If the experiments in the idea is already implemented in 'experiment.py' you are given with, you should try to improve its result by further enhancing the implementation.
+
+First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run (you can try to run with different hyperparameters in the same run across different iterations.).
+
+Note that we already provide the baseline results, so you do not need to re-run it.
+
+For reference, the baseline results are as follows:
+
+Baseline results from TopK SAE: 
+{'training results for layer 12': {'config': {'trainer_class': 'TrainerTopK', 'dict_class': 'AutoEncoderTopK', 'lr': 0.0002, 'steps': 2441, 'seed': 42, 'activation_dim': 2304, 'dict_size': 16384, 'k': 40, 'device': 'cuda', 'layer': 12, 'lm_name': 'google/gemma-2-2b', 'wandb_name': 'AutoEncoderTopK', 'submodule_name': 'resid_post_layer_12'}, 'final_info': {'training_steps': 2441, 'final_loss': 4357.5732421875, 'layer': 12, 'dict_size': 16384, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}}, 'absorption evaluation results': {'eval_type_id': 'absorption_first_letter', 'eval_config': {'model_name': 'google/gemma-2-2b', 'random_seed': 42, 'f1_jump_threshold': 0.03, 'max_k_value': 10, 'prompt_template': '{word} has the first letter:', 'prompt_token_pos': -6, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'k_sparse_probe_l1_decay': 0.01, 'k_sparse_probe_batch_size': 4096, 'k_sparse_probe_num_epochs': 50}, 'eval_id': 'e5d9d74a-c71a-462d-9661-5a7f2d41d4b8', 'datetime_epoch_millis': 1738885451045, 'eval_result_metrics': {'mean': {'mean_absorption_score': 0.1429159584016188, 'mean_num_split_features': 1.12}}, 'eval_result_details': [{'first_letter': 'a', 'absorption_rate': 0.04216867469879518, 'num_absorption': 112, 'num_probe_true_positives': 2656, 'num_split_features': 1}, {'first_letter': 'b', 'absorption_rate': 0.018471337579617834, 'num_absorption': 29, 'num_probe_true_positives': 1570, 'num_split_features': 1}, {'first_letter': 'c', 'absorption_rate': 0.3883746760459089, 'num_absorption': 1049, 'num_probe_true_positives': 2701, 'num_split_features': 1}, {'first_letter': 'd', 'absorption_rate': 0.11044417767106843, 'num_absorption': 184, 'num_probe_true_positives': 1666, 'num_split_features': 2}, {'first_letter': 'e', 'absorption_rate': 0.07116104868913857, 'num_absorption': 114, 'num_probe_true_positives': 1602, 'num_split_features': 1}, {'first_letter': 'f', 'absorption_rate': 0.05956375838926174, 'num_absorption': 71, 'num_probe_true_positives': 1192, 'num_split_features': 1}, {'first_letter': 'g', 'absorption_rate': 0.08423686405337781, 'num_absorption': 101, 'num_probe_true_positives': 1199, 'num_split_features': 1}, {'first_letter': 'h', 'absorption_rate': 0.3019648397104447, 'num_absorption': 292, 'num_probe_true_positives': 967, 'num_split_features': 1}, {'first_letter': 'i', 'absorption_rate': 0.10113704368641532, 'num_absorption': 169, 'num_probe_true_positives': 1671, 'num_split_features': 1}, {'first_letter': 'j', 'absorption_rate': 0.004739336492890996, 'num_absorption': 2, 'num_probe_true_positives': 422, 'num_split_features': 1}, {'first_letter': 'k', 'absorption_rate': 0.007518796992481203, 'num_absorption': 5, 'num_probe_true_positives': 665, 'num_split_features': 1}, {'first_letter': 'l', 'absorption_rate': 0.030377668308702793, 'num_absorption': 37, 'num_probe_true_positives': 1218, 'num_split_features': 1}, {'first_letter': 'm', 'absorption_rate': 0.27388535031847133, 'num_absorption': 473, 'num_probe_true_positives': 1727, 'num_split_features': 1}, {'first_letter': 'n', 'absorption_rate': 0.04790419161676647, 'num_absorption': 40, 'num_probe_true_positives': 835, 'num_split_features': 1}, {'first_letter': 'o', 'absorption_rate': 0.32429906542056075, 'num_absorption': 347, 'num_probe_true_positives': 1070, 'num_split_features': 1}, {'first_letter': 'p', 'absorption_rate': 0.4584221748400853, 'num_absorption': 1075, 'num_probe_true_positives': 2345, 'num_split_features': 2}, {'first_letter': 'q', 'absorption_rate': 0.07567567567567568, 'num_absorption': 14, 'num_probe_true_positives': 185, 'num_split_features': 1}, {'first_letter': 'r', 'absorption_rate': 0.004294478527607362, 'num_absorption': 7, 'num_probe_true_positives': 1630, 'num_split_features': 1}, {'first_letter': 's', 'absorption_rate': 0.39844026940801136, 'num_absorption': 1124, 'num_probe_true_positives': 2821, 'num_split_features': 2}, {'first_letter': 't', 'absorption_rate': 0.0267639902676399, 'num_absorption': 44, 'num_probe_true_positives': 1644, 'num_split_features': 1}, {'first_letter': 'u', 'absorption_rate': 0.21963824289405684, 'num_absorption': 170, 'num_probe_true_positives': 774, 'num_split_features': 1}, {'first_letter': 'v', 'absorption_rate': 0.008333333333333333, 'num_absorption': 7, 'num_probe_true_positives': 840, 'num_split_features': 1}, {'first_letter': 'w', 'absorption_rate': 0.14390602055800295, 'num_absorption': 98, 'num_probe_true_positives': 681, 'num_split_features': 1}, {'first_letter': 'y', 'absorption_rate': 0.3473684210526316, 'num_absorption': 66, 'num_probe_true_positives': 190, 'num_split_features': 1}, {'first_letter': 'z', 'absorption_rate': 0.023809523809523808, 'num_absorption': 6, 'num_probe_true_positives': 252, 'num_split_features': 1}], 'sae_bench_commit_hash': 'ed9b5672e8e2efb4d1319445d042023416923af6', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 16384, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'TopK', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'TopK', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'core evaluation results': {'unique_id': 'google/gemma-2-2b_layer_12_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_12_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': 0.9596273291925466, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 0.40625}, 'model_performance_preservation': {'ce_loss_score': 0.9588815789473685, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 3.328125, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': 0.609375, 'mse': 2.484375, 'cossim': 0.875}, 'shrinkage': {'l2_norm_in': 149.0, 'l2_norm_out': 131.0, 'l2_ratio': 0.875, 'relative_reconstruction_bias': 0.99609375}, 'sparsity': {'l0': 40.0, 'l1': 364.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}, 'sparse probing evaluation results': {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': '0a27606c-8d4d-449f-ad67-c23bba779fc9', 'datetime_epoch_millis': 1738886529707, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.94985, 'llm_top_1_test_accuracy': 0.66250625, 'llm_top_2_test_accuracy': 0.7216312500000001, 'llm_top_5_test_accuracy': 0.7799, 'llm_top_10_test_accuracy': 0.8296999999999999, 'llm_top_20_test_accuracy': 0.87843125, 'llm_top_50_test_accuracy': 0.9207375, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.9509000509977341, 'sae_top_1_test_accuracy': 0.75075625, 'sae_top_2_test_accuracy': 0.8130499999999999, 'sae_top_5_test_accuracy': 0.8722624999999999, 'sae_top_10_test_accuracy': 0.90165625, 'sae_top_20_test_accuracy': 0.9201937499999998, 'sae_top_50_test_accuracy': 0.93555625, 'sae_top_100_test_accuracy': None}}, 'eval_result_details': [{'dataset_name': 'LabHC/bias_in_bios_class_set1_results', 'llm_test_accuracy': 0.96, 'llm_top_1_test_accuracy': 0.6436, 'llm_top_2_test_accuracy': 0.6911999999999999, 'llm_top_5_test_accuracy': 0.792, 'llm_top_10_test_accuracy': 0.8333999999999999, 'llm_top_20_test_accuracy': 0.897, 'llm_top_50_test_accuracy': 0.9378, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.96260005235672, 'sae_top_1_test_accuracy': 0.8308000000000002, 'sae_top_2_test_accuracy': 0.8662000000000001, 'sae_top_5_test_accuracy': 0.8854, 'sae_top_10_test_accuracy': 0.8987999999999999, 'sae_top_20_test_accuracy': 0.9468, 'sae_top_50_test_accuracy': 0.9583999999999999, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'LabHC/bias_in_bios_class_set2_results', 'llm_test_accuracy': 0.9454, 'llm_top_1_test_accuracy': 0.6724, 'llm_top_2_test_accuracy': 0.7358, 'llm_top_5_test_accuracy': 0.7624000000000001, 'llm_top_10_test_accuracy': 0.8026, 'llm_top_20_test_accuracy': 0.8661999999999999, 'llm_top_50_test_accuracy': 0.9042000000000001, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.941200053691864, 'sae_top_1_test_accuracy': 0.7767999999999999, 'sae_top_2_test_accuracy': 0.8154, 'sae_top_5_test_accuracy': 0.8486, 'sae_top_10_test_accuracy': 0.9022, 'sae_top_20_test_accuracy': 0.9246000000000001, 'sae_top_50_test_accuracy': 0.9346, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'LabHC/bias_in_bios_class_set3_results', 'llm_test_accuracy': 0.9109999999999999, 'llm_top_1_test_accuracy': 0.6849999999999999, 'llm_top_2_test_accuracy': 0.7438, 'llm_top_5_test_accuracy': 0.7618, 'llm_top_10_test_accuracy': 0.7934, 'llm_top_20_test_accuracy': 0.851, 'llm_top_50_test_accuracy': 0.8879999999999999, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9250000596046448, 'sae_top_1_test_accuracy': 0.8310000000000001, 'sae_top_2_test_accuracy': 0.8448, 'sae_top_5_test_accuracy': 0.8725999999999999, 'sae_top_10_test_accuracy': 0.8865999999999999, 'sae_top_20_test_accuracy': 0.8985999999999998, 'sae_top_50_test_accuracy': 0.9106, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_results', 'llm_test_accuracy': 0.8964000000000001, 'llm_top_1_test_accuracy': 0.6024, 'llm_top_2_test_accuracy': 0.6397999999999999, 'llm_top_5_test_accuracy': 0.6666, 'llm_top_10_test_accuracy': 0.7491999999999999, 'llm_top_20_test_accuracy': 0.8138, 'llm_top_50_test_accuracy': 0.8566, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9076000452041626, 'sae_top_1_test_accuracy': 0.7055999999999999, 'sae_top_2_test_accuracy': 0.791, 'sae_top_5_test_accuracy': 0.818, 'sae_top_10_test_accuracy': 0.8550000000000001, 'sae_top_20_test_accuracy': 0.8708, 'sae_top_50_test_accuracy': 0.883, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_sentiment_results', 'llm_test_accuracy': 0.982, 'llm_top_1_test_accuracy': 0.673, 'llm_top_2_test_accuracy': 0.724, 'llm_top_5_test_accuracy': 0.766, 'llm_top_10_test_accuracy': 0.826, 'llm_top_20_test_accuracy': 0.848, 'llm_top_50_test_accuracy': 0.932, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9625000655651093, 'sae_top_1_test_accuracy': 0.649, 'sae_top_2_test_accuracy': 0.813, 'sae_top_5_test_accuracy': 0.875, 'sae_top_10_test_accuracy': 0.928, 'sae_top_20_test_accuracy': 0.935, 'sae_top_50_test_accuracy': 0.953, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'codeparrot/github-code_results', 'llm_test_accuracy': 0.9662000000000001, 'llm_top_1_test_accuracy': 0.666, 'llm_top_2_test_accuracy': 0.6900000000000001, 'llm_top_5_test_accuracy': 0.7613999999999999, 'llm_top_10_test_accuracy': 0.8039999999999999, 'llm_top_20_test_accuracy': 0.8622, 'llm_top_50_test_accuracy': 0.923, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9688000440597534, 'sae_top_1_test_accuracy': 0.6042, 'sae_top_2_test_accuracy': 0.6302, 'sae_top_5_test_accuracy': 0.8632, 'sae_top_10_test_accuracy': 0.8856000000000002, 'sae_top_20_test_accuracy': 0.9151999999999999, 'sae_top_50_test_accuracy': 0.9425999999999999, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'fancyzhx/ag_news_results', 'llm_test_accuracy': 0.9380000000000001, 'llm_top_1_test_accuracy': 0.63325, 'llm_top_2_test_accuracy': 0.76825, 'llm_top_5_test_accuracy': 0.827, 'llm_top_10_test_accuracy': 0.869, 'llm_top_20_test_accuracy': 0.89925, 'llm_top_50_test_accuracy': 0.9265000000000001, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9455000460147858, 'sae_top_1_test_accuracy': 0.79725, 'sae_top_2_test_accuracy': 0.85, 'sae_top_5_test_accuracy': 0.8865, 'sae_top_10_test_accuracy': 0.90925, 'sae_top_20_test_accuracy': 0.91675, 'sae_top_50_test_accuracy': 0.93625, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'Helsinki-NLP/europarl_results', 'llm_test_accuracy': 0.9998000000000001, 'llm_top_1_test_accuracy': 0.7243999999999999, 'llm_top_2_test_accuracy': 0.7802, 'llm_top_5_test_accuracy': 0.9019999999999999, 'llm_top_10_test_accuracy': 0.96, 'llm_top_20_test_accuracy': 0.99, 'llm_top_50_test_accuracy': 0.9978, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9940000414848328, 'sae_top_1_test_accuracy': 0.8114000000000001, 'sae_top_2_test_accuracy': 0.8938, 'sae_top_5_test_accuracy': 0.9288000000000001, 'sae_top_10_test_accuracy': 0.9478, 'sae_top_20_test_accuracy': 0.9538, 'sae_top_50_test_accuracy': 0.966, 'sae_top_100_test_accuracy': None}], 'sae_bench_commit_hash': 'ed9b5672e8e2efb4d1319445d042023416923af6', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 16384, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'TopK', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'TopK', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'unlearning evaluation results': {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': 'e8be4b3c-dfd3-49dd-91ca-e1b0d08e9055', 'datetime_epoch_millis': 1738886775914, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.026217222213745117}}, 'eval_result_details': [], 'sae_bench_commit_hash': 'ed9b5672e8e2efb4d1319445d042023416923af6', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 16384, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'TopK', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'TopK', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}}
+Baseline results from standard SAE: 
+{'training results for layer 12': {'config': {'trainer_class': 'CustomTrainer', 'activation_dim': 2304, 'dict_size': 16384, 'lr': 0.0003, 'l1_penalty': 0.04, 'warmup_steps': 1000, 'resample_steps': None, 'device': 'cuda', 'layer': 12, 'lm_name': 'google/gemma-2-2b', 'wandb_name': 'CustomTrainer', 'submodule_name': 'resid_post_layer_12'}, 'final_info': {'training_steps': 2441, 'final_loss': 701.0477905273438, 'layer': 12, 'dict_size': 16384, 'learning_rate': 0.0003, 'sparsity_penalty': 0.04}}, 'absorption evaluation results': {'eval_type_id': 'absorption_first_letter', 'eval_config': {'model_name': 'google/gemma-2-2b', 'random_seed': 42, 'f1_jump_threshold': 0.03, 'max_k_value': 10, 'prompt_template': '{word} has the first letter:', 'prompt_token_pos': -6, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'k_sparse_probe_l1_decay': 0.01, 'k_sparse_probe_batch_size': 4096, 'k_sparse_probe_num_epochs': 50}, 'eval_id': 'b5f3e18f-7844-4d8a-ac26-9b99d357cf9a', 'datetime_epoch_millis': 1738804062497, 'eval_result_metrics': {'mean': {'mean_absorption_score': 0.016138604243358595, 'mean_num_split_features': 1.4166666666666667}}, 'eval_result_details': [{'first_letter': 'a', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 2656, 'num_split_features': 2}, {'first_letter': 'b', 'absorption_rate': 0.0006369426751592356, 'num_absorption': 1, 'num_probe_true_positives': 1570, 'num_split_features': 2}, {'first_letter': 'c', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 2701, 'num_split_features': 3}, {'first_letter': 'd', 'absorption_rate': 0.009603841536614645, 'num_absorption': 16, 'num_probe_true_positives': 1666, 'num_split_features': 1}, {'first_letter': 'e', 'absorption_rate': 0.05305867665418227, 'num_absorption': 85, 'num_probe_true_positives': 1602, 'num_split_features': 1}, {'first_letter': 'f', 'absorption_rate': 0.013422818791946308, 'num_absorption': 16, 'num_probe_true_positives': 1192, 'num_split_features': 1}, {'first_letter': 'g', 'absorption_rate': 0.021684737281067557, 'num_absorption': 26, 'num_probe_true_positives': 1199, 'num_split_features': 1}, {'first_letter': 'h', 'absorption_rate': 0.0062047569803516025, 'num_absorption': 6, 'num_probe_true_positives': 967, 'num_split_features': 1}, {'first_letter': 'i', 'absorption_rate': 0.006582884500299222, 'num_absorption': 11, 'num_probe_true_positives': 1671, 'num_split_features': 2}, {'first_letter': 'j', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 422, 'num_split_features': 1}, {'first_letter': 'k', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 665, 'num_split_features': 2}, {'first_letter': 'l', 'absorption_rate': 0.09770114942528736, 'num_absorption': 119, 'num_probe_true_positives': 1218, 'num_split_features': 1}, {'first_letter': 'm', 'absorption_rate': 0.0005790387955993051, 'num_absorption': 1, 'num_probe_true_positives': 1727, 'num_split_features': 4}, {'first_letter': 'n', 'absorption_rate': 0.013173652694610778, 'num_absorption': 11, 'num_probe_true_positives': 835, 'num_split_features': 1}, {'first_letter': 'o', 'absorption_rate': 0.022429906542056073, 'num_absorption': 24, 'num_probe_true_positives': 1070, 'num_split_features': 1}, {'first_letter': 'p', 'absorption_rate': 0.008955223880597015, 'num_absorption': 21, 'num_probe_true_positives': 2345, 'num_split_features': 1}, {'first_letter': 'q', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 185, 'num_split_features': 1}, {'first_letter': 'r', 'absorption_rate': 0.0006134969325153375, 'num_absorption': 1, 'num_probe_true_positives': 1630, 'num_split_features': 2}, {'first_letter': 's', 'absorption_rate': 0.0857851825593761, 'num_absorption': 242, 'num_probe_true_positives': 2821, 'num_split_features': 1}, {'first_letter': 't', 'absorption_rate': 0.011557177615571776, 'num_absorption': 19, 'num_probe_true_positives': 1644, 'num_split_features': 1}, {'first_letter': 'u', 'absorption_rate': 0.021963824289405683, 'num_absorption': 17, 'num_probe_true_positives': 774, 'num_split_features': 1}, {'first_letter': 'w', 'absorption_rate': 0.0014684287812041115, 'num_absorption': 1, 'num_probe_true_positives': 681, 'num_split_features': 1}, {'first_letter': 'y', 'absorption_rate': 0.0, 'num_absorption': 0, 'num_probe_true_positives': 190, 'num_split_features': 1}, {'first_letter': 'z', 'absorption_rate': 0.011904761904761904, 'num_absorption': 3, 'num_probe_true_positives': 252, 'num_split_features': 1}], 'sae_bench_commit_hash': 'c600ccd8de71ccb5cbbab0eb1c6e8cc361ee3481', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 16384, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'core evaluation results': {'unique_id': 'google/gemma-2-2b_layer_12_sae_custom_sae', 'sae_set': 'google/gemma-2-2b_layer_12_sae', 'sae_id': 'custom_sae', 'eval_cfg': {'model_name': 'google/gemma-2-2b', 'llm_dtype': 'bfloat16', 'batch_size_prompts': 16, 'n_eval_reconstruction_batches': 200, 'n_eval_sparsity_variance_batches': 2000, 'dataset': 'Skylion007/openwebtext', 'context_size': 128, 'compute_kl': True, 'compute_ce_loss': True, 'compute_l2_norms': True, 'compute_sparsity_metrics': True, 'compute_variance_metrics': True, 'compute_featurewise_density_statistics': False, 'compute_featurewise_weight_based_metrics': False, 'exclude_special_tokens_from_reconstruction': True, 'verbose': False}, 'metrics': {'model_behavior_preservation': {'kl_div_score': 0.9995723748059007, 'kl_div_with_ablation': 10.0625, 'kl_div_with_sae': 0.004302978515625}, 'model_performance_preservation': {'ce_loss_score': 1.0, 'ce_loss_with_ablation': 12.4375, 'ce_loss_with_sae': 2.9375, 'ce_loss_without_sae': 2.9375}, 'reconstruction_quality': {'explained_variance': 0.984375, 'mse': 0.0888671875, 'cossim': 0.99609375}, 'shrinkage': {'l2_norm_in': 149.0, 'l2_norm_out': 147.0, 'l2_ratio': 0.984375, 'relative_reconstruction_bias': 0.98828125}, 'sparsity': {'l0': 8895.810546875, 'l1': 12608.0}, 'token_stats': {'total_tokens_eval_reconstruction': 409600, 'total_tokens_eval_sparsity_variance': 4096000}}}, 'sparse probing evaluation results': {'eval_type_id': 'sparse_probing', 'eval_config': {'random_seed': 42, 'dataset_names': ['LabHC/bias_in_bios_class_set1', 'LabHC/bias_in_bios_class_set2', 'LabHC/bias_in_bios_class_set3', 'canrager/amazon_reviews_mcauley_1and5', 'canrager/amazon_reviews_mcauley_1and5_sentiment', 'codeparrot/github-code', 'fancyzhx/ag_news', 'Helsinki-NLP/europarl'], 'probe_train_set_size': 4000, 'probe_test_set_size': 1000, 'context_length': 128, 'sae_batch_size': 125, 'llm_batch_size': 32, 'llm_dtype': 'bfloat16', 'model_name': 'google/gemma-2-2b', 'k_values': [1, 2, 5, 10, 20, 50], 'lower_vram_usage': False}, 'eval_id': 'fc35f1d1-c27c-402b-abd2-fe38f12c05aa', 'datetime_epoch_millis': 1738804969188, 'eval_result_metrics': {'llm': {'llm_test_accuracy': 0.95075625, 'llm_top_1_test_accuracy': 0.65444375, 'llm_top_2_test_accuracy': 0.71966875, 'llm_top_5_test_accuracy': 0.7860875, 'llm_top_10_test_accuracy': 0.83056875, 'llm_top_20_test_accuracy': 0.8764437500000001, 'llm_top_50_test_accuracy': 0.9228625, 'llm_top_100_test_accuracy': None}, 'sae': {'sae_test_accuracy': 0.9578625451773405, 'sae_top_1_test_accuracy': 0.6448624999999999, 'sae_top_2_test_accuracy': 0.6875375000000001, 'sae_top_5_test_accuracy': 0.7562874999999999, 'sae_top_10_test_accuracy': 0.8066500000000001, 'sae_top_20_test_accuracy': 0.8664625000000001, 'sae_top_50_test_accuracy': 0.9122750000000001, 'sae_top_100_test_accuracy': None}}, 'eval_result_details': [{'dataset_name': 'LabHC/bias_in_bios_class_set1_results', 'llm_test_accuracy': 0.96, 'llm_top_1_test_accuracy': 0.6436, 'llm_top_2_test_accuracy': 0.6911999999999999, 'llm_top_5_test_accuracy': 0.792, 'llm_top_10_test_accuracy': 0.8333999999999999, 'llm_top_20_test_accuracy': 0.897, 'llm_top_50_test_accuracy': 0.9378, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.965600049495697, 'sae_top_1_test_accuracy': 0.6862, 'sae_top_2_test_accuracy': 0.6885999999999999, 'sae_top_5_test_accuracy': 0.7842, 'sae_top_10_test_accuracy': 0.8386000000000001, 'sae_top_20_test_accuracy': 0.8806, 'sae_top_50_test_accuracy': 0.9252, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'LabHC/bias_in_bios_class_set2_results', 'llm_test_accuracy': 0.9492, 'llm_top_1_test_accuracy': 0.6794, 'llm_top_2_test_accuracy': 0.717, 'llm_top_5_test_accuracy': 0.767, 'llm_top_10_test_accuracy': 0.8, 'llm_top_20_test_accuracy': 0.8614, 'llm_top_50_test_accuracy': 0.9086000000000001, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9546000480651855, 'sae_top_1_test_accuracy': 0.6844, 'sae_top_2_test_accuracy': 0.6834, 'sae_top_5_test_accuracy': 0.7402000000000001, 'sae_top_10_test_accuracy': 0.7884, 'sae_top_20_test_accuracy': 0.8503999999999999, 'sae_top_50_test_accuracy': 0.8998000000000002, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'LabHC/bias_in_bios_class_set3_results', 'llm_test_accuracy': 0.9181999999999999, 'llm_top_1_test_accuracy': 0.6862, 'llm_top_2_test_accuracy': 0.732, 'llm_top_5_test_accuracy': 0.7722, 'llm_top_10_test_accuracy': 0.8008, 'llm_top_20_test_accuracy': 0.8532, 'llm_top_50_test_accuracy': 0.8922000000000001, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9368000507354737, 'sae_top_1_test_accuracy': 0.5932000000000001, 'sae_top_2_test_accuracy': 0.725, 'sae_top_5_test_accuracy': 0.7638, 'sae_top_10_test_accuracy': 0.8056000000000001, 'sae_top_20_test_accuracy': 0.8465999999999999, 'sae_top_50_test_accuracy': 0.8838000000000001, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_results', 'llm_test_accuracy': 0.8948, 'llm_top_1_test_accuracy': 0.6039999999999999, 'llm_top_2_test_accuracy': 0.6508, 'llm_top_5_test_accuracy': 0.6878, 'llm_top_10_test_accuracy': 0.745, 'llm_top_20_test_accuracy': 0.8051999999999999, 'llm_top_50_test_accuracy': 0.8628, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9118000507354737, 'sae_top_1_test_accuracy': 0.5828, 'sae_top_2_test_accuracy': 0.6594, 'sae_top_5_test_accuracy': 0.7343999999999999, 'sae_top_10_test_accuracy': 0.768, 'sae_top_20_test_accuracy': 0.8114000000000001, 'sae_top_50_test_accuracy': 0.8452, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'canrager/amazon_reviews_mcauley_1and5_sentiment_results', 'llm_test_accuracy': 0.982, 'llm_top_1_test_accuracy': 0.673, 'llm_top_2_test_accuracy': 0.724, 'llm_top_5_test_accuracy': 0.766, 'llm_top_10_test_accuracy': 0.826, 'llm_top_20_test_accuracy': 0.848, 'llm_top_50_test_accuracy': 0.932, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9765000343322754, 'sae_top_1_test_accuracy': 0.699, 'sae_top_2_test_accuracy': 0.701, 'sae_top_5_test_accuracy': 0.792, 'sae_top_10_test_accuracy': 0.814, 'sae_top_20_test_accuracy': 0.908, 'sae_top_50_test_accuracy': 0.932, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'codeparrot/github-code_results', 'llm_test_accuracy': 0.9642, 'llm_top_1_test_accuracy': 0.6634, 'llm_top_2_test_accuracy': 0.7002, 'llm_top_5_test_accuracy': 0.7648, 'llm_top_10_test_accuracy': 0.8024000000000001, 'llm_top_20_test_accuracy': 0.8608, 'llm_top_50_test_accuracy': 0.9258, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.965600049495697, 'sae_top_1_test_accuracy': 0.6342000000000001, 'sae_top_2_test_accuracy': 0.6708000000000001, 'sae_top_5_test_accuracy': 0.7096000000000001, 'sae_top_10_test_accuracy': 0.7712, 'sae_top_20_test_accuracy': 0.8295999999999999, 'sae_top_50_test_accuracy': 0.9026, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'fancyzhx/ag_news_results', 'llm_test_accuracy': 0.93825, 'llm_top_1_test_accuracy': 0.63375, 'llm_top_2_test_accuracy': 0.7607499999999999, 'llm_top_5_test_accuracy': 0.8265, 'llm_top_10_test_accuracy': 0.8727499999999999, 'llm_top_20_test_accuracy': 0.8977499999999999, 'llm_top_50_test_accuracy': 0.9265, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9530000537633896, 'sae_top_1_test_accuracy': 0.6285, 'sae_top_2_test_accuracy': 0.7015, 'sae_top_5_test_accuracy': 0.7515000000000001, 'sae_top_10_test_accuracy': 0.856, 'sae_top_20_test_accuracy': 0.8875, 'sae_top_50_test_accuracy': 0.9199999999999999, 'sae_top_100_test_accuracy': None}, {'dataset_name': 'Helsinki-NLP/europarl_results', 'llm_test_accuracy': 0.9994, 'llm_top_1_test_accuracy': 0.6522, 'llm_top_2_test_accuracy': 0.7814, 'llm_top_5_test_accuracy': 0.9123999999999999, 'llm_top_10_test_accuracy': 0.9642, 'llm_top_20_test_accuracy': 0.9882, 'llm_top_50_test_accuracy': 0.9972000000000001, 'llm_top_100_test_accuracy': None, 'sae_test_accuracy': 0.9990000247955322, 'sae_top_1_test_accuracy': 0.6506000000000001, 'sae_top_2_test_accuracy': 0.6706, 'sae_top_5_test_accuracy': 0.7745999999999998, 'sae_top_10_test_accuracy': 0.8114000000000001, 'sae_top_20_test_accuracy': 0.9176, 'sae_top_50_test_accuracy': 0.9895999999999999, 'sae_top_100_test_accuracy': None}], 'sae_bench_commit_hash': 'c600ccd8de71ccb5cbbab0eb1c6e8cc361ee3481', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 16384, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}, 'unlearning evaluation results': {'eval_type_id': 'unlearning', 'eval_config': {'random_seed': 42, 'dataset_names': ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging'], 'intervention_method': 'clamp_feature_activation', 'retain_thresholds': [0.001, 0.01], 'n_features_list': [10, 20], 'multipliers': [25, 50, 100, 200], 'dataset_size': 1024, 'seq_len': 1024, 'n_batch_loss_added': 50, 'target_metric': 'correct', 'save_metrics': True, 'model_name': 'google/gemma-2-2b-it', 'llm_batch_size': 32, 'llm_dtype': 'bfloat16'}, 'eval_id': 'b48744e1-4f43-4d25-af92-4f1a46abab60', 'datetime_epoch_millis': 1738805225729, 'eval_result_metrics': {'unlearning': {'unlearning_score': 0.0}}, 'eval_result_details': [], 'sae_bench_commit_hash': 'c600ccd8de71ccb5cbbab0eb1c6e8cc361ee3481', 'sae_lens_id': 'custom_sae', 'sae_lens_release_id': 'google/gemma-2-2b_layer_12_sae', 'sae_lens_version': '5.3.0', 'sae_cfg_dict': {'model_name': 'google/gemma-2-2b', 'd_in': 2304, 'd_sae': 16384, 'hook_layer': 12, 'hook_name': 'blocks.12.hook_resid_post', 'context_size': None, 'hook_head_index': None, 'architecture': 'Custom', 'apply_b_dec_to_input': True, 'finetuning_scaling_factor': None, 'activation_fn_str': 'relu', 'prepend_bos': True, 'normalize_activations': 'none', 'dtype': 'bfloat16', 'device': '', 'dataset_path': '', 'dataset_trust_remote_code': True, 'seqpos_slice': [None], 'training_tokens': -100000, 'sae_lens_training_version': None, 'neuronpedia_id': None}, 'eval_result_unstructured': None}}
+
+After you complete each change, we will run the command `python experiment.py --out_dir=run_i' where i is the run number and evaluate the results.
+YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
+You can then implement the next thing on your list.
+Currently on iteration 0 of run 1
+To implement the Optimized Stabilized Orthogonal Regularization, I'll modify the TrainerTopK class following the implementation plan. Here are the key changes needed:                                                                
+
+ 1 First Run (run_1): Implement core orthogonal regularization with fixed scaling                                                                                                                                                     
+ 2 Second Run (run_2): Add EMA-based loss ratio scaling                                                                                                                                                                               
+ 3 Third Run (run_3): Optimize with precomputed indices                                                                                                                                                                               
+
+Let's implement the first phase:                                                                                                                                                                                                      
+
+--- experiment.py +++ experiment.py @@ -123,6 +123,7 @@ self.k = k                                                                                                                                                                    
+
+                                                                                                                                                                                                                                      
+      # Initialize encoder parameters                                                                                                                                                                                                 
+                                                                                                                                                                                                                                      
+
+ •                                                                                                                                                                                                                                    
+       self.ema_feature_act = torch.zeros(d_sae, device=device)  # Track EMA of feature activations                                                                                                                                   
+       self.W_enc = nn.Parameter(torch.empty(d_in, d_sae))                                                                                                                                                                            
+       nn.init.kaiming_uniform_(self.W_enc, nonlinearity='relu')                                                                                                                                                                      
+       self.b_enc = nn.Parameter(torch.zeros(d_sae))                                                                                                                                                                                  
+                                                                                                                                                                                                                                      
+
+@@ -250,6 +251,9 @@ self.dead_feature_threshold = 10_000_000                                                                                                                                                                          
+
+                                                                                                                                                                                                                                      
+      # Optimizer and scheduler                                                                                                                                                                                                       
+                                                                                                                                                                                                                                      
+
+ •                                                                                                                                                                                                                                    
+       # Orthogonal regularization parameters                                                                                                                                                                                         
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       self.L_orth_init = None                                                                                                                                                                                                        
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       self.orth_reg_coeff = 1e-3                                                                                                                                                                                                     
+       self.optimizer = t.optim.Adam(self.ae.parameters(), lr=self.lr, betas=(0.9, 0.999))                                                                                                                                            
+                                                                                                                                                                                                                                      
+       def lr_fn(step):                                                                                                                                                                                                               
+                                                                                                                                                                                                                                      
+
+@@ -300,6 +304,35 @@ else: auxk_loss = x_hat.new_tensor(0.0)                                                                                                                                                                          
+
+ •                                                                                                                                                                                                                                    
+       # Orthogonal regularization implementation                                                                                                                                                                                     
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       with torch.no_grad():                                                                                                                                                                                                          
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           # Update EMA of feature activations                                                                                                                                                                                        
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           self.ae.ema_feature_act = 0.99 * self.ae.ema_feature_act + 0.01 * f.mean(dim=0)                                                                                                                                            
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       # Create active mask using EMA threshold                                                                                                                                                                                       
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       active_mask = (f > self.ae.ema_feature_act/10).any(dim=0)                                                                                                                                                                      
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       n_active = active_mask.sum()                                                                                                                                                                                                   
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       if n_active > 1:                                                                                                                                                                                                               
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           # Get active features and weights                                                                                                                                                                                          
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           active_acts = f[:, active_mask]                                                                                                                                                                                            
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           W_active = self.ae.W_enc[:, active_mask]                                                                                                                                                                                   
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           # Create lower triangular indices excluding diagonal                                                                                                                                                                       
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           idx = torch.tril_indices(n_active, n_active, -1)                                                                                                                                                                           
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           # Compute correlation and similarity matrices                                                                                                                                                                              
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           C = (active_acts.T @ active_acts).flatten()[idx]                                                                                                                                                                           
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           S = (W_active.T @ W_active.T).pow(2).flatten()[idx]                                                                                                                                                                        
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           # Calculate orthogonal loss component                                                                                                                                                                                      
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           L_orth = (C * S).sum()                                                                                                                                                                                                     
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           if self.L_orth_init is None:  # Initialize scaling factor                                                                                                                                                                  
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+               self.L_orth_init = L_orth.detach()                                                                                                                                                                                     
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           orth_loss = self.orth_reg_coeff * (l2_loss.detach()/self.L_orth_init) * L_orth                                                                                                                                             
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       else:                                                                                                                                                                                                                          
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+           orth_loss = torch.tensor(0.0, device=x.device)                                                                                                                                                                             
+                                                                                                                                                                                                                                      
+ •                                                                                                                                                                                                                                    
+       loss = l2_loss + self.auxk_alpha * auxk_loss + orth_loss                                                                                                                                                                       
+       l2_loss = e.pow(2).sum(dim=-1).mean()                                                                                                                                                                                          
+       auxk_loss = auxk_loss.sum(dim=-1).mean()                                                                                                                                                                                       
+       loss = l2_loss + self.auxk_alpha * auxk_loss                                                                                                                                                                                   
+                                                                                                                                                                                                                                      
+
+@@ -333,6 +366,7 @@ # do a training step self.optimizer.step() self.optimizer.zero_grad()                                                                                                                                             
+
+ •                                                                                                                                                                                                                                    
+       self.ae.set_decoder_norm_to_unit_norm()  # Project decoder weights                                                                                                                                                             
+       self.scheduler.step()                                                                                                                                                                                                          
+       return loss.item()                                                                                                                                                                                                             
+                                                                                                                                                                                                                                      
+
+This first implementation:                                                                                                                                                                                                            
+
+ 1 Adds EMA tracking of feature activations                                                                                                                                                                                           
+ 2 Implements masked dense operations for active features                                                                                                                                                                             
+ 3 Uses triangular indices for efficient diagonal exclusion                                                                                                                                                                           
+ 4 Includes loss ratio scaling based on reconstruction loss                                                                                                                                                                           
+ 5 Maintains decoder normalization after optimizer steps                                                                                                                                                                              
+
+The next runs would focus on optimizing the index handling and scaling factors, but this first implementation contains the core components needed for validation.                                                                     
+
+Tokens: 33k sent, 1.7k received.
+Let me provide the changes in the correct SEARCH/REPLACE block format:                                                                                                                                                                
+
+experiment.py                                                                                                                                                                                                                         
+
+                                                                                                                                                                                                                                      
+ <<<<<<< SEARCH                                                                                                                                                                                                                       
+         self.k = k                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                      
+         # Initialize encoder parameters                                                                                                                                                                                              
+         self.W_enc = nn.Parameter(torch.empty(d_in, d_sae))                                                                                                                                                                          
+         nn.init.kaiming_uniform_(self.W_enc, nonlinearity='relu')                                                                                                                                                                    
+         self.b_enc = nn.Parameter(torch.zeros(d_sae))                                                                                                                                                                                
+ =======                                                                                                                                                                                                                              
+         self.k = k                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                      
+         # Initialize encoder parameters                                                                                                                                                                                              
+         self.ema_feature_act = torch.zeros(d_sae)  # Track EMA of feature activations                                                                                                                                                
+         self.W_enc = nn.Parameter(torch.empty(d_in, d_sae))                                                                                                                                                                          
+         nn.init.kaiming_uniform_(self.W_enc, nonlinearity='relu')                                                                                                                                                                    
+         self.b_enc = nn.Parameter(torch.zeros(d_sae))                                                                                                                                                                                
+ >>>>>>> REPLACE                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                      
+
+experiment.py                                                                                                                                                                                                                         
+
+                                                                                                                                                                                                                                      
+ <<<<<<< SEARCH                                                                                                                                                                                                                       
+         self.dead_feature_threshold = 10_000_000                                                                                                                                                                                     
+                                                                                                                                                                                                                                      
+         # Optimizer and scheduler                                                                                                                                                                                                    
+         self.optimizer = t.optim.Adam(self.ae.parameters(), lr=self.lr, betas=(0.9, 0.999))                                                                                                                                          
+ =======                                                                                                                                                                                                                              
+         self.dead_feature_threshold = 10_000_000                                                                                                                                                                                     
+                                                                                                                                                                                                                                      
+         # Optimizer and scheduler                                                                                                                                                                                                    
+         # Orthogonal regularization parameters                                                                                                                                                                                       
+         self.L_orth_init = None                                                                                                                                                                                                      
+         self.orth_reg_coeff = 1e-3                                                                                                                                                                                                   
+         self.optimizer = t.optim.Adam(self.ae.parameters(), lr=self.lr, betas=(0.9, 0.999))                                                                                                                                          
+ >>>>>>> REPLACE                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                      
+
+experiment.py                                                                                                                                                                                                                         
+
+                                                                                                                                                                                                                                      
+ <<<<<<< SEARCH                                                                                                                                                                                                                       
+         l2_loss = e.pow(2).sum(dim=-1).mean()                                                                                                                                                                                        
+         auxk_loss = auxk_loss.sum(dim=-1).mean()                                                                                                                                                                                     
+         loss = l2_loss + self.auxk_alpha * auxk_loss                                                                                                                                                                                 
+ =======                                                                                                                                                                                                                              
+         # Orthogonal regularization implementation                                                                                                                                                                                   
+         with torch.no_grad():                                                                                                                                                                                                        
+             # Update EMA of feature activations                                                                                                                                                                                      
+             self.ae.ema_feature_act = 0.99 * self.ae.ema_feature_act.to(x.device) + 0.01 * f.mean(dim=0)                                                                                                                             
+                                                                                                                                                                                                                                      
+         # Create active mask using EMA threshold                                                                                                                                                                                     
+         active_mask = (f > self.ae.ema_feature_act/10).any(dim=0)                                                                                                                                                                    
+         n_active = active_mask.sum()                                                                                                                                                                                                 
+                                                                                                                                                                                                                                      
+         if n_active > 1:                                                                                                                                                                                                             
+             # Get active features and weights                                                                                                                                                                                        
+             active_acts = f[:, active_mask]                                                                                                                                                                                          
+             W_active = self.ae.W_enc[:, active_mask]                                                                                                                                                                                 
+                                                                                                                                                                                                                                      
+             # Create lower triangular indices excluding diagonal                                                                                                                                                                     
+             idx = torch.tril_indices(n_active, n_active, -1, device=x.device)                                                                                                                                                        
+                                                                                                                                                                                                                                      
+             # Compute correlation and similarity matrices                                                                                                                                                                            
+             C = (active_acts.T @ active_acts).flatten()[idx[0] * n_active + idx[1]]                                                                                                                                                  
+             S = (W_active.T @ W_active).pow(2).flatten()[idx[0] * n_active + idx[1]]                                                                                                                                                 
+                                                                                                                                                                                                                                      
+             # Calculate orthogonal loss component                                                                                                                                                                                    
+             L_orth = (C * S).sum()                                                                                                                                                                                                   
+             if self.L_orth_init is None:  # Initialize scaling factor                                                                                                                                                                
+                 self.L_orth_init = L_orth.detach()                                                                                                                                                                                   
+             orth_loss = self.orth_reg_coeff * (l2_loss.detach()/self.L_orth_init) * L_orth                                                                                                                                           
+         else:                                                                                                                                                                                                                        
+             orth_loss = x.new_tensor(0.0)                                                                                                                                                                                            
+                                                                                                                                                                                                                                      
+         l2_loss = e.pow(2).sum(dim=-1).mean()                                                                                                                                                                                        
+         auxk_loss = auxk_loss.sum(dim=-1).mean()                                                                                                                                                                                     
+         loss = l2_loss + self.auxk_alpha * auxk_loss + orth_loss                                                                                                                                                                     
+ >>>>>>> REPLACE                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                      
+
+experiment.py                                                                                                                                                                                                                         
+
+                                                                                                                                                                                                                                      
+ <<<<<<< SEARCH                                                                                                                                                                                                                       
+         # do a training step                                                                                                                                                                                                         
+         self.optimizer.step()                                                                                                                                                                                                        
+         self.optimizer.zero_grad()                                                                                                                                                                                                   
+         self.scheduler.step()                                                                                                                                                                                                        
+ =======                                                                                                                                                                                                                              
+         # do a training step                                                                                                                                                                                                         
+         self.optimizer.step()                                                                                                                                                                                                        
+         self.optimizer.zero_grad()                                                                                                                                                                                                   
+         self.ae.set_decoder_norm_to_unit_norm()  # Project decoder weights                                                                                                                                                           
+         self.scheduler.step()                                                                                                                                                                                                        
+ >>>>>>> REPLACE                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                      
+
+These changes implement:                                                                                                                                                                                                              
+
+ 1 EMA tracking of feature activations                                                                                                                                                                                                
+ 2 Efficient masked operations for active features                                                                                                                                                                                    
+ 3 Triangular indices for diagonal exclusion                                                                                                                                                                                          
+ 4 Loss ratio scaling                                                                                                                                                                                                                 
+ 5 Decoder normalization after optimization steps                                                                                                                                                                                     
+
+The orthogonal regularization is scaled by the ratio of reconstruction loss to initial orthogonal loss to maintain balance between the loss components.                                                                               
+
+Tokens: 27k sent, 1.2k received. Cost: $0.10 message, $0.10 session.
+Applied edit to experiment.py
+
+# Fix any errors below, if possible.
+
+## Running: /gpfs/radev/home/tl784/.conda/envs/ai_scientist/bin/python -m flake8 --select=E9,F821,F823,F831,F406,F407,F701,F702,F704,F706 --show-source --isolated experiment.py
+
+experiment.py:347:48: F821 undefined name 'l2_loss'
+            orth_loss = self.orth_reg_coeff * (l2_loss.detach()/self.L_orth_init) * L_orth
+                                               ^
+
+## See relevant line below marked with █.
+
+experiment.py:
+...⋮...
+189│class TrainerTopK(SAETrainer):
+190│    """
+191│    Top-K SAE training scheme.
+...⋮...
+269│    def loss(self, x, step=None, logging=False):
+270│        # Run the SAE
+271│        f, top_acts, top_indices = self.ae.encode(x, return_topk=True)
+...⋮...
+331│        if n_active > 1:
+332│            # Get active features and weights
+333│            active_acts = f[:, active_mask]
+...⋮...
+344│            L_orth = (C * S).sum()
+345│            if self.L_orth_init is None:  # Initialize scaling factor
+346│                self.L_orth_init = L_orth.detach()
+347█            orth_loss = self.orth_reg_coeff * (l2_loss.detach()/self.L_orth_init) * L_orth
+348│        else:
+349│            orth_loss = x.new_tensor(0.0)
+350│
+...⋮...
+
+
+The error occurs because we're trying to use l2_loss before it's calculated. Let's move the l2_loss calculation before the orthogonal regularization code.                                                                            
+
+experiment.py                                                                                                                                                                                                                         
+
+                                                                                                                                                                                                                                      
+ <<<<<<< SEARCH                                                                                                                                                                                                                       
+         # Orthogonal regularization implementation                                                                                                                                                                                   
+         with torch.no_grad():                                                                                                                                                                                                        
+             # Update EMA of feature activations                                                                                                                                                                                      
+             self.ae.ema_feature_act = 0.99 * self.ae.ema_feature_act.to(x.device) + 0.01 * f.mean(dim=0)                                                                                                                             
+                                                                                                                                                                                                                                      
+         # Create active mask using EMA threshold                                                                                                                                                                                     
+ =======                                                                                                                                                                                                                              
+         # Calculate reconstruction loss first                                                                                                                                                                                        
+         l2_loss = e.pow(2).sum(dim=-1).mean()                                                                                                                                                                                        
+         auxk_loss = auxk_loss.sum(dim=-1).mean()                                                                                                                                                                                     
+                                                                                                                                                                                                                                      
+         # Orthogonal regularization implementation                                                                                                                                                                                   
+         with torch.no_grad():                                                                                                                                                                                                        
+             # Update EMA of feature activations                                                                                                                                                                                      
+             self.ae.ema_feature_act = 0.99 * self.ae.ema_feature_act.to(x.device) + 0.01 * f.mean(dim=0)                                                                                                                             
+                                                                                                                                                                                                                                      
+         # Create active mask using EMA threshold                                                                                                                                                                                     
+ >>>>>>> REPLACE                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                      
+
+experiment.py                                                                                                                                                                                                                         
+
+                                                                                                                                                                                                                                      
+ <<<<<<< SEARCH                                                                                                                                                                                                                       
+         l2_loss = e.pow(2).sum(dim=-1).mean()                                                                                                                                                                                        
+         auxk_loss = auxk_loss.sum(dim=-1).mean()                                                                                                                                                                                     
+         loss = l2_loss + self.auxk_alpha * auxk_loss + orth_loss                                                                                                                                                                     
+ =======                                                                                                                                                                                                                              
+         loss = l2_loss + self.auxk_alpha * auxk_loss + orth_loss                                                                                                                                                                     
+ >>>>>>> REPLACE                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                      
+
+This change:                                                                                                                                                                                                                          
+
+ 1 Moves the l2_loss calculation before it's used in the orthogonal regularization                                                                                                                                                    
+ 2 Removes the duplicate l2_loss and auxk_loss calculations                                                                                                                                                                           
+ 3 Maintains the same loss computation but in the correct order                                                                                                                                                                       
+
+Tokens: 30k sent, 465 received. Cost: $0.10 message, $0.20 session.
+Applied edit to experiment.py
+Step 0: 45246.5546875
+Step 100: 22548.978515625
+Step 200: 8076.59130859375
+Step 300: 6395.87939453125
+Step 400: 5869.18896484375
+Step 500: 5645.60595703125
+Step 600: 5249.46533203125
+Step 700: 5199.2314453125
+Step 800: 4983.55029296875
+Step 900: 4929.11572265625
+Step 1000: 4793.2470703125
+Step 1100: 4802.44970703125
+Step 1200: 4634.486328125
+Step 1300: 4586.4248046875
+Step 1400: 4505.35205078125
+Step 1500: 4613.00439453125
+Step 1600: 4399.34814453125
+Step 1700: 4361.5673828125
+Step 1800: 4362.4736328125
+Step 1900: 4485.0771484375
+Step 2000: 4253.869140625
+Step 2100: 4266.0537109375
+Step 2200: 4289.7353515625
+Step 2300: 4237.3291015625
+Step 2400: 4256.62353515625
+
+ training complete! 
+
+all info: /gpfs/radev/project/lafferty/tl784/free_PhD_labor/results/orthogonal/20250208_005139_optimized_stabilized_orthogonality/run_1/final_info.json
+
+[2025-02-08 01:12:51]  
+
+Running absorption evaluation...
+Loaded pretrained model google/gemma-2-2b into HookedTransformer
+Loading probe and training data
+Training k-sparse probes
+Loading validation data
+Evaluating raw k-sparse probing scores
+Building metadata
+Time spent on absorption: 518.64s
+
+[2025-02-08 01:21:30]  
+
+Running core evaluation...
+Using device: cuda
+Loaded pretrained model google/gemma-2-2b into HookedTransformer
+Saved evaluation results to: run_1/google_gemma-2-2b_layer_12_sae_custom_sae_eval_results.json
+Time spent on core: 265.87s
+
+[2025-02-08 01:25:56]  
+
+Running sparse_probing evaluation...
+Loaded pretrained model google/gemma-2-2b into HookedTransformer
+Removing 12 from test set
+Removing 24 from test set
+Num non-zero elements: 2304
+Test accuracy for 0: 0.937
+Num non-zero elements: 2304
+Test accuracy for 1: 0.952
+Num non-zero elements: 2304
+Test accuracy for 2: 0.942
+Num non-zero elements: 2304
+Test accuracy for 6: 0.988
+Num non-zero elements: 2304
+Test accuracy for 9: 0.981
+Num non-zero elements: 1
+Test accuracy for 0: 0.57
+Num non-zero elements: 1
+Test accuracy for 1: 0.629
+Num non-zero elements: 1
+Test accuracy for 2: 0.686
+Num non-zero elements: 1
+Test accuracy for 6: 0.783
+Num non-zero elements: 1
+Test accuracy for 9: 0.55
+Num non-zero elements: 2
+Test accuracy for 0: 0.581
+Num non-zero elements: 2
+Test accuracy for 1: 0.659
+Num non-zero elements: 2
+Test accuracy for 2: 0.713
+Num non-zero elements: 2
+Test accuracy for 6: 0.803
+Num non-zero elements: 2
+Test accuracy for 9: 0.7
+Num non-zero elements: 5
+Test accuracy for 0: 0.724
+Num non-zero elements: 5
+Test accuracy for 1: 0.699
+Num non-zero elements: 5
+Test accuracy for 2: 0.763
+Num non-zero elements: 5
+Test accuracy for 6: 0.904
+Num non-zero elements: 5
+Test accuracy for 9: 0.87
+Num non-zero elements: 10
+Test accuracy for 0: 0.783
+Num non-zero elements: 10
+Test accuracy for 1: 0.796
+Num non-zero elements: 10
+Test accuracy for 2: 0.802
+Num non-zero elements: 10
+Test accuracy for 6: 0.885
+Num non-zero elements: 10
+Test accuracy for 9: 0.901
+Num non-zero elements: 20
+Test accuracy for 0: 0.816
+Num non-zero elements: 20
+Test accuracy for 1: 0.881
+Num non-zero elements: 20
+Test accuracy for 2: 0.878
+Num non-zero elements: 20
+Test accuracy for 6: 0.974
+Num non-zero elements: 20
+Test accuracy for 9: 0.936
+Num non-zero elements: 50
+Test accuracy for 0: 0.909
+Num non-zero elements: 50
+Test accuracy for 1: 0.924
+Num non-zero elements: 50
+Test accuracy for 2: 0.92
+Num non-zero elements: 50
+Test accuracy for 6: 0.982
+Num non-zero elements: 50
+Test accuracy for 9: 0.954
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 16 epochs
+Test accuracy for 0: 0.9450000524520874
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 16 epochs
+Test accuracy for 1: 0.9520000219345093
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 14 epochs
+Test accuracy for 2: 0.9480000734329224
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 16 epochs
+Test accuracy for 6: 0.9860000610351562
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 14 epochs
+Test accuracy for 9: 0.9700000286102295
+Num non-zero elements: 1
+Test accuracy for 0: 0.608
+Num non-zero elements: 1
+Test accuracy for 1: 0.625
+Num non-zero elements: 1
+Test accuracy for 2: 0.817
+Num non-zero elements: 1
+Test accuracy for 6: 0.824
+Num non-zero elements: 1
+Test accuracy for 9: 0.929
+Num non-zero elements: 2
+Test accuracy for 0: 0.714
+Num non-zero elements: 2
+Test accuracy for 1: 0.829
+Num non-zero elements: 2
+Test accuracy for 2: 0.83
+Num non-zero elements: 2
+Test accuracy for 6: 0.83
+Num non-zero elements: 2
+Test accuracy for 9: 0.939
+Num non-zero elements: 5
+Test accuracy for 0: 0.736
+Num non-zero elements: 5
+Test accuracy for 1: 0.836
+Num non-zero elements: 5
+Test accuracy for 2: 0.863
+Num non-zero elements: 5
+Test accuracy for 6: 0.987
+Num non-zero elements: 5
+Test accuracy for 9: 0.954
+Num non-zero elements: 10
+Test accuracy for 0: 0.763
+Num non-zero elements: 10
+Test accuracy for 1: 0.87
+Num non-zero elements: 10
+Test accuracy for 2: 0.896
+Num non-zero elements: 10
+Test accuracy for 6: 0.988
+Num non-zero elements: 10
+Test accuracy for 9: 0.954
+Num non-zero elements: 20
+Test accuracy for 0: 0.893
+Num non-zero elements: 20
+Test accuracy for 1: 0.951
+Num non-zero elements: 20
+Test accuracy for 2: 0.93
+Num non-zero elements: 20
+Test accuracy for 6: 0.989
+Num non-zero elements: 20
+Test accuracy for 9: 0.953
+Num non-zero elements: 50
+Test accuracy for 0: 0.922
+Num non-zero elements: 50
+Test accuracy for 1: 0.951
+Num non-zero elements: 50
+Test accuracy for 2: 0.947
+Num non-zero elements: 50
+Test accuracy for 6: 0.991
+Num non-zero elements: 50
+Test accuracy for 9: 0.969
+Removing 12 from test set
+Removing 24 from test set
+Num non-zero elements: 2304
+Test accuracy for 11: 0.96
+Num non-zero elements: 2304
+Test accuracy for 13: 0.955
+Num non-zero elements: 2304
+Test accuracy for 14: 0.954
+Num non-zero elements: 2304
+Test accuracy for 18: 0.905
+Num non-zero elements: 2304
+Test accuracy for 19: 0.961
+Num non-zero elements: 1
+Test accuracy for 11: 0.568
+Num non-zero elements: 1
+Test accuracy for 13: 0.678
+Num non-zero elements: 1
+Test accuracy for 14: 0.65
+Num non-zero elements: 1
+Test accuracy for 18: 0.717
+Num non-zero elements: 1
+Test accuracy for 19: 0.786
+Num non-zero elements: 2
+Test accuracy for 11: 0.68
+Num non-zero elements: 2
+Test accuracy for 13: 0.713
+Num non-zero elements: 2
+Test accuracy for 14: 0.671
+Num non-zero elements: 2
+Test accuracy for 18: 0.726
+Num non-zero elements: 2
+Test accuracy for 19: 0.775
+Num non-zero elements: 5
+Test accuracy for 11: 0.792
+Num non-zero elements: 5
+Test accuracy for 13: 0.766
+Num non-zero elements: 5
+Test accuracy for 14: 0.692
+Num non-zero elements: 5
+Test accuracy for 18: 0.736
+Num non-zero elements: 5
+Test accuracy for 19: 0.829
+Num non-zero elements: 10
+Test accuracy for 11: 0.835
+Num non-zero elements: 10
+Test accuracy for 13: 0.779
+Num non-zero elements: 10
+Test accuracy for 14: 0.779
+Num non-zero elements: 10
+Test accuracy for 18: 0.737
+Num non-zero elements: 10
+Test accuracy for 19: 0.85
+Num non-zero elements: 20
+Test accuracy for 11: 0.912
+Num non-zero elements: 20
+Test accuracy for 13: 0.881
+Num non-zero elements: 20
+Test accuracy for 14: 0.883
+Num non-zero elements: 20
+Test accuracy for 18: 0.754
+Num non-zero elements: 20
+Test accuracy for 19: 0.899
+Num non-zero elements: 50
+Test accuracy for 11: 0.936
+Num non-zero elements: 50
+Test accuracy for 13: 0.909
+Num non-zero elements: 50
+Test accuracy for 14: 0.907
+Num non-zero elements: 50
+Test accuracy for 18: 0.86
+Num non-zero elements: 50
+Test accuracy for 19: 0.931
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 12 epochs
+Test accuracy for 11: 0.956000030040741
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 13 epochs
+Test accuracy for 13: 0.9410000443458557
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 14 epochs
+Test accuracy for 14: 0.9420000314712524
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 21 epochs
+Test accuracy for 18: 0.9230000376701355
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 26 epochs
+Test accuracy for 19: 0.9570000171661377
+Num non-zero elements: 1
+Test accuracy for 11: 0.601
+Num non-zero elements: 1
+Test accuracy for 13: 0.686
+Num non-zero elements: 1
+Test accuracy for 14: 0.64
+Num non-zero elements: 1
+Test accuracy for 18: 0.687
+Num non-zero elements: 1
+Test accuracy for 19: 0.839
+Num non-zero elements: 2
+Test accuracy for 11: 0.729
+Num non-zero elements: 2
+Test accuracy for 13: 0.687
+Num non-zero elements: 2
+Test accuracy for 14: 0.742
+Num non-zero elements: 2
+Test accuracy for 18: 0.729
+Num non-zero elements: 2
+Test accuracy for 19: 0.859
+Num non-zero elements: 5
+Test accuracy for 11: 0.886
+Num non-zero elements: 5
+Test accuracy for 13: 0.854
+Num non-zero elements: 5
+Test accuracy for 14: 0.852
+Num non-zero elements: 5
+Test accuracy for 18: 0.884
+Num non-zero elements: 5
+Test accuracy for 19: 0.887
+Num non-zero elements: 10
+Test accuracy for 11: 0.914
+Num non-zero elements: 10
+Test accuracy for 13: 0.925
+Num non-zero elements: 10
+Test accuracy for 14: 0.879
+Num non-zero elements: 10
+Test accuracy for 18: 0.891
+Num non-zero elements: 10
+Test accuracy for 19: 0.917
+Num non-zero elements: 20
+Test accuracy for 11: 0.945
+Num non-zero elements: 20
+Test accuracy for 13: 0.933
+Num non-zero elements: 20
+Test accuracy for 14: 0.925
+Num non-zero elements: 20
+Test accuracy for 18: 0.883
+Num non-zero elements: 20
+Test accuracy for 19: 0.93
+Num non-zero elements: 50
+Test accuracy for 11: 0.965
+Num non-zero elements: 50
+Test accuracy for 13: 0.934
+Num non-zero elements: 50
+Test accuracy for 14: 0.947
+Num non-zero elements: 50
+Test accuracy for 18: 0.908
+Num non-zero elements: 50
+Test accuracy for 19: 0.931
+Removing 12 from test set
+Removing 24 from test set
+Num non-zero elements: 2304
+Test accuracy for 20: 0.942
+Num non-zero elements: 2304
+Test accuracy for 21: 0.89
+Num non-zero elements: 2304
+Test accuracy for 22: 0.907
+Num non-zero elements: 2304
+Test accuracy for 25: 0.965
+Num non-zero elements: 2304
+Test accuracy for 26: 0.846
+Num non-zero elements: 1
+Test accuracy for 20: 0.708
+Num non-zero elements: 1
+Test accuracy for 21: 0.761
+Num non-zero elements: 1
+Test accuracy for 22: 0.652
+Num non-zero elements: 1
+Test accuracy for 25: 0.707
+Num non-zero elements: 1
+Test accuracy for 26: 0.649
+Num non-zero elements: 2
+Test accuracy for 20: 0.807
+Num non-zero elements: 2
+Test accuracy for 21: 0.759
+Num non-zero elements: 2
+Test accuracy for 22: 0.687
+Num non-zero elements: 2
+Test accuracy for 25: 0.756
+Num non-zero elements: 2
+Test accuracy for 26: 0.681
+Num non-zero elements: 5
+Test accuracy for 20: 0.854
+Num non-zero elements: 5
+Test accuracy for 21: 0.775
+Num non-zero elements: 5
+Test accuracy for 22: 0.674
+Num non-zero elements: 5
+Test accuracy for 25: 0.795
+Num non-zero elements: 5
+Test accuracy for 26: 0.672
+Num non-zero elements: 10
+Test accuracy for 20: 0.864
+Num non-zero elements: 10
+Test accuracy for 21: 0.811
+Num non-zero elements: 10
+Test accuracy for 22: 0.755
+Num non-zero elements: 10
+Test accuracy for 25: 0.83
+Num non-zero elements: 10
+Test accuracy for 26: 0.72
+Num non-zero elements: 20
+Test accuracy for 20: 0.918
+Num non-zero elements: 20
+Test accuracy for 21: 0.839
+Num non-zero elements: 20
+Test accuracy for 22: 0.788
+Num non-zero elements: 20
+Test accuracy for 25: 0.907
+Num non-zero elements: 20
+Test accuracy for 26: 0.831
+Num non-zero elements: 50
+Test accuracy for 20: 0.924
+Num non-zero elements: 50
+Test accuracy for 21: 0.875
+Num non-zero elements: 50
+Test accuracy for 22: 0.856
+Num non-zero elements: 50
+Test accuracy for 25: 0.933
+Num non-zero elements: 50
+Test accuracy for 26: 0.838
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 16 epochs
+Test accuracy for 20: 0.9480000734329224
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 14 epochs
+Test accuracy for 21: 0.9230000376701355
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 16 epochs
+Test accuracy for 22: 0.909000039100647
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 15 epochs
+Test accuracy for 25: 0.9570000171661377
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 12 epochs
+Test accuracy for 26: 0.8830000162124634
+Num non-zero elements: 1
+Test accuracy for 20: 0.82
+Num non-zero elements: 1
+Test accuracy for 21: 0.796
+Num non-zero elements: 1
+Test accuracy for 22: 0.884
+Num non-zero elements: 1
+Test accuracy for 25: 0.857
+Num non-zero elements: 1
+Test accuracy for 26: 0.631
+Num non-zero elements: 2
+Test accuracy for 20: 0.862
+Num non-zero elements: 2
+Test accuracy for 21: 0.835
+Num non-zero elements: 2
+Test accuracy for 22: 0.882
+Num non-zero elements: 2
+Test accuracy for 25: 0.872
+Num non-zero elements: 2
+Test accuracy for 26: 0.766
+Num non-zero elements: 5
+Test accuracy for 20: 0.905
+Num non-zero elements: 5
+Test accuracy for 21: 0.851
+Num non-zero elements: 5
+Test accuracy for 22: 0.889
+Num non-zero elements: 5
+Test accuracy for 25: 0.897
+Num non-zero elements: 5
+Test accuracy for 26: 0.823
+Num non-zero elements: 10
+Test accuracy for 20: 0.903
+Num non-zero elements: 10
+Test accuracy for 21: 0.853
+Num non-zero elements: 10
+Test accuracy for 22: 0.893
+Num non-zero elements: 10
+Test accuracy for 25: 0.925
+Num non-zero elements: 10
+Test accuracy for 26: 0.847
+Num non-zero elements: 20
+Test accuracy for 20: 0.937
+Num non-zero elements: 20
+Test accuracy for 21: 0.873
+Num non-zero elements: 20
+Test accuracy for 22: 0.893
+Num non-zero elements: 20
+Test accuracy for 25: 0.937
+Num non-zero elements: 20
+Test accuracy for 26: 0.853
+Num non-zero elements: 50
+Test accuracy for 20: 0.938
+Num non-zero elements: 50
+Test accuracy for 21: 0.892
+Num non-zero elements: 50
+Test accuracy for 22: 0.892
+Num non-zero elements: 50
+Test accuracy for 25: 0.957
+Num non-zero elements: 50
+Test accuracy for 26: 0.872
+Removing 0 from train set
+Removing 7 from train set
+Removing 29 from train set
+Removing 31 from train set
+Removing 28 from train set
+Num non-zero elements: 2304
+Test accuracy for 1: 0.947
+Num non-zero elements: 2304
+Test accuracy for 2: 0.903
+Num non-zero elements: 2304
+Test accuracy for 3: 0.917
+Num non-zero elements: 2304
+Test accuracy for 5: 0.91
+Num non-zero elements: 2304
+Test accuracy for 6: 0.823
+Num non-zero elements: 1
+Test accuracy for 1: 0.71
+Num non-zero elements: 1
+Test accuracy for 2: 0.604
+Num non-zero elements: 1
+Test accuracy for 3: 0.592
+Num non-zero elements: 1
+Test accuracy for 5: 0.571
+Num non-zero elements: 1
+Test accuracy for 6: 0.595
+Num non-zero elements: 2
+Test accuracy for 1: 0.748
+Num non-zero elements: 2
+Test accuracy for 2: 0.616
+Num non-zero elements: 2
+Test accuracy for 3: 0.607
+Num non-zero elements: 2
+Test accuracy for 5: 0.622
+Num non-zero elements: 2
+Test accuracy for 6: 0.627
+Num non-zero elements: 5
+Test accuracy for 1: 0.777
+Num non-zero elements: 5
+Test accuracy for 2: 0.626
+Num non-zero elements: 5
+Test accuracy for 3: 0.626
+Num non-zero elements: 5
+Test accuracy for 5: 0.666
+Num non-zero elements: 5
+Test accuracy for 6: 0.669
+Num non-zero elements: 10
+Test accuracy for 1: 0.797
+Num non-zero elements: 10
+Test accuracy for 2: 0.783
+Num non-zero elements: 10
+Test accuracy for 3: 0.766
+Num non-zero elements: 10
+Test accuracy for 5: 0.695
+Num non-zero elements: 10
+Test accuracy for 6: 0.719
+Num non-zero elements: 20
+Test accuracy for 1: 0.871
+Num non-zero elements: 20
+Test accuracy for 2: 0.855
+Num non-zero elements: 20
+Test accuracy for 3: 0.807
+Num non-zero elements: 20
+Test accuracy for 5: 0.793
+Num non-zero elements: 20
+Test accuracy for 6: 0.746
+Num non-zero elements: 50
+Test accuracy for 1: 0.92
+Num non-zero elements: 50
+Test accuracy for 2: 0.882
+Num non-zero elements: 50
+Test accuracy for 3: 0.849
+Num non-zero elements: 50
+Test accuracy for 5: 0.864
+Num non-zero elements: 50
+Test accuracy for 6: 0.782
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 18 epochs
+Test accuracy for 1: 0.9380000233650208
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 23 epochs
+Test accuracy for 2: 0.9170000553131104
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 17 epochs
+Test accuracy for 3: 0.9020000696182251
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 18 epochs
+Test accuracy for 5: 0.9190000295639038
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 17 epochs
+Test accuracy for 6: 0.8720000386238098
+Num non-zero elements: 1
+Test accuracy for 1: 0.797
+Num non-zero elements: 1
+Test accuracy for 2: 0.634
+Num non-zero elements: 1
+Test accuracy for 3: 0.598
+Num non-zero elements: 1
+Test accuracy for 5: 0.589
+Num non-zero elements: 1
+Test accuracy for 6: 0.653
+Num non-zero elements: 2
+Test accuracy for 1: 0.852
+Num non-zero elements: 2
+Test accuracy for 2: 0.741
+Num non-zero elements: 2
+Test accuracy for 3: 0.631
+Num non-zero elements: 2
+Test accuracy for 5: 0.594
+Num non-zero elements: 2
+Test accuracy for 6: 0.723
+Num non-zero elements: 5
+Test accuracy for 1: 0.888
+Num non-zero elements: 5
+Test accuracy for 2: 0.756
+Num non-zero elements: 5
+Test accuracy for 3: 0.682
+Num non-zero elements: 5
+Test accuracy for 5: 0.711
+Num non-zero elements: 5
+Test accuracy for 6: 0.731
+Num non-zero elements: 10
+Test accuracy for 1: 0.915
+Num non-zero elements: 10
+Test accuracy for 2: 0.772
+Num non-zero elements: 10
+Test accuracy for 3: 0.817
+Num non-zero elements: 10
+Test accuracy for 5: 0.777
+Num non-zero elements: 10
+Test accuracy for 6: 0.748
+Num non-zero elements: 20
+Test accuracy for 1: 0.918
+Num non-zero elements: 20
+Test accuracy for 2: 0.885
+Num non-zero elements: 20
+Test accuracy for 3: 0.826
+Num non-zero elements: 20
+Test accuracy for 5: 0.84
+Num non-zero elements: 20
+Test accuracy for 6: 0.766
+Num non-zero elements: 50
+Test accuracy for 1: 0.912
+Num non-zero elements: 50
+Test accuracy for 2: 0.893
+Num non-zero elements: 50
+Test accuracy for 3: 0.864
+Num non-zero elements: 50
+Test accuracy for 5: 0.87
+Num non-zero elements: 50
+Test accuracy for 6: 0.8
+Num non-zero elements: 2304
+Test accuracy for 1.0: 0.982
+Num non-zero elements: 2304
+Test accuracy for 5.0: 0.982
+Num non-zero elements: 1
+Test accuracy for 1.0: 0.673
+Num non-zero elements: 1
+Test accuracy for 5.0: 0.673
+Num non-zero elements: 2
+Test accuracy for 1.0: 0.724
+Num non-zero elements: 2
+Test accuracy for 5.0: 0.724
+Num non-zero elements: 5
+Test accuracy for 1.0: 0.766
+Num non-zero elements: 5
+Test accuracy for 5.0: 0.766
+Num non-zero elements: 10
+Test accuracy for 1.0: 0.826
+Num non-zero elements: 10
+Test accuracy for 5.0: 0.826
+Num non-zero elements: 20
+Test accuracy for 1.0: 0.848
+Num non-zero elements: 20
+Test accuracy for 5.0: 0.848
+Num non-zero elements: 50
+Test accuracy for 1.0: 0.932
+Num non-zero elements: 50
+Test accuracy for 5.0: 0.932
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 18 epochs
+Test accuracy for 1.0: 0.968000054359436
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 21 epochs
+Test accuracy for 5.0: 0.9670000672340393
+Num non-zero elements: 1
+Test accuracy for 1.0: 0.807
+Num non-zero elements: 1
+Test accuracy for 5.0: 0.807
+Num non-zero elements: 2
+Test accuracy for 1.0: 0.809
+Num non-zero elements: 2
+Test accuracy for 5.0: 0.809
+Num non-zero elements: 5
+Test accuracy for 1.0: 0.882
+Num non-zero elements: 5
+Test accuracy for 5.0: 0.882
+Num non-zero elements: 10
+Test accuracy for 1.0: 0.931
+Num non-zero elements: 10
+Test accuracy for 5.0: 0.931
+Num non-zero elements: 20
+Test accuracy for 1.0: 0.941
+Num non-zero elements: 20
+Test accuracy for 5.0: 0.941
+Num non-zero elements: 50
+Test accuracy for 1.0: 0.953
+Num non-zero elements: 50
+Test accuracy for 5.0: 0.953
+Loading dataset codeparrot/github-code, this usually takes ~30 seconds
+Num non-zero elements: 2304
+Test accuracy for C: 0.959
+Num non-zero elements: 2304
+Test accuracy for Python: 0.98
+Num non-zero elements: 2304
+Test accuracy for HTML: 0.985
+Num non-zero elements: 2304
+Test accuracy for Java: 0.956
+Num non-zero elements: 2304
+Test accuracy for PHP: 0.945
+Num non-zero elements: 1
+Test accuracy for C: 0.664
+Num non-zero elements: 1
+Test accuracy for Python: 0.631
+Num non-zero elements: 1
+Test accuracy for HTML: 0.573
+Num non-zero elements: 1
+Test accuracy for Java: 0.625
+Num non-zero elements: 1
+Test accuracy for PHP: 0.601
+Num non-zero elements: 2
+Test accuracy for C: 0.661
+Num non-zero elements: 2
+Test accuracy for Python: 0.692
+Num non-zero elements: 2
+Test accuracy for HTML: 0.826
+Num non-zero elements: 2
+Test accuracy for Java: 0.67
+Num non-zero elements: 2
+Test accuracy for PHP: 0.657
+Num non-zero elements: 5
+Test accuracy for C: 0.754
+Num non-zero elements: 5
+Test accuracy for Python: 0.733
+Num non-zero elements: 5
+Test accuracy for HTML: 0.936
+Num non-zero elements: 5
+Test accuracy for Java: 0.751
+Num non-zero elements: 5
+Test accuracy for PHP: 0.673
+Num non-zero elements: 10
+Test accuracy for C: 0.805
+Num non-zero elements: 10
+Test accuracy for Python: 0.736
+Num non-zero elements: 10
+Test accuracy for HTML: 0.95
+Num non-zero elements: 10
+Test accuracy for Java: 0.799
+Num non-zero elements: 10
+Test accuracy for PHP: 0.735
+Num non-zero elements: 20
+Test accuracy for C: 0.832
+Num non-zero elements: 20
+Test accuracy for Python: 0.847
+Num non-zero elements: 20
+Test accuracy for HTML: 0.955
+Num non-zero elements: 20
+Test accuracy for Java: 0.863
+Num non-zero elements: 20
+Test accuracy for PHP: 0.843
+Num non-zero elements: 50
+Test accuracy for C: 0.915
+Num non-zero elements: 50
+Test accuracy for Python: 0.962
+Num non-zero elements: 50
+Test accuracy for HTML: 0.958
+Num non-zero elements: 50
+Test accuracy for Java: 0.905
+Num non-zero elements: 50
+Test accuracy for PHP: 0.91
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 30 epochs
+Test accuracy for C: 0.9540000557899475
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 28 epochs
+Test accuracy for Python: 0.9810000658035278
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 15 epochs
+Test accuracy for HTML: 0.9860000610351562
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 35 epochs
+Test accuracy for Java: 0.9650000333786011
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 31 epochs
+Test accuracy for PHP: 0.9500000476837158
+Num non-zero elements: 1
+Test accuracy for C: 0.542
+Num non-zero elements: 1
+Test accuracy for Python: 0.633
+Num non-zero elements: 1
+Test accuracy for HTML: 0.679
+Num non-zero elements: 1
+Test accuracy for Java: 0.628
+Num non-zero elements: 1
+Test accuracy for PHP: 0.583
+Num non-zero elements: 2
+Test accuracy for C: 0.733
+Num non-zero elements: 2
+Test accuracy for Python: 0.915
+Num non-zero elements: 2
+Test accuracy for HTML: 0.892
+Num non-zero elements: 2
+Test accuracy for Java: 0.633
+Num non-zero elements: 2
+Test accuracy for PHP: 0.91
+Num non-zero elements: 5
+Test accuracy for C: 0.776
+Num non-zero elements: 5
+Test accuracy for Python: 0.922
+Num non-zero elements: 5
+Test accuracy for HTML: 0.942
+Num non-zero elements: 5
+Test accuracy for Java: 0.77
+Num non-zero elements: 5
+Test accuracy for PHP: 0.922
+Num non-zero elements: 10
+Test accuracy for C: 0.84
+Num non-zero elements: 10
+Test accuracy for Python: 0.937
+Num non-zero elements: 10
+Test accuracy for HTML: 0.94
+Num non-zero elements: 10
+Test accuracy for Java: 0.881
+Num non-zero elements: 10
+Test accuracy for PHP: 0.92
+Num non-zero elements: 20
+Test accuracy for C: 0.85
+Num non-zero elements: 20
+Test accuracy for Python: 0.943
+Num non-zero elements: 20
+Test accuracy for HTML: 0.964
+Num non-zero elements: 20
+Test accuracy for Java: 0.882
+Num non-zero elements: 20
+Test accuracy for PHP: 0.936
+Num non-zero elements: 50
+Test accuracy for C: 0.924
+Num non-zero elements: 50
+Test accuracy for Python: 0.981
+Num non-zero elements: 50
+Test accuracy for HTML: 0.97
+Num non-zero elements: 50
+Test accuracy for Java: 0.915
+Num non-zero elements: 50
+Test accuracy for PHP: 0.936
+Num non-zero elements: 2304
+Test accuracy for 0: 0.931
+Num non-zero elements: 2304
+Test accuracy for 1: 0.987
+Num non-zero elements: 2304
+Test accuracy for 2: 0.911
+Num non-zero elements: 2304
+Test accuracy for 3: 0.937
+Num non-zero elements: 1
+Test accuracy for 0: 0.69
+Num non-zero elements: 1
+Test accuracy for 1: 0.664
+Num non-zero elements: 1
+Test accuracy for 2: 0.669
+Num non-zero elements: 1
+Test accuracy for 3: 0.636
+Num non-zero elements: 2
+Test accuracy for 0: 0.801
+Num non-zero elements: 2
+Test accuracy for 1: 0.814
+Num non-zero elements: 2
+Test accuracy for 2: 0.69
+Num non-zero elements: 2
+Test accuracy for 3: 0.801
+Num non-zero elements: 5
+Test accuracy for 0: 0.816
+Num non-zero elements: 5
+Test accuracy for 1: 0.881
+Num non-zero elements: 5
+Test accuracy for 2: 0.76
+Num non-zero elements: 5
+Test accuracy for 3: 0.836
+Num non-zero elements: 10
+Test accuracy for 0: 0.878
+Num non-zero elements: 10
+Test accuracy for 1: 0.936
+Num non-zero elements: 10
+Test accuracy for 2: 0.805
+Num non-zero elements: 10
+Test accuracy for 3: 0.893
+Num non-zero elements: 20
+Test accuracy for 0: 0.884
+Num non-zero elements: 20
+Test accuracy for 1: 0.952
+Num non-zero elements: 20
+Test accuracy for 2: 0.858
+Num non-zero elements: 20
+Test accuracy for 3: 0.895
+Num non-zero elements: 50
+Test accuracy for 0: 0.903
+Num non-zero elements: 50
+Test accuracy for 1: 0.968
+Num non-zero elements: 50
+Test accuracy for 2: 0.892
+Num non-zero elements: 50
+Test accuracy for 3: 0.918
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 21 epochs
+Test accuracy for 0: 0.9380000233650208
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 15 epochs
+Test accuracy for 1: 0.984000027179718
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 12 epochs
+Test accuracy for 2: 0.921000063419342
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 23 epochs
+Test accuracy for 3: 0.9410000443458557
+Num non-zero elements: 1
+Test accuracy for 0: 0.783
+Num non-zero elements: 1
+Test accuracy for 1: 0.899
+Num non-zero elements: 1
+Test accuracy for 2: 0.711
+Num non-zero elements: 1
+Test accuracy for 3: 0.708
+Num non-zero elements: 2
+Test accuracy for 0: 0.805
+Num non-zero elements: 2
+Test accuracy for 1: 0.915
+Num non-zero elements: 2
+Test accuracy for 2: 0.83
+Num non-zero elements: 2
+Test accuracy for 3: 0.799
+Num non-zero elements: 5
+Test accuracy for 0: 0.856
+Num non-zero elements: 5
+Test accuracy for 1: 0.962
+Num non-zero elements: 5
+Test accuracy for 2: 0.831
+Num non-zero elements: 5
+Test accuracy for 3: 0.82
+Num non-zero elements: 10
+Test accuracy for 0: 0.891
+Num non-zero elements: 10
+Test accuracy for 1: 0.969
+Num non-zero elements: 10
+Test accuracy for 2: 0.849
+Num non-zero elements: 10
+Test accuracy for 3: 0.885
+Num non-zero elements: 20
+Test accuracy for 0: 0.918
+Num non-zero elements: 20
+Test accuracy for 1: 0.972
+Num non-zero elements: 20
+Test accuracy for 2: 0.845
+Num non-zero elements: 20
+Test accuracy for 3: 0.926
+Num non-zero elements: 50
+Test accuracy for 0: 0.924
+Num non-zero elements: 50
+Test accuracy for 1: 0.967
+Num non-zero elements: 50
+Test accuracy for 2: 0.874
+Num non-zero elements: 50
+Test accuracy for 3: 0.937
+Loading dataset Helsinki-NLP/europarl, this usually takes ~10 seconds
+Num non-zero elements: 2304
+Test accuracy for en: 0.998
+Num non-zero elements: 2304
+Test accuracy for fr: 1.0
+Num non-zero elements: 2304
+Test accuracy for de: 0.998
+Num non-zero elements: 2304
+Test accuracy for es: 0.999
+Num non-zero elements: 2304
+Test accuracy for nl: 1.0
+Num non-zero elements: 1
+Test accuracy for en: 0.755
+Num non-zero elements: 1
+Test accuracy for fr: 0.592
+Num non-zero elements: 1
+Test accuracy for de: 0.746
+Num non-zero elements: 1
+Test accuracy for es: 0.491
+Num non-zero elements: 1
+Test accuracy for nl: 0.643
+Num non-zero elements: 2
+Test accuracy for en: 0.827
+Num non-zero elements: 2
+Test accuracy for fr: 0.597
+Num non-zero elements: 2
+Test accuracy for de: 0.824
+Num non-zero elements: 2
+Test accuracy for es: 0.967
+Num non-zero elements: 2
+Test accuracy for nl: 0.757
+Num non-zero elements: 5
+Test accuracy for en: 0.887
+Num non-zero elements: 5
+Test accuracy for fr: 0.929
+Num non-zero elements: 5
+Test accuracy for de: 0.869
+Num non-zero elements: 5
+Test accuracy for es: 0.981
+Num non-zero elements: 5
+Test accuracy for nl: 0.885
+Num non-zero elements: 10
+Test accuracy for en: 0.978
+Num non-zero elements: 10
+Test accuracy for fr: 0.973
+Num non-zero elements: 10
+Test accuracy for de: 0.975
+Num non-zero elements: 10
+Test accuracy for es: 0.983
+Num non-zero elements: 10
+Test accuracy for nl: 0.91
+Num non-zero elements: 20
+Test accuracy for en: 0.994
+Num non-zero elements: 20
+Test accuracy for fr: 0.992
+Num non-zero elements: 20
+Test accuracy for de: 0.987
+Num non-zero elements: 20
+Test accuracy for es: 0.997
+Num non-zero elements: 20
+Test accuracy for nl: 0.982
+Num non-zero elements: 50
+Test accuracy for en: 0.996
+Num non-zero elements: 50
+Test accuracy for fr: 0.999
+Num non-zero elements: 50
+Test accuracy for de: 0.997
+Num non-zero elements: 50
+Test accuracy for es: 0.999
+Num non-zero elements: 50
+Test accuracy for nl: 0.994
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 12 epochs
+Test accuracy for en: 0.9980000257492065
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 12 epochs
+Test accuracy for fr: 1.0
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 13 epochs
+Test accuracy for de: 0.9960000514984131
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 18 epochs
+Test accuracy for es: 0.9970000386238098
+Num non-zero elements: 16384
+Training probe with dim: 16384, device: cuda:0, dtype: torch.bfloat16
+GPU probe training early stopping triggered after 22 epochs
+Test accuracy for nl: 0.9940000176429749
+Num non-zero elements: 1
+Test accuracy for en: 0.998
+Num non-zero elements: 1
+Test accuracy for fr: 0.986
+Num non-zero elements: 1
+Test accuracy for de: 0.795
+Num non-zero elements: 1
+Test accuracy for es: 0.992
+Num non-zero elements: 1
+Test accuracy for nl: 0.634
+Num non-zero elements: 2
+Test accuracy for en: 0.999
+Num non-zero elements: 2
+Test accuracy for fr: 0.984
+Num non-zero elements: 2
+Test accuracy for de: 0.787
+Num non-zero elements: 2
+Test accuracy for es: 0.992
+Num non-zero elements: 2
+Test accuracy for nl: 0.969
+Num non-zero elements: 5
+Test accuracy for en: 0.998
+Num non-zero elements: 5
+Test accuracy for fr: 0.992
+Num non-zero elements: 5
+Test accuracy for de: 0.868
+Num non-zero elements: 5
+Test accuracy for es: 0.992
+Num non-zero elements: 5
+Test accuracy for nl: 0.98
+Num non-zero elements: 10
+Test accuracy for en: 0.999
+Num non-zero elements: 10
+Test accuracy for fr: 0.994
+Num non-zero elements: 10
+Test accuracy for de: 0.862
+Num non-zero elements: 10
+Test accuracy for es: 0.998
+Num non-zero elements: 10
+Test accuracy for nl: 0.975
+Num non-zero elements: 20
+Test accuracy for en: 0.998
+Num non-zero elements: 20
+Test accuracy for fr: 0.994
+Num non-zero elements: 20
+Test accuracy for de: 0.974
+Num non-zero elements: 20
+Test accuracy for es: 0.997
+Num non-zero elements: 20
+Test accuracy for nl: 0.989
+Num non-zero elements: 50
+Test accuracy for en: 0.997
+Num non-zero elements: 50
+Test accuracy for fr: 0.996
+Num non-zero elements: 50
+Test accuracy for de: 0.988
+Num non-zero elements: 50
+Test accuracy for es: 0.997
+Num non-zero elements: 50
+Test accuracy for nl: 0.987
+Time spent on sparse_probing: 629.82s
+
+[2025-02-08 01:36:26]  
+
+Running unlearning evaluation...
+Loaded pretrained model google/gemma-2-2b-it into HookedTransformer
+Running evaluation for SAE: google/gemma-2-2b_layer_12_sae_custom_sae
+24432 16027
+1962 859
+torch.Size([6378, 1024]) torch.Size([275, 1024])
+Forget sparsity: [0.       0.000158 0.002854 ... 0.004099 0.       0.000315]
+(16384,)
+Retain sparsity: [0.000e+00 5.400e-05 9.090e-04 ... 5.534e-03 4.000e-06 3.330e-04]
+(16384,)
+Starting metrics calculation...
+running on datasets: ['wmdp-bio', 'high_school_us_history', 'college_computer_science', 'high_school_geography', 'human_aging']
+Calculating metrics for retain threshold: 0.001
+Top features for ablation: [11057 12292 15089 ...  3625 11995 12244]
+Calculating metrics list with parameters: {'intervention_method': 'clamp_feature_activation'} {'features_to_ablate': [array([11057, 12292, 15089, 12875, 13171,  7910, 10405,  3902, 14163,
+       13500]), array([11057, 12292, 15089, 12875, 13171,  7910, 10405,  3902, 14163,
+       13500,    87,  7443,  7019,  5610, 11595,  4183,  2372,  4247,
+         270,  9413])], 'multiplier': [25, 50, 100, 200]}
+Saving target question ids for gemma-2-2b-it on wmdp-bio...
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/wmdp-bio_correct.csv saved, with 267 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/wmdp-bio_correct.csv saved, with 267 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/wmdp-bio_correct.csv saved, with 534 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/wmdp-bio_correct-iff-question.csv saved, with 244 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/wmdp-bio_correct-iff-question.csv saved, with 244 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/wmdp-bio_correct-iff-question.csv saved, with 488 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/wmdp-bio_correct-no-tricks.csv saved, with 263 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/wmdp-bio_correct-no-tricks.csv saved, with 263 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/wmdp-bio_correct-no-tricks.csv saved, with 526 questions
+Saving target question ids for gemma-2-2b-it on high_school_us_history...
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-high-school-us-history_correct.csv saved, with 54 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-high-school-us-history_correct.csv saved, with 55 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-high-school-us-history_correct.csv saved, with 109 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-high-school-us-history_correct-iff-question.csv saved, with 53 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-high-school-us-history_correct-iff-question.csv saved, with 54 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-high-school-us-history_correct-iff-question.csv saved, with 107 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-high-school-us-history_correct-no-tricks.csv saved, with 54 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-high-school-us-history_correct-no-tricks.csv saved, with 55 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-high-school-us-history_correct-no-tricks.csv saved, with 109 questions
+Saving target question ids for gemma-2-2b-it on college_computer_science...
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-college-computer-science_correct.csv saved, with 4 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-college-computer-science_correct.csv saved, with 5 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-college-computer-science_correct.csv saved, with 9 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-college-computer-science_correct-iff-question.csv saved, with 4 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-college-computer-science_correct-iff-question.csv saved, with 5 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-college-computer-science_correct-iff-question.csv saved, with 9 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-college-computer-science_correct-no-tricks.csv saved, with 4 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-college-computer-science_correct-no-tricks.csv saved, with 5 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-college-computer-science_correct-no-tricks.csv saved, with 9 questions
+Saving target question ids for gemma-2-2b-it on high_school_geography...
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-high-school-geography_correct.csv saved, with 51 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-high-school-geography_correct.csv saved, with 52 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-high-school-geography_correct.csv saved, with 103 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-high-school-geography_correct-iff-question.csv saved, with 50 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-high-school-geography_correct-iff-question.csv saved, with 50 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-high-school-geography_correct-iff-question.csv saved, with 100 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-high-school-geography_correct-no-tricks.csv saved, with 51 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-high-school-geography_correct-no-tricks.csv saved, with 52 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-high-school-geography_correct-no-tricks.csv saved, with 103 questions
+Saving target question ids for gemma-2-2b-it on human_aging...
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-human-aging_correct.csv saved, with 42 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-human-aging_correct.csv saved, with 42 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-human-aging_correct.csv saved, with 84 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-human-aging_correct-iff-question.csv saved, with 40 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-human-aging_correct-iff-question.csv saved, with 41 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-human-aging_correct-iff-question.csv saved, with 81 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/train/mmlu-human-aging_correct-no-tricks.csv saved, with 41 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/test/mmlu-human-aging_correct-no-tricks.csv saved, with 42 questions
+artifacts/unlearning/google/gemma-2-2b-it/data/question_ids/all/mmlu-human-aging_correct-no-tricks.csv saved, with 83 questions
+Calculating metrics for retain threshold: 0.01
+Top features for ablation: [11777  1419  1675 ... 11665  2491 14539]
+Calculating metrics list with parameters: {'intervention_method': 'clamp_feature_activation'} {'features_to_ablate': [array([11777,  1419,  1675,  4358,  6239, 13857,  2904,   727, 11057,
+        1053]), array([11777,  1419,  1675,  4358,  6239, 13857,  2904,   727, 11057,
+        1053, 12292, 12659, 15089,  5448,  4747, 12875, 13171,  7910,
+       13934, 11989])], 'multiplier': [25, 50, 100, 200]}
+All target question ids for gemma-2-2b-it on wmdp-bio already exist. No need to generate target ids.
+All target question ids for gemma-2-2b-it on high_school_us_history already exist. No need to generate target ids.
+All target question ids for gemma-2-2b-it on college_computer_science already exist. No need to generate target ids.
+All target question ids for gemma-2-2b-it on high_school_geography already exist. No need to generate target ids.
+All target question ids for gemma-2-2b-it on human_aging already exist. No need to generate target ids.
+Unlearning scores DataFrame:     wmdp-bio  high_school_us_history  ...  multiplier  all_side_effects_mcq
+0   0.998127                1.000000  ...          25              1.000000
+1   0.885768                0.954128  ...         200              0.950820
+2   0.956929                1.000000  ...         100              0.990164
+3   0.956929                1.000000  ...         200              0.993443
+4   0.844569                0.944954  ...         200              0.944262
+5   0.992509                1.000000  ...          50              1.000000
+6   0.990637                1.000000  ...         100              1.000000
+7   0.983146                1.000000  ...         100              1.000000
+8   1.000000                1.000000  ...          50              1.000000
+9   0.992509                1.000000  ...          50              1.000000
+10  0.996255                1.000000  ...          25              1.000000
+11  0.949438                1.000000  ...         100              0.990164
+12  1.000000                1.000000  ...          25              1.000000
+13  1.000000                1.000000  ...          25              1.000000
+14  0.962547                1.000000  ...         200              0.996721
+15  0.998127                1.000000  ...          50              1.000000
+
+[16 rows x 10 columns]

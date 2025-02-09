@@ -6,10 +6,13 @@ import subprocess
 import sys
 from subprocess import TimeoutExpired
 from ai_scientist.llm import get_response_from_llm
+
+from datetime import datetime
+
 MAX_ITERS = 10 # originally 10
 MAX_RUNS = 10 # originally 5
 MAX_STDERR_OUTPUT = 1500
-NUM_EXPERIMENT_REFLECTIONS = 5
+NUM_EXPERIMENT_REFLECTIONS = 3
 coder_prompt = """Your goal is to implement the following idea: {title}. Pay attention to the following details from the idea:
 The proposed experiment is as follows: {idea}.
 The implementation plan is as follows: {implementation_plan}.
@@ -66,13 +69,28 @@ Below is the current experiment idea, its results, baseline results, and any rel
 ==== NOTES ====
 {notes}
 
-THOUGHT:
-- Compare these experiment results to the baseline and results from previous runs in NOTES.
-- Discuss whether they match or contradict expectations, and why.
-- Try to explain the matching and unmatching of expectations with theoretical insights.
-- If you decide changes or further exploration are needed, describe them.
+Respond in the following format:
 
+THOUGHT:
+<THOUGHT>
+
+DECISION:
+<DECISION>
+
+
+In <THOUGHT>, do the following:
+- Carefully and thoroughly compare the experiment results to the baseline and results from previous runs in NOTES.
+- Discuss in detail whether they match or contradict expectations, and why.
+- Try to explain the matching and unmatching of expectations with theoretical insights. Give full justification for your arguments.
+- Decide whether changes or further exploration are needed, describe them in detail rigorously.
+
+In <DECISION>, summarize your conlusion from <THOUGHT> without losing information about any of your evidence, intuition, or final decision.
+
+Note:
 The correct interpretation for scores are as follows: 
+
+For core, low L0 loss and good reconstruction are desirable.
+
 For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a good target score.
 
 For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a good target score.
@@ -95,12 +113,28 @@ Below is your previous reflection and plan. Revisit and refine it if necessary.
 ==== NOTES ====
 {notes}
 
-THOUGHT:
-- Re-examine your prior reasoning and plan considering the baseline and notes.
-- If you conclude further changes are required, detail them.
-- If no further reflection is needed, end your THOUGHT with 'I am done'
-  and provide your final plan in <FINAL_PLAN> ... </FINAL_PLAN>.
+Respond in the following format:
 
+THOUGHT:
+<THOUGHT>
+
+DECISION:
+<DECISION>
+
+if done:(
+FINAL_PLAN:
+<FINAL_PLAN>
+)
+
+
+In <THOUGHT>, re-examine your prior reasoning and plan considering the results, baseline, and previous results from NOTES. Discuss thoroughly whether the proposed changes are promising, risking, or principled.
+
+In <DECISION>, summarize your reasoning in <THOUGHT> and decide whether further reflection is needed. If more reflection is needed, skip the next part.
+
+If no further reflection is needed, end your DECISION with 'I am done'. and provide your final guidance in <FINAL_PLAN> which will be taken by Aider to modify the code and conduct next run of the experiment.
+
+
+NOTE:
 The correct interpretation for scores are as follows: 
 For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a good target score.
 
@@ -116,24 +150,12 @@ For autointerp, a higher score means better performance of the underlying SAE in
 system_prompt = """\
 You are an independent ML research expert, providing iterative feedback on an experiment idea. Consider carefully if you want the experiments to be re-planned given the result from this run. This could mean either merely changing hyperparameters or change of implementation of the SAE architecture.
 
-At each step:
-- Present your reasoning in a 'THOUGHT:' section.
-- Compare the experiment's results to any baseline results, noting whether they align with expectations.
-- Suggest whether changes or further experimentation are needed.
-- If you conclude no further reflection is required, end your THOUGHT with 'I am done' 
-  and produce your final plan in this format:
-
-<FINAL_PLAN>
-(Here describe everything that should happen next, including any improvements or new steps.)
-</FINAL_PLAN>
-
-The final plan must capture all key points from your reflection's conclusion.
 """
 
 
 # timeout was originally set to 7200
 # RUN EXPERIMENT
-def run_experiment(folder_name, run_num, idea, baseline_results, client, client_model, timeout=10800):
+def run_experiment(folder_name, run_num, idea, baseline_results, client, client_model, timeout=7200):
     cwd = osp.abspath(folder_name)
     # COPY CODE SO WE CAN SEE IT.
     shutil.copy(
@@ -252,11 +274,11 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
     )
 
     msg_history = []
-    final_plan = None
-
     try:
         # -- FIRST REFLECTION --
         print("Iteration 1")
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+
         text, msg_history = get_response_from_llm(
             msg=reflection_prompt,
             system_message=system_prompt,
@@ -265,18 +287,14 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
             msg_history=msg_history,
         )
         print(text)
-        # Attempt to extract final plan if present
-        plan_match = re.search(r"<FINAL_PLAN>([\s\S]*?)</FINAL_PLAN>", text)
-        if plan_match:
-            # We found a final plan in the text
-            final_plan = plan_match.group(1).strip()
-            return final_plan  # End function here
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
         previous_reflection = text
 
         # -- NEXT REFLECTIONS --
         for i in range(2, num_reflections + 1):
             print(f"Iteration {i}")
+            print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
             reflection_prompt = next_reflection_prompt.format(
                 previous_reflection=previous_reflection,
@@ -292,20 +310,18 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
                 msg_history=msg_history,
             )
             print(text)
+            print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
-            # Check if done
-            plan_match = re.search(r"<FINAL_PLAN>([\s\S]*?)</FINAL_PLAN>", text)
-            if plan_match:
-                final_plan = plan_match.group(1).strip()
-                print(f"Reflection converged at iteration {i}.")
-                break
+            if "I am done" in text:
+                return text
 
             previous_reflection = text
 
     except Exception as e:
         print(f"Failed to reflect: {e}")
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
-    return final_plan
+    return text
 
 
 
@@ -325,14 +341,18 @@ def perform_experiments(idea, folder_name, coder, baseline_results, client, clie
         baseline_results=baseline_results,
     )
     print(f"Starting experiment with prompt for coder: {next_prompt}")
+    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+
     while run < MAX_RUNS + 1:
         print(f"Currently on iteration {current_iter} of run {run}")
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
         if current_iter >= MAX_ITERS:
             print("Max iterations reached")
             break
         
         coder_out = coder.run(next_prompt)
         print(f"coder_out: {coder_out}, type: {type(coder_out)}")
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
         if "ALL_COMPLETED" in coder_out:
             break
@@ -345,6 +365,7 @@ def perform_experiments(idea, folder_name, coder, baseline_results, client, clie
         current_iter += 1
     if current_iter >= MAX_ITERS:
         print("Not all experiments completed.")
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
         return False
 
     current_iter = 0
@@ -357,6 +378,8 @@ Only the runs in the `labels` dictionary will be plotted, so make sure to includ
 
 We will be running the command `python plot.py` to generate the plots.
 """
+    print(f"experiments are done for current idea; starts plotting with prompt: {next_prompt}")
+    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
     while True:
         _ = coder.run(next_prompt)
         return_code, next_prompt = run_plotting(folder_name)
@@ -368,6 +391,10 @@ Please modify `notes.txt` with a description of what each plot shows along with 
 
 Somebody else will be using `notes.txt` to write a report on this in the future.
 """
+    print(f"starts modifying notes with prompt: {next_prompt}")
+    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
     coder.run(next_prompt)
-
+    
+    print(f"perform_experiments.py is done")
+    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
     return True
