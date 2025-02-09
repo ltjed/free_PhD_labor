@@ -88,17 +88,11 @@ In <DECISION>, summarize your conlusion from <THOUGHT> without losing informatio
 
 Note:
 The correct interpretation for scores are as follows: 
-
 For core, low L0 loss and good reconstruction are desirable.
-
-For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a good target score.
-
-For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a good target score.
-
-For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a good target score
-
-For autointerp, a higher score means better performance of the underlying SAE in the run.
-
+For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a great score.
+For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a great score.
+For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a great score
+Note that having achieving a great score in one benchmark is already a good result.
 """
 
 next_reflection_prompt = """\
@@ -136,14 +130,11 @@ If no further reflection is needed, end your DECISION with 'I am done'. and prov
 
 NOTE:
 The correct interpretation for scores are as follows: 
-For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a good target score.
-
-For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a good target score.
-
-For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a good target score
-
-For autointerp, a higher score means better performance of the underlying SAE in the run.
-
+For core, low L0 loss and good reconstruction are desirable.
+For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a great score.
+For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a great score.
+For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a great score
+Note that having achieving a great score in one benchmark is already a good result.
 """
 
 
@@ -194,6 +185,7 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
                 stderr_output = "..." + stderr_output[-MAX_STDERR_OUTPUT:]
             next_prompt = f"Run failed with the following error {stderr_output}"
         else:
+            print("!!! \n return code = 0\n !!! \n")
             with open(osp.join(cwd, f"run_{run_num}", "final_info.json"), "r") as f:
                 results = json.load(f)
             results = {k: v for k, v in results.items()}
@@ -204,13 +196,11 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
 
 Consider carefully if you want to re-plan your experiments given the result from this run. This could mean either merely changing hyperparameters or change of implementation of the SAE architecture.
 The correct interpretation for scores are as follows: 
-For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a good target score.
-
-For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a good target score.
-
-For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a good target score
-
-For autointerp, a higher score means better performance of the underlying SAE in the run.
+For core, low L0 loss and good reconstruction are desirable.
+For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a great score.
+For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a great score.
+For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a great score
+Note that having achieving a great score in one benchmark is already a good result.
 
 An expert has written some comment and IMPORTANT suggestions about a plan of what to do next which you should consider and refer to: {plan}
 
@@ -321,7 +311,7 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
         print(f"Failed to reflect: {e}")
         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
-    return text
+    return None
 
 
 

@@ -156,7 +156,7 @@ def do_idea(
     standard_results = {k: v for k, v in standard_results.items()}
 
     # Format the output string
-    baseline_results = f"Baseline results from TopK SAE: \n{topk_results}\nBaseline results from standard SAE: \n{standard_results}"
+    baseline_results = f"Baseline results from TopK SAE: \n{topk_results}\nBaseline results from JumpReLU SAE: \n{jumprelu_results}\nBaseline results from standard SAE: \n{standard_results}"
     exp_file = osp.join(folder_name, "experiment.py")
     vis_file = osp.join(folder_name, "plot.py")
     notes = osp.join(folder_name, "notes.txt")

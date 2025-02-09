@@ -765,11 +765,11 @@ if __name__ == "__main__":
     # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
 
     eval_types = [
-        "absorption",
+        "absorption", # LOWER ABSORPTION SCORE MEANS BETTER PERFORMANCE, FOCUS ON THIS ONE
         # "autointerp",
         "core",
-        # "scr",
-        # "tpp",
+        "scr",
+        "tpp",
         "sparse_probing",
         "unlearning",
     ]

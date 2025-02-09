@@ -685,13 +685,15 @@ def evaluate_trained_sae(
         os.makedirs(dir_path)
     
     # Run selected evaluations
+    prev_eval_type = None
     for eval_type in eval_types:
         if eval_type in eval_runners:
+            if prev_eval_type:
+                print(f"Time spent on {prev_eval_type}: {(datetime.now() - time_checkpoint).total_seconds():.2f}s")
             time_checkpoint = print_time()
             print(f"\nRunning {eval_type} evaluation...")
             eval_runners[eval_type]()
-            print(f"Time spent on {eval_type}: {(datetime.now() - time_checkpoint).total_seconds():.2f}s")
-            time_checkpoint = print_time()
+            prev_eval_type = eval_type
         else:
             print(f"Warning: Unknown evaluation type {eval_type}")
 def str_to_dtype(dtype_str: str) -> torch.dtype:
@@ -765,7 +767,7 @@ if __name__ == "__main__":
     # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
 
     eval_types = [
-        "absorption",
+        "absorption", # LOWER ABSORPTION SCORE MEANS BETTER PERFORMANCE, FOCUS ON THIS ONE
         # "autointerp",
         "core",
         # "scr",
