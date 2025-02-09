@@ -4,19 +4,30 @@ import torch.nn as nn
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 class ChainIntervention(nn.Module):
-    def __init__(self, d_sae, gamma=0.7):
+    def __init__(self, d_sae, gamma=0.8):
         super().__init__()
         self.flow_network = nn.Linear(d_sae, d_sae)
+        nn.init.orthogonal_(self.flow_network.weight)
         self.gamma = gamma
+        self.register_buffer('threshold_history', torch.zeros(100))
+        self.threshold_idx = 0
         
     def forward(self, C, features):
         with torch.no_grad():
-            # Max-flow analysis
-            flow_scores = torch.sigmoid(self.flow_network(C))
-            mask = (flow_scores > 0.5).float()
+            # Adaptive threshold based on correlation matrix
+            threshold = torch.quantile(C.abs(), 0.9)
+            self.threshold_history[self.threshold_idx] = threshold
+            self.threshold_idx = (self.threshold_idx + 1) % 100
             
-            # Progressive clamping
-            clamped = -features * self.gamma * (C @ features * mask)
+            # Use moving average threshold
+            avg_threshold = self.threshold_history.mean()
+            
+            # Max-flow with adaptive threshold
+            flow_scores = torch.sigmoid(self.flow_network(C * (C.abs() > avg_threshold)))
+            
+            # Temporal decay clamping
+            time_decay = self.gamma ** torch.arange(C.size(0), device=C.device, dtype=C.dtype)
+            clamped = -features * (C @ (features * flow_scores)) * time_decay.unsqueeze(-1)
         return clamped
 
 class CircularFeatureBuffer:
@@ -180,6 +191,10 @@ class CustomSAE(nn.Module):
                 current_aggregated = acts.mean(dim=0)
                 self.corr_tracker(z_prev, current_aggregated)
             self.buffer.update(acts)
+        else:
+            # Apply intervention during evaluation
+            intervention = self.intervention(self.corr_tracker.C, acts)
+            acts = acts + intervention
             
         return acts
 

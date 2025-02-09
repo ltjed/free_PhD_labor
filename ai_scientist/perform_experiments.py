@@ -250,25 +250,98 @@ def run_plotting(folder_name, timeout=600):
 
 import re
 
+# def do_reflection(idea, results, baseline_results, num_reflections, client, client_model, folder_name):
+#     # 1) Load notes
+#     with open(osp.join(folder_name, "notes.txt"), "r") as file:
+#         notes = file.read()
+
+#     # 3) Format the first reflection prompt
+#     reflection_prompt = first_reflection_prompt.format(
+#         idea=idea,
+#         results=results,
+#         baseline_results=baseline_results,
+#         notes=notes
+#     )
+
+#     msg_history = []
+#     try:
+#         # -- FIRST REFLECTION --
+#         print("Iteration 1")
+#         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+
+#         text, msg_history = get_response_from_llm(
+#             msg=reflection_prompt,
+#             system_message=system_prompt,
+#             client=client,
+#             model=client_model,
+#             msg_history=msg_history,
+#         )
+#         print(text)
+#         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+
+#         previous_reflection = text
+
+#         # -- NEXT REFLECTIONS --
+#         for i in range(2, num_reflections + 1):
+#             print(f"Iteration {i}")
+#             print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+
+#             reflection_prompt = next_reflection_prompt.format(
+#                 previous_reflection=previous_reflection,
+#                 baseline_results=baseline_results,
+#                 notes=notes
+#             )
+
+#             text, msg_history = get_response_from_llm(
+#                 msg=reflection_prompt,
+#                 system_message=system_prompt,
+#                 client=client,
+#                 model=client_model,
+#                 msg_history=msg_history,
+#             )
+#             print(text)
+#             print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+
+#             if "I am done" in text:
+#                 return text
+
+#             previous_reflection = text
+
+#     except Exception as e:
+#         print(f"Failed to reflect: {e}")
+#         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+
+#     return None
+
 def do_reflection(idea, results, baseline_results, num_reflections, client, client_model, folder_name):
     # 1) Load notes
-    with open(osp.join(folder_name, "notes.txt"), "r") as file:
-        notes = file.read()
+    print("[DEBUG] Attempting to load notes from file...")
+    try:
+        with open(osp.join(folder_name, "notes.txt"), "r") as file:
+            notes = file.read()
+        print("[DEBUG] Successfully loaded notes from file")
+    except Exception as e:
+        print(f"[ERROR] Failed to load notes: {str(e)}")
+        raise
 
     # 3) Format the first reflection prompt
+    print("[DEBUG] Formatting first reflection prompt...")
     reflection_prompt = first_reflection_prompt.format(
         idea=idea,
         results=results,
         baseline_results=baseline_results,
         notes=notes
     )
+    print("[DEBUG] First reflection prompt formatted successfully")
 
     msg_history = []
     try:
         # -- FIRST REFLECTION --
-        print("Iteration 1")
+        print("\n[DEBUG] === Starting first reflection iteration ===")
+        print(f"Iteration 1")
         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
+        print("[DEBUG] Sending first reflection to LLM...")
         text, msg_history = get_response_from_llm(
             msg=reflection_prompt,
             system_message=system_prompt,
@@ -276,22 +349,28 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
             model=client_model,
             msg_history=msg_history,
         )
+        print("[DEBUG] Received response for first reflection")
         print(text)
         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
         previous_reflection = text
+        print("[DEBUG] Stored first reflection results")
 
         # -- NEXT REFLECTIONS --
         for i in range(2, num_reflections + 1):
+            print(f"\n[DEBUG] === Starting reflection iteration {i} ===")
             print(f"Iteration {i}")
             print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
+            print(f"[DEBUG] Formatting reflection prompt for iteration {i}...")
             reflection_prompt = next_reflection_prompt.format(
                 previous_reflection=previous_reflection,
                 baseline_results=baseline_results,
                 notes=notes
             )
+            print(f"[DEBUG] Prompt formatted for iteration {i}")
 
+            print(f"[DEBUG] Sending reflection {i} to LLM...")
             text, msg_history = get_response_from_llm(
                 msg=reflection_prompt,
                 system_message=system_prompt,
@@ -299,20 +378,27 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
                 model=client_model,
                 msg_history=msg_history,
             )
+            print(f"[DEBUG] Received response for reflection {i}")
             print(text)
             print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
             if "I am done" in text:
+                print("[DEBUG] 'I am done' detected in response - ending reflections")
                 return text
 
             previous_reflection = text
+            print(f"[DEBUG] Updated previous_reflection with iteration {i} results")
 
     except Exception as e:
-        print(f"Failed to reflect: {e}")
+        print(f"\n[ERROR] Failed to reflect at step: {e}")
+        print(f"[ERROR] Exception type: {type(e).__name__}")
+        print(f"[ERROR] Exception args: {e.args}")
+        print(f"[ERROR] Full exception details:")
+        import traceback
+        traceback.print_exc()
         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
     return None
-
 
 
 

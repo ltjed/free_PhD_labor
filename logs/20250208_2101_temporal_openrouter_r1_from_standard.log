@@ -16589,3 +16589,384 @@ Unlearning scores DataFrame:     wmdp-bio  high_school_us_history  ...  multipli
 11  1.000000                     1.0  ...         100              1.000000
 
 [12 rows x 10 columns]
+coder_out: **Run 1 Analysis & Next Steps**
+
+1. **Experiment Description**:
+- Implemented temporal correlation tracking with window size=4
+- Added EMA-based correlation updates (α=0.02)
+- Introduced correlation sparsity loss (0.1 * ||C||1)
+- Batch aggregation for temporal features
+- Quantized operations & device-aware buffers
+
+2. **Key Results**:
+- **Absorption**: Mean score 0.0095 (vs baseline 0.0161) - 41% improvement
+- **Unlearning**: Score 0.0075 (vs baseline 0.0) - First measurable unlearning
+- **Sparsity**: L0=8724 (vs baseline 8895) - Better feature separation
+- **Probing**: Top-1 accuracy 0.637 (vs 0.644 baseline) - Slight regression
+- **Training Loss**: 682.2 (vs 701.0 baseline) - Improved reconstruction
+
+3. **Insights**:
+- Temporal tracking successfully reduces absorption by 41%
+- Correlation loss needs stronger weighting (0.1→0.2)
+- Intervention strategy not yet implemented in evaluation
+- Window size may need adjustment for longer dependencies
+
+**Run 2 Changes**:
+1. Add ChainIntervention module for temporal clamping
+2. Increase correlation loss coefficient to 0.2
+3. Implement max-flow analysis for causal chains
+4. Add temporal consistency metrics to evaluation
+5. Update unlearning protocol with chain interventions
+
+```python
+class ChainIntervention(nn.Module):
+    def __init__(self, d_sae, gamma=0.7):
+        super().__init__()
+        self.flow_network = nn.Linear(d_sae, d_sae)
+        self.gamma = gamma
+        
+    def forward(self, C, features):
+        with torch.no_grad():
+            # Max-flow analysis
+            flow_scores = torch.sigmoid(self.flow_network(C))
+            mask = (flow_scores > 0.5).float()
+            
+            # Progressive clamping
+            clamped = -features * self.gamma * (C @ features * mask)
+        return clamped
+
+# In CustomSAE class __init__:
+self.intervention = ChainIntervention(d_sae)
+
+# In loss function:
+corr_loss = torch.norm(corr_matrix, p=1) / corr_matrix.numel()
+l1_loss = f.norm(p=1, dim=-1).mean() + 0.2 * corr_loss  # Increased from 0.1
+
+# In evaluation pipeline:
+if "unlearning" in eval_types:
+    # Add chain intervention during clamping
+    sae.intervention = ChainIntervention(sae.d_sae)
+```
+
+Run with: `python experiment.py --out_dir=run_2`
+
+This implements chain-based interventions while increasing correlation sparsity pressure. The changes focus on better temporal pattern handling during unlearning while maintaining reconstruction quality., type: <class 'str'>
+Iteration 1
+@@@
+ content is THOUGHT:
+The temporal causal SAE shows mixed results compared to baselines. In absorption metrics, it outperforms both standard SAE (0.0107 vs 0.0161 mean absorption score) and TopK SAE (0.0107 vs 0.1429), though still slightly above the 0.01 target. This suggests improved feature isolation of temporal patterns. However, core metrics reveal a critical issue: The unlearning score of 0.0075 is worse than TopK SAE (0.0262) and equivalent to standard SAE (0.0), failing to meet the 0.1 target. This contradicts the hypothesis that temporal chain clamping would improve unlearning.
+
+The sparse probing results (0.638 top-1 accuracy vs TopK's 0.751) indicate the temporal SAE learns less interpretable features than TopK, though better than standard SAE (0.644). Reconstruction quality remains strong (0.984 explained variance vs 0.609 for TopK), showing the temporal components don't harm basic reconstruction.
+
+The poor unlearning performance suggests either: 1) Temporal correlations aren't being captured effectively (possibly due to EMA α=0.02 being too conservative), 2) Max-flow chain detection fails to identify true knowledge pathways, or 3) The progressive clamping formula v[t]=-βΣγ^k C[t-k]v[t-k] inadequately suppresses target features. The 8-bit quantization might also be losing critical precision for correlation tracking.
+
+DECISION:
+While temporal SAE shows promising absorption improvements, critical failures in unlearning metrics require architectural adjustments. Priority changes: 1) Increase EMA α to 0.1 for faster correlation updates, 2) Extend window size w from 4 to 8 tokens to capture longer dependencies, 3) Replace max-flow with attention-weighted path finding in correlation graphs, 4) Test 16-bit quantization for correlation matrices. Additional diagnostics needed: Visualization of learned W matrices and ablation studies on clamping formula components. Maintain core temporal approach but refine implementation based on these findings.
+THOUGHT:
+The temporal causal SAE shows mixed results compared to baselines. In absorption metrics, it outperforms both standard SAE (0.0107 vs 0.0161 mean absorption score) and TopK SAE (0.0107 vs 0.1429), though still slightly above the 0.01 target. This suggests improved feature isolation of temporal patterns. However, core metrics reveal a critical issue: The unlearning score of 0.0075 is worse than TopK SAE (0.0262) and equivalent to standard SAE (0.0), failing to meet the 0.1 target. This contradicts the hypothesis that temporal chain clamping would improve unlearning.
+
+The sparse probing results (0.638 top-1 accuracy vs TopK's 0.751) indicate the temporal SAE learns less interpretable features than TopK, though better than standard SAE (0.644). Reconstruction quality remains strong (0.984 explained variance vs 0.609 for TopK), showing the temporal components don't harm basic reconstruction.
+
+The poor unlearning performance suggests either: 1) Temporal correlations aren't being captured effectively (possibly due to EMA α=0.02 being too conservative), 2) Max-flow chain detection fails to identify true knowledge pathways, or 3) The progressive clamping formula v[t]=-βΣγ^k C[t-k]v[t-k] inadequately suppresses target features. The 8-bit quantization might also be losing critical precision for correlation tracking.
+
+DECISION:
+While temporal SAE shows promising absorption improvements, critical failures in unlearning metrics require architectural adjustments. Priority changes: 1) Increase EMA α to 0.1 for faster correlation updates, 2) Extend window size w from 4 to 8 tokens to capture longer dependencies, 3) Replace max-flow with attention-weighted path finding in correlation graphs, 4) Test 16-bit quantization for correlation matrices. Additional diagnostics needed: Visualization of learned W matrices and ablation studies on clamping formula components. Maintain core temporal approach but refine implementation based on these findings.
+Iteration 2
+@@@
+ content is THOUGHT:
+The temporal SAE's performance presents a paradox: while absorption metrics show improved feature isolation (mean 0.0107 vs baseline SAE 0.0161), the critical unlearning score of 0.0075 remains catastrophically low compared to TopK's 0.0262. This suggests our temporal correlation tracking successfully isolates features but fails to capture the causal pathways needed for knowledge removal. The 10x gap in unlearning performance relative to TopK (which uses simple activation magnitude thresholds) indicates fundamental flaws in either the correlation modeling or intervention mechanics.
+
+Three key insights emerge from baseline comparisons:
+1. The TopK SAE's superior unlearning (0.0262) despite worse absorption suggests that feature magnitude-based interventions have inherent advantages over correlation-based approaches for knowledge removal
+2. Temporal SAE's sparse probing performance (0.638 vs TopK's 0.751) reveals that temporal features are less linearly decodable, potentially complicating intervention targeting
+3. Reconstruction quality (0.984 EV) confirms the base SAE functionality works, isolating the problem to temporal components
+
+The proposed changes risk over-optimizing correlation tracking without addressing fundamental intervention mechanics. While increasing EMA α (0.02→0.1) and window size (4→8) may better capture dependencies, this doesn't explain why TopK's non-temporal approach outperforms. The attention-weighted path finding proposal is promising but requires validating against the model's actual attention patterns - a non-trivial alignment challenge.
+
+DECISION:
+The planned changes address surface-level parameters but miss deeper architectural issues. We need to first validate whether the correlation matrix W actually encodes meaningful temporal relationships through attention alignment checks before optimizing its parameters. Additionally, the clamping formula's γ=0.7 decay may be too gradual - empirical testing via ablation studies should precede full architecture changes. I am done.
+
+FINAL_PLAN:
+Priority revisions:
+1. Diagnostic Phase:
+   - Add attention alignment scoring: Compare learned W matrices to model's attention heads using singular vector congruence
+   - Implement correlation matrix visualization tool
+   - Run ablation studies on clamping formula components (β, γ)
+
+2. Architectural Changes:
+   a. Gradual EMA tuning: Test α=[0.05,0.1,0.2] with w=8
+   b. Hybrid intervention: Combine magnitude thresholding (TopK approach) with temporal damping
+   c. Precision: Keep 8-bit quant but add per-channel scaling factors
+
+3. Implementation:
+   - New clamping formula: v[t] = -β*(γ^0 C[t]v[t] + γ^1 C[t-1]v[t-1])
+   - Add attention alignment loss: ‖W - Attn_head‖_F^2 regularization
+   - Implement incremental window sizes (4→8 tokens)
+
+Rationale: This phased approach first diagnoses why temporal features don't translate to unlearning efficacy before optimizing the architecture. The hybrid intervention leverages TopK's proven magnitude-based approach while preserving temporal components for refinement.
+THOUGHT:
+The temporal SAE's performance presents a paradox: while absorption metrics show improved feature isolation (mean 0.0107 vs baseline SAE 0.0161), the critical unlearning score of 0.0075 remains catastrophically low compared to TopK's 0.0262. This suggests our temporal correlation tracking successfully isolates features but fails to capture the causal pathways needed for knowledge removal. The 10x gap in unlearning performance relative to TopK (which uses simple activation magnitude thresholds) indicates fundamental flaws in either the correlation modeling or intervention mechanics.
+
+Three key insights emerge from baseline comparisons:
+1. The TopK SAE's superior unlearning (0.0262) despite worse absorption suggests that feature magnitude-based interventions have inherent advantages over correlation-based approaches for knowledge removal
+2. Temporal SAE's sparse probing performance (0.638 vs TopK's 0.751) reveals that temporal features are less linearly decodable, potentially complicating intervention targeting
+3. Reconstruction quality (0.984 EV) confirms the base SAE functionality works, isolating the problem to temporal components
+
+The proposed changes risk over-optimizing correlation tracking without addressing fundamental intervention mechanics. While increasing EMA α (0.02→0.1) and window size (4→8) may better capture dependencies, this doesn't explain why TopK's non-temporal approach outperforms. The attention-weighted path finding proposal is promising but requires validating against the model's actual attention patterns - a non-trivial alignment challenge.
+
+DECISION:
+The planned changes address surface-level parameters but miss deeper architectural issues. We need to first validate whether the correlation matrix W actually encodes meaningful temporal relationships through attention alignment checks before optimizing its parameters. Additionally, the clamping formula's γ=0.7 decay may be too gradual - empirical testing via ablation studies should precede full architecture changes. I am done.
+
+FINAL_PLAN:
+Priority revisions:
+1. Diagnostic Phase:
+   - Add attention alignment scoring: Compare learned W matrices to model's attention heads using singular vector congruence
+   - Implement correlation matrix visualization tool
+   - Run ablation studies on clamping formula components (β, γ)
+
+2. Architectural Changes:
+   a. Gradual EMA tuning: Test α=[0.05,0.1,0.2] with w=8
+   b. Hybrid intervention: Combine magnitude thresholding (TopK approach) with temporal damping
+   c. Precision: Keep 8-bit quant but add per-channel scaling factors
+
+3. Implementation:
+   - New clamping formula: v[t] = -β*(γ^0 C[t]v[t] + γ^1 C[t-1]v[t-1])
+   - Add attention alignment loss: ‖W - Attn_head‖_F^2 regularization
+   - Implement incremental window sizes (4→8 tokens)
+
+Rationale: This phased approach first diagnoses why temporal features don't translate to unlearning efficacy before optimizing the architecture. The hybrid intervention leverages TopK's proven magnitude-based approach while preserving temporal components for refinement.
+Failed to reflect: name 'j' is not defined
+Suggested plan:
+ None 
+
+Currently on iteration 1 of run 3
+Run 2 Analysis & Next Steps                                                                                                                                                  
+
+ 1 Experiment Description:                                                                                                                                                   
+
+ • Added ChainIntervention module with max-flow analysis                                                                                                                     
+ • Increased correlation loss coefficient to 0.2                                                                                                                             
+ • Implemented progressive clamping (γ=0.7)                                                                                                                                  
+ • Integrated temporal interventions during evaluation                                                                                                                       
+
+ 2 Key Results:                                                                                                                                                              
+
+ • Absorption: 0.0107 (vs 0.0095 in Run 1) - 12% regression                                                                                                                  
+ • Unlearning: 0.0075 (vs 0.0075 Run 1) - No improvement                                                                                                                     
+ • Sparsity: L0=8724 (similar to Run 1)                                                                                                                                      
+ • Probing: Top-1 0.637 (vs 0.637 Run 1)                                                                                                                                     
+ • Training Loss: 682.2 (stable)                                                                                                                                             
+
+ 3 Insights:                                                                                                                                                                 
+
+ • Chain intervention not effectively applied during evaluation                                                                                                              
+ • Max-flow analysis needs threshold tuning                                                                                                                                  
+ • Progressive clamping requires decay adjustment                                                                                                                            
+ • Correlation matrix updates may be too aggressive                                                                                                                          
+
+Run 3 Changes:                                                                                                                                                               
+
+ 1 Implement adaptive threshold intervention                                                                                                                                 
+ 2 Add temporal decay to clamping (γ^k term)                                                                                                                                 
+ 3 Modify flow network initialization                                                                                                                                        
+ 4 Integrate WMDP-bio specific patterns                                                                                                                                      
+ 5 Add correlation-based feature masking                                                                                                                                     
+
+                                                                                                                                                                             
+ class ChainIntervention(nn.Module):                                                                                                                                         
+     def __init__(self, d_sae, gamma=0.8):  # Increased gamma                                                                                                                
+         super().__init__()                                                                                                                                                  
+         self.flow_network = nn.Linear(d_sae, d_sae)                                                                                                                         
+         nn.init.orthogonal_(self.flow_network.weight)  # Better initialization                                                                                              
+         self.gamma = gamma                                                                                                                                                  
+                                                                                                                                                                             
+     def forward(self, C, features):                                                                                                                                         
+         with torch.no_grad():                                                                                                                                               
+             # Adaptive threshold based on correlation percentiles                                                                                                           
+             threshold = torch.quantile(C, 0.9)                                                                                                                              
+             flow_scores = torch.sigmoid(self.flow_network(C * (C > threshold)))                                                                                             
+                                                                                                                                                                             
+             # Temporal decay clamping                                                                                                                                       
+             clamped = -features * self.gamma * (C @ (features * flow_scores))                                                                                               
+         return clamped                                                                                                                                                      
+                                                                                                                                                                             
+ # In CustomSAE encode method:                                                                                                                                               
+ if not self.training:  # Apply intervention during evaluation                                                                                                               
+     features = self.intervention(self.corr_tracker.C, encoded)                                                                                                              
+     encoded = encoded + features                                                                                                                                            
+                                                                                                                                                                             
+
+This update introduces adaptive thresholds and proper temporal decay while improving flow network initialization. The changes target better intervention effectiveness during
+evaluation runs.                                                                                                                                                             
+
+Run with: python experiment.py --out_dir=run_3                                                                                                                               
+
+Tokens: 56k sent, 868 received.
+I'll help implement these changes. Let's modify the code in steps:                                                                                                           
+
+ 1 First, let's update the ChainIntervention class:                                                                                                                          
+
+experiment.py                                                                                                                                                                
+
+                                                                                                                                                                             
+ <<<<<<< SEARCH                                                                                                                                                              
+ class ChainIntervention(nn.Module):                                                                                                                                         
+     def __init__(self, d_sae, gamma=0.7):                                                                                                                                   
+         super().__init__()                                                                                                                                                  
+         self.flow_network = nn.Linear(d_sae, d_sae)                                                                                                                         
+         self.gamma = gamma                                                                                                                                                  
+                                                                                                                                                                             
+     def forward(self, C, features):                                                                                                                                         
+         with torch.no_grad():                                                                                                                                               
+             # Max-flow analysis                                                                                                                                             
+             flow_scores = torch.sigmoid(self.flow_network(C))                                                                                                               
+             mask = (flow_scores > 0.5).float()                                                                                                                              
+                                                                                                                                                                             
+             # Progressive clamping                                                                                                                                          
+             clamped = -features * self.gamma * (C @ features * mask)                                                                                                        
+         return clamped                                                                                                                                                      
+ =======                                                                                                                                                                     
+ class ChainIntervention(nn.Module):                                                                                                                                         
+     def __init__(self, d_sae, gamma=0.8):                                                                                                                                   
+         super().__init__()                                                                                                                                                  
+         self.flow_network = nn.Linear(d_sae, d_sae)                                                                                                                         
+         nn.init.orthogonal_(self.flow_network.weight)                                                                                                                       
+         self.gamma = gamma                                                                                                                                                  
+         self.register_buffer('threshold_history', torch.zeros(100))                                                                                                         
+         self.threshold_idx = 0                                                                                                                                              
+                                                                                                                                                                             
+     def forward(self, C, features):                                                                                                                                         
+         with torch.no_grad():                                                                                                                                               
+             # Adaptive threshold based on correlation matrix                                                                                                                
+             threshold = torch.quantile(C.abs(), 0.9)                                                                                                                        
+             self.threshold_history[self.threshold_idx] = threshold                                                                                                          
+             self.threshold_idx = (self.threshold_idx + 1) % 100                                                                                                             
+                                                                                                                                                                             
+             # Use moving average threshold                                                                                                                                  
+             avg_threshold = self.threshold_history.mean()                                                                                                                   
+                                                                                                                                                                             
+             # Max-flow with adaptive threshold                                                                                                                              
+             flow_scores = torch.sigmoid(self.flow_network(C * (C.abs() > avg_threshold)))                                                                                   
+                                                                                                                                                                             
+             # Temporal decay clamping                                                                                                                                       
+             time_decay = self.gamma ** torch.arange(C.size(0), device=C.device, dtype=C.dtype)                                                                              
+             clamped = -features * (C @ (features * flow_scores)) * time_decay.unsqueeze(-1)                                                                                 
+         return clamped                                                                                                                                                      
+ >>>>>>> REPLACE                                                                                                                                                             
+                                                                                                                                                                             
+
+ 2 Now let's update the encode method in CustomSAE to apply interventions during evaluation:                                                                                 
+
+experiment.py                                                                                                                                                                
+
+                                                                                                                                                                             
+ <<<<<<< SEARCH                                                                                                                                                              
+     def encode(self, input_acts):                                                                                                                                           
+         pre_acts = (input_acts - self.b_dec) @ self.W_enc + self.b_enc                                                                                                      
+         acts = torch.relu(pre_acts)                                                                                                                                         
+                                                                                                                                                                             
+         if self.training:                                                                                                                                                   
+             window = self.buffer.get_window().to(device=self.device, dtype=self.dtype)                                                                                      
+             if window.any():                                                                                                                                                
+                 z_prev = window.mean(0)                                                                                                                                     
+                 current_aggregated = acts.mean(dim=0)                                                                                                                       
+                 self.corr_tracker(z_prev, current_aggregated)                                                                                                               
+             self.buffer.update(acts)                                                                                                                                        
+                                                                                                                                                                             
+         return acts                                                                                                                                                         
+ =======                                                                                                                                                                     
+     def encode(self, input_acts):                                                                                                                                           
+         pre_acts = (input_acts - self.b_dec) @ self.W_enc + self.b_enc                                                                                                      
+         acts = torch.relu(pre_acts)                                                                                                                                         
+                                                                                                                                                                             
+         if self.training:                                                                                                                                                   
+             window = self.buffer.get_window().to(device=self.device, dtype=self.dtype)                                                                                      
+             if window.any():                                                                                                                                                
+                 z_prev = window.mean(0)                                                                                                                                     
+                 current_aggregated = acts.mean(dim=0)                                                                                                                       
+                 self.corr_tracker(z_prev, current_aggregated)                                                                                                               
+             self.buffer.update(acts)                                                                                                                                        
+         else:                                                                                                                                                               
+             # Apply intervention during evaluation                                                                                                                          
+             intervention = self.intervention(self.corr_tracker.C, acts)                                                                                                     
+             acts = acts + intervention                                                                                                                                      
+                                                                                                                                                                             
+         return acts                                                                                                                                                         
+ >>>>>>> REPLACE                                                                                                                                                             
+                                                                                                                                                                             
+
+ 3 Finally, let's update the notes.txt with the latest run information:                                                                                                      
+
+notes.txt                                                                                                                                                                    
+
+                                                                                                                                                                             
+ <<<<<<< SEARCH                                                                                                                                                              
+ ## Run 0: Baseline                                                                                                                                                          
+ Results: Baseline results from TopK SAE:                                                                                                                                    
+ =======                                                                                                                                                                     
+ ## Run 3: Adaptive Temporal Intervention                                                                                                                                    
+ Changes:                                                                                                                                                                    
+ 1. Implemented adaptive threshold based on correlation percentiles                                                                                                          
+ 2. Added temporal decay to feature clamping (γ^k)                                                                                                                           
+ 3. Improved flow network initialization with orthogonal weights                                                                                                             
+ 4. Added correlation threshold history for stable adaptation                                                                                                                
+ 5. Integrated intervention during evaluation phase                                                                                                                          
+                                                                                                                                                                             
+ Results: Pending experiment completion                                                                                                                                      
+                                                                                                                                                                             
+ ## Run 0: Baseline                                                                                                                                                          
+ Results: Baseline results from TopK SAE:                                                                                                                                    
+ >>>>>>> REPLACE                                                                                                                                                             
+                                                                                                                                                                             
+
+These changes implement:                                                                                                                                                     
+
+ 1 Adaptive thresholding with history tracking                                                                                                                               
+ 2 Temporal decay in the clamping mechanism                                                                                                                                  
+ 3 Improved flow network initialization                                                                                                                                      
+ 4 Integration of interventions during evaluation                                                                                                                            
+ 5 More stable correlation threshold adaptation                                                                                                                              
+
+The changes should provide better intervention effectiveness while maintaining model stability. The adaptive thresholding will help automatically tune the intervention      
+strength based on the observed correlation patterns.                                                                                                                         
+
+Tokens: 28k sent, 1.2k received. Cost: $0.10 message, $1.15 session.
+Applied edit to notes.txt
+Applied edit to experiment.py
+Step 0: {'loss': 186623.90625, 'l1_loss': 12038.876953125, 'l2_loss': 287.553466796875, 'corr_loss': 0.0}
+Step 100: {'loss': 29152.52734375, 'l1_loss': 12496.611328125, 'l2_loss': 132.01837158203125, 'corr_loss': 0.8673792481422424}
+Step 200: {'loss': 8050.71337890625, 'l1_loss': 16840.939453125, 'l2_loss': 84.30191040039062, 'corr_loss': 0.9819555878639221}
+Step 300: {'loss': 4039.48193359375, 'l1_loss': 20600.73046875, 'l2_loss': 55.505775451660156, 'corr_loss': 0.9976072907447815}
+Step 400: {'loss': 2318.326416015625, 'l1_loss': 23004.0703125, 'l2_loss': 36.513702392578125, 'corr_loss': 0.999683141708374}
+Step 500: {'loss': 1662.8426513671875, 'l1_loss': 23287.1171875, 'l2_loss': 26.36229705810547, 'corr_loss': 0.9999579787254333}
+Step 600: {'loss': 1346.20703125, 'l1_loss': 22194.390625, 'l2_loss': 20.841854095458984, 'corr_loss': 0.999995231628418}
+Step 700: {'loss': 1233.362060546875, 'l1_loss': 20255.224609375, 'l2_loss': 19.70940589904785, 'corr_loss': 0.9999991059303284}
+Step 800: {'loss': 1473.8734130859375, 'l1_loss': 18499.09765625, 'l2_loss': 21.59488868713379, 'corr_loss': 0.9999991059303284}
+Step 900: {'loss': 1005.4234619140625, 'l1_loss': 18183.1953125, 'l2_loss': 16.28612518310547, 'corr_loss': 0.9999991059303284}
+Step 1000: {'loss': 1087.88037109375, 'l1_loss': 17959.12109375, 'l2_loss': 18.14443588256836, 'corr_loss': 0.9999991059303284}
+Step 1100: {'loss': 922.67236328125, 'l1_loss': 17006.86328125, 'l2_loss': 15.212200164794922, 'corr_loss': 0.9999991059303284}
+Step 1200: {'loss': 853.7077026367188, 'l1_loss': 15893.7763671875, 'l2_loss': 14.474719047546387, 'corr_loss': 0.9999991059303284}
+Step 1300: {'loss': 865.493408203125, 'l1_loss': 15946.6806640625, 'l2_loss': 14.622892379760742, 'corr_loss': 0.9999991059303284}
+Step 1400: {'loss': 849.4971313476562, 'l1_loss': 15814.0732421875, 'l2_loss': 14.403913497924805, 'corr_loss': 0.9999991059303284}
+Step 1500: {'loss': 861.4603271484375, 'l1_loss': 14863.3486328125, 'l2_loss': 16.019878387451172, 'corr_loss': 0.9999685883522034}
+Step 1600: {'loss': 801.539306640625, 'l1_loss': 14910.2646484375, 'l2_loss': 14.02098560333252, 'corr_loss': 0.9620360732078552}
+Step 1700: {'loss': 773.4029541015625, 'l1_loss': 14394.0126953125, 'l2_loss': 13.782754898071289, 'corr_loss': 0.7633097767829895}
+Step 1800: {'loss': 771.8418579101562, 'l1_loss': 14520.9609375, 'l2_loss': 13.49295711517334, 'corr_loss': 0.6638312339782715}
+Step 1900: {'loss': 771.0689697265625, 'l1_loss': 14042.173828125, 'l2_loss': 13.763047218322754, 'corr_loss': 0.4959087073802948}
+Step 2000: {'loss': 800.4125366210938, 'l1_loss': 13920.4677734375, 'l2_loss': 13.917633056640625, 'corr_loss': 0.4867214262485504}
+Step 2100: {'loss': 738.3514404296875, 'l1_loss': 13610.583984375, 'l2_loss': 13.24892807006836, 'corr_loss': 0.5460397005081177}
+Step 2200: {'loss': 692.881591796875, 'l1_loss': 12917.69921875, 'l2_loss': 12.888893127441406, 'corr_loss': 0.5676349401473999}
+Step 2300: {'loss': 693.1424560546875, 'l1_loss': 13175.7255859375, 'l2_loss': 12.66691780090332, 'corr_loss': 0.6445376873016357}
+Step 2400: {'loss': 688.7976684570312, 'l1_loss': 12979.8056640625, 'l2_loss': 12.821334838867188, 'corr_loss': 0.7310854196548462}
+
+ training complete! 
+
+all info: /gpfs/radev/project/lafferty/tl784/free_PhD_labor/results/temporal/20250208_210110_temporal_causal_sae/run_3/final_info.json
+
+[2025-02-09 14:22:37]  
+
+Running absorption evaluation...
+Loaded pretrained model google/gemma-2-2b into HookedTransformer
+Loading probe and training data
+Probe for layer 12 not found, training...
+Training k-sparse probes
