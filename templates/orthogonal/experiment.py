@@ -2,6 +2,12 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+from typing import Optional, Callable
+from abc import ABC, abstractmethod
+import torch as t
+import torch.nn as nn
+import torch.nn.init as init
+import einops
 import torch
 import torch.nn as nn
 import numpy as np
@@ -16,363 +22,390 @@ from dictionary_learning.buffer import ActivationBuffer
 import argparse
 import time
 from torch.autograd import Function
-
-import einops
-import torch as t
+from torch import autograd
+from dataclasses import dataclass
+from typing import Optional
+import torch
 import torch.nn as nn
-from collections import namedtuple
+from torch.autograd import Function
+from torch.optim import Adam
+from torch.optim.lr_scheduler import LambdaLR
+# The next two functions could be replaced with the ConstrainedAdam Optimizer
+@torch.no_grad()
+def set_decoder_norm_to_unit_norm(
+    W_dec_DF: torch.nn.Parameter, activation_dim: int, d_sae: int
+) -> torch.Tensor:
+    """There's a major footgun here: we use this with both nn.Linear and nn.Parameter decoders.
+    nn.Linear stores the decoder weights in a transposed format (d_model, d_sae). So, we pass the dimensions in
+    to catch this error."""
 
-from dictionary_learning.config import DEBUG
-from dictionary_learning.dictionary import Dictionary
-from dictionary_learning.trainers.trainer import SAETrainer
+    D, F = W_dec_DF.shape
 
+    assert D == activation_dim
+    assert F == d_sae
+
+    eps = torch.finfo(W_dec_DF.dtype).eps
+    norm = torch.norm(W_dec_DF.data, dim=0, keepdim=True)
+    W_dec_DF.data /= norm + eps
+    return W_dec_DF.data
+
+
+@torch.no_grad()
+def remove_gradient_parallel_to_decoder_directions(
+    W_dec_DF: torch.Tensor,
+    W_dec_DF_grad: torch.Tensor,
+    activation_dim: int,
+    d_sae: int,
+) -> torch.Tensor:
+    """There's a major footgun here: we use this with both nn.Linear and nn.Parameter decoders.
+    nn.Linear stores the decoder weights in a transposed format (d_model, d_sae). So, we pass the dimensions in
+    to catch this error."""
+
+    D, F = W_dec_DF.shape
+    assert D == activation_dim
+    assert F == d_sae
+
+    normed_W_dec_DF = W_dec_DF / (torch.norm(W_dec_DF, dim=0, keepdim=True) + 1e-6)
+
+    parallel_component = einops.einsum(
+        W_dec_DF_grad,
+        normed_W_dec_DF,
+        "d_in d_sae, d_in d_sae -> d_sae",
+    )
+    W_dec_DF_grad -= einops.einsum(
+        parallel_component,
+        normed_W_dec_DF,
+        "d_sae, d_in d_sae -> d_in d_sae",
+    )
+    return W_dec_DF_grad
+
+
+def get_lr_schedule(
+    total_steps: int,
+    warmup_steps: int,
+    decay_start: Optional[int] = None,
+    resample_steps: Optional[int] = None,
+    sparsity_warmup_steps: Optional[int] = None,
+) -> Callable[[int], float]:
+    """
+    Creates a learning rate schedule function with linear warmup followed by an optional decay phase.
+
+    Note: resample_steps creates a repeating warmup pattern instead of the standard phases, but
+    is rarely used in practice.
+
+    Args:
+        total_steps: Total number of training steps
+        warmup_steps: Steps for linear warmup from 0 to 1
+        decay_start: Optional step to begin linear decay to 0
+        resample_steps: Optional period for repeating warmup pattern
+        sparsity_warmup_steps: Used for validation with decay_start
+
+    Returns:
+        Function that computes LR scale factor for a given step
+    """
+    if decay_start is not None:
+        assert resample_steps is None, (
+            "decay_start and resample_steps are currently mutually exclusive."
+        )
+        assert 0 <= decay_start < total_steps, "decay_start must be >= 0 and < steps."
+        assert decay_start > warmup_steps, "decay_start must be > warmup_steps."
+        if sparsity_warmup_steps is not None:
+            assert decay_start > sparsity_warmup_steps, (
+                "decay_start must be > sparsity_warmup_steps."
+            )
+
+    assert 0 <= warmup_steps < total_steps, "warmup_steps must be >= 0 and < steps."
+
+    if resample_steps is None:
+
+        def lr_schedule(step: int) -> float:
+            if step < warmup_steps:
+                # Warm-up phase
+                return step / warmup_steps
+
+            if decay_start is not None and step >= decay_start:
+                # Decay phase
+                return (total_steps - step) / (total_steps - decay_start)
+
+            # Constant phase
+            return 1.0
+    else:
+        assert 0 < resample_steps < total_steps, "resample_steps must be > 0 and < steps."
+
+        def lr_schedule(step: int) -> float:
+            return min((step % resample_steps) / warmup_steps, 1.0)
+
+    return lr_schedule
+
+
+def get_sparsity_warmup_fn(
+    total_steps: int, sparsity_warmup_steps: Optional[int] = None
+) -> Callable[[int], float]:
+    """
+    Return a function that computes a scale factor for sparsity penalty at a given step.
+
+    If `sparsity_warmup_steps` is None or 0, returns 1.0 for all steps.
+    Otherwise, scales from 0.0 up to 1.0 across `sparsity_warmup_steps`.
+    """
+
+    if sparsity_warmup_steps is not None:
+        assert 0 <= sparsity_warmup_steps < total_steps, (
+            "sparsity_warmup_steps must be >= 0 and < steps."
+        )
+
+    def scale_fn(step: int) -> float:
+        if not sparsity_warmup_steps:
+            # If it's None or zero, we just return 1.0
+            return 1.0
+        else:
+            # Gradually increase from 0.0 -> 1.0 as step goes from 0 -> sparsity_warmup_steps
+            return min(step / sparsity_warmup_steps, 1.0)
+
+    return scale_fn
 # added support for tracking time spent on each step
 def print_time(message=" "):
     current_time = datetime.now()
     print(f"\n[{current_time.strftime('%Y-%m-%d %H:%M:%S')}] {message}")
     return current_time
 
-@t.no_grad()
-def geometric_median(points: t.Tensor, max_iter: int = 100, tol: float = 1e-5):
-    """Compute the geometric median `points`. Used for initializing decoder bias."""
-    # Initialize our guess as the mean of the points
-    guess = points.mean(dim=0)
-    prev = t.zeros_like(guess)
+class RectangleFunction(autograd.Function):
+    @staticmethod
+    def forward(ctx, x):
+        ctx.save_for_backward(x)
+        return ((x > -0.5) & (x < 0.5)).float()
 
-    # Weights for iteratively reweighted least squares
-    weights = t.ones(len(points), device=points.device)
-
-    for _ in range(max_iter):
-        prev = guess
-
-        # Compute the weights
-        weights = 1 / t.norm(points - guess, dim=1)
-
-        # Normalize the weights
-        weights /= weights.sum()
-
-        # Compute the new geometric median
-        guess = (weights.unsqueeze(1) * points).sum(dim=0)
-
-        # Early stopping condition
-        if t.norm(guess - prev) < tol:
-            break
-
-    return guess
+    @staticmethod
+    def backward(ctx, grad_output):
+        (x,) = ctx.saved_tensors
+        grad_input = grad_output.clone()
+        grad_input[(x <= -0.5) | (x >= 0.5)] = 0
+        return grad_input
 
 
-class AutoEncoderTopK(nn.Module):
+class JumpReLUFunction(autograd.Function):
+    @staticmethod
+    def forward(ctx, x, threshold, bandwidth):
+        ctx.save_for_backward(x, threshold, torch.tensor(bandwidth))
+        return x * (x > threshold).float()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        x, threshold, bandwidth_tensor = ctx.saved_tensors
+        bandwidth = bandwidth_tensor.item()
+        x_grad = (x > threshold).float() * grad_output
+        threshold_grad = (
+            -(threshold / bandwidth)
+            * RectangleFunction.apply((x - threshold) / bandwidth)
+            * grad_output
+        )
+        return x_grad, threshold_grad, None  # None for bandwidth
+
+
+class StepFunction(autograd.Function):
+    @staticmethod
+    def forward(ctx, x, threshold, bandwidth):
+        ctx.save_for_backward(x, threshold, torch.tensor(bandwidth))
+        return (x > threshold).float()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        x, threshold, bandwidth_tensor = ctx.saved_tensors
+        bandwidth = bandwidth_tensor.item()
+        x_grad = torch.zeros_like(x)
+        threshold_grad = (
+            -(1.0 / bandwidth) * RectangleFunction.apply((x - threshold) / bandwidth) * grad_output
+        )
+        return x_grad, threshold_grad, None  # None for bandwidth
+class SAETrainer:
     """
-    The top-k autoencoder architecture using parameters instead of nn.Linear layers.
+    Generic class for implementing SAE training algorithms
     """
+    def __init__(self, seed=None):
+        self.seed = seed
+        self.logging_parameters = []
+
+    def update(self, 
+               step, # index of step in training
+               activations, # of shape [batch_size, d_submodule]
+        ):
+        pass # implemented by subclasses
+
+    def get_logging_parameters(self):
+        stats = {}
+        for param in self.logging_parameters:
+            if hasattr(self, param):
+                stats[param] = getattr(self, param)
+            else:
+                print(f"Warning: {param} not found in {self}")
+        return stats
+    
+    @property
+    def config(self):
+        return {
+            'wandb_name': 'trainer',
+        }
+
+class JumpReluTrainer(nn.Module, SAETrainer):
+    """
+    Trains a JumpReLU autoencoder.
+
+    Note does not use learning rate or sparsity scheduling as in the paper.
+    """
+
     def __init__(
         self,
-        d_in: int,
-        d_sae: int,
-        hook_layer: int,
-        model_name: str = "EleutherAI/pythia-70m-deduped",
-        hook_name: Optional[str] = None,
-        k: int = 100,
+        steps: int,  # total number of steps to train for
+        activation_dim: int,
+        dict_size: int,
+        layer: int,
+        lm_name: str,
+        dict_class=None,
+        seed: Optional[int] = None,
+        lr: float = 7e-5,
+        bandwidth: float = 0.001,
+        sparsity_penalty: float = 1.0,
+        warmup_steps: int = 1000,  # lr warmup period at start of training and after each resample
+        sparsity_warmup_steps: Optional[int] = 2000,  # sparsity warmup period at start of training
+        decay_start: Optional[int] = None,  # decay learning rate after this many steps
+        target_l0: float = 20.0,
+        device: str = "cpu",
+        wandb_name: str = "JumpRelu",
+        submodule_name: Optional[str] = None,
     ):
         super().__init__()
-        self.activation_dim = d_in
-        self.dict_size = d_sae
-        self.k = k
 
-        # Initialize encoder parameters
-        self.W_enc = nn.Parameter(torch.empty(d_in, d_sae))
-        nn.init.kaiming_uniform_(self.W_enc, nonlinearity='relu')
-        self.b_enc = nn.Parameter(torch.zeros(d_sae))
-        
-        # Initialize decoder parameters (transposed and normalized)
-        self.W_dec = nn.Parameter(torch.empty(d_sae, d_in))
-        self.W_dec.data = self.W_enc.data.T.clone()
-        self.b_dec = nn.Parameter(torch.zeros(d_in))
-        self.set_decoder_norm_to_unit_norm()
-
-
-        if hook_name is None:
-            hook_name = f"blocks.{hook_layer}.hook_resid_post"
-        # Configuration
-        self.cfg = CustomSAEConfig(
-            model_name=model_name,
-            d_in=d_in,
-            d_sae=d_sae,
-            hook_name=hook_name,
-            hook_layer=hook_layer,
-            architecture="TopK",
-            activation_fn_str="TopK",
-            apply_b_dec_to_input=True,
-        )
-        
-
-    def encode(self, x: torch.Tensor, return_topk: bool = False):
-        pre_acts = (x - self.b_dec) @ self.W_enc + self.b_enc
-        post_relu_feat_acts_BF = torch.relu(pre_acts)
-        post_topk = post_relu_feat_acts_BF.topk(self.k, sorted=False, dim=-1)
-
-        # Scatter topk values to form encoded activations
-        tops_acts_BK, top_indices_BK = post_topk.values, post_topk.indices
-        encoded_acts_BF = torch.zeros_like(post_relu_feat_acts_BF).scatter_(
-            dim=-1, index=top_indices_BK, src=tops_acts_BK
-        )
-
-        if return_topk:
-            return encoded_acts_BF, tops_acts_BK, top_indices_BK
-        else:
-            return encoded_acts_BF
-
-    def decode(self, x: torch.Tensor) -> torch.Tensor:
-        return x @ self.W_dec + self.b_dec
-
-    def forward(self, x: torch.Tensor, output_features: bool = False):
-        encoded_acts = self.encode(x)
-        x_hat = self.decode(encoded_acts)
-        return (x_hat, encoded_acts) if output_features else x_hat
-
-    def to(self, *args, **kwargs):
-        super().to(*args, **kwargs)
-        device = kwargs.get("device", None)
-        dtype = kwargs.get("dtype", None)
-        if device:
-            self.device = device
-        if dtype:
-            self.dtype = dtype
-        return self
-
-    @torch.no_grad()
-    def set_decoder_norm_to_unit_norm(self):
-        eps = torch.finfo(self.W_dec.dtype).eps
-        norm = torch.norm(self.W_dec.data, dim=1, keepdim=True)
-        self.W_dec.data /= norm + eps
-
-    @torch.no_grad()
-    def remove_gradient_parallel_to_decoder_directions(self):
-        if self.W_dec.grad is None:
-            return
-
-        # Compute parallel component for each dictionary element (rows of W_dec)
-        parallel_component = torch.einsum(
-            'sd,sd->s', 
-            self.W_dec.grad, 
-            self.W_dec.data
-        )
-        # Subtract parallel component from gradient
-        self.W_dec.grad -= torch.einsum(
-            's,sd->sd', 
-            parallel_component, 
-            self.W_dec.data
-        )
-
-    @classmethod
-    def from_pretrained(cls, path: str, k: int, device=None):
-        state_dict = torch.load(path)
-        # Original encoder weight: (d_sae, d_in) -> Transpose to (d_in, d_sae)
-        d_sae, d_in = state_dict["encoder.weight"].shape
-        autoencoder = cls(d_in, d_sae, hook_layer=0, k=k)  # Default hook_layer
-        
-        # Map original state_dict to new parameter names
-        new_state_dict = {
-            'W_enc': state_dict['encoder.weight'].T,
-            'b_enc': state_dict['encoder.bias'],
-            'W_dec': state_dict['decoder.weight'].T,
-            'b_dec': state_dict['b_dec']
-        }
-        autoencoder.load_state_dict(new_state_dict)
-        
-        if device is not None:
-            autoencoder.to(device)
-        return autoencoder
-
-
-class TrainerTopK(SAETrainer):
-    """
-    Top-K SAE training scheme.
-    """
-
-    def __init__(
-        self,
-        dict_class=AutoEncoderTopK,
-        activation_dim=512,
-        dict_size=64 * 512,
-        k=100,
-        auxk_alpha=1 / 32,  # see Appendix A.2
-        decay_start=24000,  # when does the lr decay start
-        steps=30000,  # when when does training end
-        seed=None,
-        device=None,
-        layer=None,
-        lm_name=None,
-        wandb_name="AutoEncoderTopK",
-        submodule_name=None,
-    ):
-        super().__init__(seed)
-
-        assert layer is not None and lm_name is not None
-        self.layer = layer
+        assert layer is not None, "Layer must be specified"
+        assert lm_name is not None, "Language model name must be specified"
         self.lm_name = lm_name
+        self.layer = layer
         self.submodule_name = submodule_name
+        self.device = device
+        self.steps = steps
+        self.lr = lr
+        self.seed = seed
+
+        self.bandwidth = bandwidth
+        self.sparsity_coefficient = sparsity_penalty
+        self.warmup_steps = warmup_steps
+        self.sparsity_warmup_steps = sparsity_warmup_steps
+        self.decay_start = decay_start
+        self.target_l0 = target_l0
 
         self.wandb_name = wandb_name
-        self.steps = steps
-        self.k = k
-        if seed is not None:
-            t.manual_seed(seed)
-            t.cuda.manual_seed_all(seed)
 
-        # Initialise autoencoder
-        self.ae =  AutoEncoderTopK(
-            d_in=activation_dim,
-            d_sae=dict_size,
-            hook_layer=layer,
-            model_name=lm_name,
-            k = k
-            )
+        self.ae = dict_class(
+            activation_dim=activation_dim,
+            dict_size=dict_size, hook_layer = layer,
+            device=device,
+        ).to(self.device)
 
+        # Parameters from the paper
+        self.optimizer = torch.optim.Adam(self.ae.parameters(), lr=lr, betas=(0.0, 0.999), eps=1e-8)
 
-        if device is None:
-            self.device = "cuda" if t.cuda.is_available() else "cpu"
-        else:
-            self.device = device
-        self.ae.to(self.device)
+        lr_fn = get_lr_schedule(
+            steps,
+            warmup_steps,
+            decay_start,
+            resample_steps=None,
+            sparsity_warmup_steps=sparsity_warmup_steps,
+        )
 
-        # Auto-select LR using 1 / sqrt(d) scaling law from Figure 3 of the paper
-        scale = dict_size / (2**14)
-        self.lr = 2e-4 / scale**0.5
-        self.auxk_alpha = auxk_alpha
+        self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_fn)
+
+        self.sparsity_warmup_fn = get_sparsity_warmup_fn(steps, sparsity_warmup_steps)
+
+        # Purely for logging purposes
         self.dead_feature_threshold = 10_000_000
-
-        # Optimizer and scheduler
-        self.optimizer = t.optim.Adam(self.ae.parameters(), lr=self.lr, betas=(0.9, 0.999))
-
-        def lr_fn(step):
-            if step < decay_start:
-                return 1.0
-            else:
-                return (steps - step) / (steps - decay_start)
-
-        self.scheduler = t.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_fn)
-
-        # Training parameters
-        self.num_tokens_since_fired = t.zeros(dict_size, dtype=t.long, device=device)
-
-        # Log the effective L0, i.e. number of features actually used, which should a constant value (K)
-        # Note: The standard L0 is essentially a measure of dead features for Top-K SAEs)
-        self.logging_parameters = ["effective_l0", "dead_features"]
-        self.effective_l0 = -1
+        self.num_tokens_since_fired = torch.zeros(dict_size, dtype=torch.long, device=device)
         self.dead_features = -1
+        self.logging_parameters = ["dead_features"]
 
-    def loss(self, x, step=None, logging=False):
-        # Run the SAE
-        f, top_acts, top_indices = self.ae.encode(x, return_topk=True)
-        x_hat = self.ae.decode(f)
+    def loss(self, x: torch.Tensor, step: int, logging=False, **_):
+        # Note: We are using threshold, not log_threshold as in this notebook:
+        # https://colab.research.google.com/drive/1PlFzI_PWGTN9yCQLuBcSuPJUjgHL7GiD#scrollTo=yP828a6uIlSO
+        # I had poor results when using log_threshold and it would complicate the scale_biases() function
 
-        # Measure goodness of reconstruction
-        e = x_hat - x
-        total_variance = (x - x.mean(0)).pow(2).sum(0)
+        sparsity_scale = self.sparsity_warmup_fn(step)
+        x = x.to(self.ae.W_enc.dtype)
 
-        # Update the effective L0 (again, should just be K)
-        self.effective_l0 = top_acts.size(1)
+        pre_jump = x @ self.ae.W_enc + self.ae.b_enc
+        f = JumpReLUFunction.apply(pre_jump, self.ae.threshold, self.bandwidth)
 
-        # Update "number of tokens since fired" for each features
-        num_tokens_in_step = x.size(0)
-        did_fire = t.zeros_like(self.num_tokens_since_fired, dtype=t.bool)
-        did_fire[top_indices.flatten()] = True
-        self.num_tokens_since_fired += num_tokens_in_step
-        self.num_tokens_since_fired[did_fire] = 0
+        active_indices = f.sum(0) > 0
+        did_fire = torch.zeros_like(self.num_tokens_since_fired, dtype=torch.bool)
+        did_fire[active_indices] = True
+        self.num_tokens_since_fired += x.size(0)
+        self.num_tokens_since_fired[active_indices] = 0
+        self.dead_features = (
+            (self.num_tokens_since_fired > self.dead_feature_threshold).sum().item()
+        )
 
-        # Compute dead feature mask based on "number of tokens since fired"
-        dead_mask = (
-            self.num_tokens_since_fired > self.dead_feature_threshold
-            if self.auxk_alpha > 0
-            else None
-        ).to(f.device)
-        self.dead_features = int(dead_mask.sum())
+        recon = self.ae.decode(f)
 
-        # If dead features: Second decoder pass for AuxK loss
-        if dead_mask is not None and (num_dead := int(dead_mask.sum())) > 0:
-            # Heuristic from Appendix B.1 in the paper
-            k_aux = x.shape[-1] // 2
+        recon_loss = (x - recon).pow(2).sum(dim=-1).mean()
+        l0 = StepFunction.apply(f, self.ae.threshold, self.bandwidth).sum(dim=-1).mean()
 
-            # Reduce the scale of the loss if there are a small number of dead latents
-            scale = min(num_dead / k_aux, 1.0)
-            k_aux = min(k_aux, num_dead)
-
-            # Don't include living latents in this loss
-            auxk_latents = t.where(dead_mask[None], f, -t.inf)
-
-            # Top-k dead latents
-            auxk_acts, auxk_indices = auxk_latents.topk(k_aux, sorted=False)
-
-            auxk_buffer_BF = t.zeros_like(f)
-            auxk_acts_BF = auxk_buffer_BF.scatter_(dim=-1, index=auxk_indices, src=auxk_acts)
-
-            # Encourage the top ~50% of dead latents to predict the residual of the
-            # top k living latents
-            e_hat = self.ae.decode(auxk_acts_BF)
-            auxk_loss = (e_hat - e).pow(2)  # .sum(0)
-            auxk_loss = scale * t.mean(auxk_loss / total_variance)
-        else:
-            auxk_loss = x_hat.new_tensor(0.0)
-
-        l2_loss = e.pow(2).sum(dim=-1).mean()
-        auxk_loss = auxk_loss.sum(dim=-1).mean()
-        loss = l2_loss + self.auxk_alpha * auxk_loss
+        sparsity_loss = (
+            self.sparsity_coefficient * ((l0 / self.target_l0) - 1).pow(2) * sparsity_scale
+        )
+        loss = recon_loss + sparsity_loss
 
         if not logging:
             return loss
         else:
-            return namedtuple("LossLog", ["x", "x_hat", "f", "losses"])(
+            return namedtuple("LossLog", ["x", "recon", "f", "losses"])(
                 x,
-                x_hat,
+                recon,
                 f,
-                {"l2_loss": l2_loss.item(), "auxk_loss": auxk_loss.item(), "loss": loss.item()},
+                {
+                    "l2_loss": recon_loss.item(),
+                    "loss": loss.item(),
+                },
             )
 
     def update(self, step, x):
-        # Initialise the decoder bias
-        if step == 0:
-            median = geometric_median(x)
-            self.ae.b_dec.data = median
-
-        # Make sure the decoder is still unit-norm
-        self.ae.set_decoder_norm_to_unit_norm()
-
-        # compute the loss
         x = x.to(self.device)
         loss = self.loss(x, step=step)
         loss.backward()
 
-        # clip grad norm and remove grads parallel to decoder directions
-        t.nn.utils.clip_grad_norm_(self.ae.parameters(), 1.0)
-        self.ae.remove_gradient_parallel_to_decoder_directions()
+        # We must transpose because we are using nn.Parameter, not nn.Linear
+        self.ae.W_dec.grad = remove_gradient_parallel_to_decoder_directions(
+            self.ae.W_dec.T, self.ae.W_dec.grad.T, self.ae.activation_dim, self.ae.dict_size
+        ).T
+        torch.nn.utils.clip_grad_norm_(self.ae.parameters(), 1.0)
 
-        # do a training step
         self.optimizer.step()
-        self.optimizer.zero_grad()
         self.scheduler.step()
+        self.optimizer.zero_grad()
+
+        # We must transpose because we are using nn.Parameter, not nn.Linear
+        self.ae.W_dec.data = set_decoder_norm_to_unit_norm(
+            self.ae.W_dec.T, self.ae.activation_dim, self.ae.dict_size
+        ).T
+
         return loss.item()
 
     @property
     def config(self):
         return {
-            "trainer_class": "TrainerTopK",
-            "dict_class": "AutoEncoderTopK",
+            "trainer_class": "JumpReluTrainer",
+            "dict_class": "JumpReluAutoEncoder",
             "lr": self.lr,
             "steps": self.steps,
             "seed": self.seed,
             "activation_dim": self.ae.activation_dim,
             "dict_size": self.ae.dict_size,
-            "k": self.ae.k,
             "device": self.device,
             "layer": self.layer,
             "lm_name": self.lm_name,
             "wandb_name": self.wandb_name,
             "submodule_name": self.submodule_name,
+            "bandwidth": self.bandwidth,
+            "sparsity_penalty": self.sparsity_coefficient,
+            "sparsity_warmup_steps": self.sparsity_warmup_steps,
+            "target_l0": self.target_l0,
         }
-
-
-# Do not modify CustomSAEConfig class as this defines the right format for SAE to be evaluated!
+        
 @dataclass
 class CustomSAEConfig:
     model_name: str
@@ -399,68 +432,147 @@ class CustomSAEConfig:
     training_tokens: int = -100_000
     sae_lens_training_version: Optional[str] = None
     neuronpedia_id: Optional[str] = None
+class Dictionary(ABC, nn.Module):
+    """
+    A dictionary consists of a collection of vectors, an encoder, and a decoder.
+    """
 
+    dict_size: int  # number of features in the dictionary
+    activation_dim: int  # dimension of the activation vectors
 
-
-
-
-
-class ConstrainedAdam(torch.optim.Adam):
-    """A variant of Adam where some parameters are constrained to have unit norm."""
-    def __init__(self, params, constrained_params, lr):
-        super().__init__(params, lr=lr)
-        self.constrained_params = list(constrained_params)
-    
-    def step(self, closure=None):
-        with torch.no_grad():
-            for p in self.constrained_params:
-                normed_p = p / p.norm(dim=0, keepdim=True)
-                p.grad -= (p.grad * normed_p).sum(dim=0, keepdim=True) * normed_p
-        super().step(closure=closure)
-        with torch.no_grad():
-            for p in self.constrained_params:
-                p /= p.norm(dim=0, keepdim=True)
-
-
-class SAETrainer:
-    """Base class for implementing SAE training algorithms."""
-    def __init__(self, seed=None):
-        self.seed = seed
-        self.logging_parameters = []
-
-    def update(self, step, activations):
-        """Update step for training. To be implemented by subclasses."""
+    @abstractmethod
+    def encode(self, x):
+        """
+        Encode a vector x in the activation space.
+        """
         pass
 
-    def get_logging_parameters(self):
-        stats = {}
-        for param in self.logging_parameters:
-            if hasattr(self, param):
-                stats[param] = getattr(self, param)
-            else:
-                print(f"Warning: {param} not found in {self}")
-        return stats
-    
-    @property
-    def config(self):
-        return {
-            'wandb_name': 'trainer',
-        }
+    @abstractmethod
+    def decode(self, f):
+        """
+        Decode a dictionary vector f (i.e. a linear combination of dictionary elements)
+        """
+        pass
 
+    @classmethod
+    @abstractmethod
+    def from_pretrained(cls, path, device=None, **kwargs) -> "Dictionary":
+        """
+        Load a pretrained dictionary from a file.
+        """
+        pass
+class JumpReluAutoEncoder(Dictionary, nn.Module):
+    """
+    An autoencoder with jump ReLUs.
+    """
+
+    def __init__(self, activation_dim, dict_size, hook_layer, device="gpu"):
+        super().__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.dtype = torch.bfloat16
+        self.activation_dim = activation_dim
+        self.dict_size = dict_size
+        self.W_enc = nn.Parameter(t.empty(activation_dim, dict_size, device=device))
+        self.b_enc = nn.Parameter(t.zeros(dict_size, device=device))
+        self.W_dec = nn.Parameter(
+            t.nn.init.kaiming_uniform_(t.empty(dict_size, activation_dim, device=device))
+        )
+        self.b_dec = nn.Parameter(t.zeros(activation_dim, device=device))
+        self.threshold = nn.Parameter(t.ones(dict_size, device=device) * 0.001)  # Appendix I
+
+        self.apply_b_dec_to_input = False
+
+        self.W_dec.data = self.W_dec / self.W_dec.norm(dim=1, keepdim=True)
+        self.W_enc.data = self.W_dec.data.clone().T
+        self.cfg = CustomSAEConfig(
+            model_name=model_name,
+            d_in=activation_dim,
+            d_sae=dict_size,
+            hook_name=f"blocks.{hook_layer}.hook_resid_post",
+            hook_layer=hook_layer,
+            architecture="JumpReLU",
+            activation_fn_str="jumprelu",
+            apply_b_dec_to_input=True,
+        )
+
+    def encode(self, x, output_pre_jump=False):
+        if self.apply_b_dec_to_input:
+            x = x - self.b_dec
+        pre_jump = x @ self.W_enc + self.b_enc
+
+        f = nn.ReLU()(pre_jump * (pre_jump > self.threshold))
+
+        if output_pre_jump:
+            return f, pre_jump
+        else:
+            return f
+
+    def decode(self, f):
+        return f @ self.W_dec + self.b_dec
+
+    def forward(self, x, output_features=False):
+        """
+        Forward pass of an autoencoder.
+        x : activations to be autoencoded
+        output_features : if True, return the encoded features (and their pre-jump version) as well as the decoded x
+        """
+        f = self.encode(x)
+        x_hat = self.decode(f)
+        if output_features:
+            return x_hat, f
+        else:
+            return x_hat
+
+    def scale_biases(self, scale: float):
+        self.b_dec.data *= scale
+        self.b_enc.data *= scale
+        self.threshold.data *= scale
+    @classmethod
+    def from_pretrained(
+        cls,
+        path: str | None = None,
+        load_from_sae_lens: bool = False,
+        dtype: t.dtype = t.float32,
+        device: t.device | None = None,
+        **kwargs,
+    ):
+        """
+        Load a pretrained autoencoder from a file.
+        If sae_lens=True, then pass **kwargs to sae_lens's
+        loading function.
+        """
+        if not load_from_sae_lens:
+            state_dict = t.load(path)
+            activation_dim, dict_size = state_dict["W_enc"].shape
+            autoencoder = JumpReluAutoEncoder(activation_dim, dict_size, hook_layer)
+            autoencoder.load_state_dict(state_dict)
+            autoencoder = autoencoder.to(dtype=dtype, device=device)
+        else:
+            from sae_lens import SAE
+
+            sae, cfg_dict, _ = SAE.from_pretrained(**kwargs)
+            assert (
+                cfg_dict["finetuning_scaling_factor"] == False
+            ), "Finetuning scaling factor not supported"
+            dict_size, activation_dim = cfg_dict["d_sae"], cfg_dict["d_in"]
+            autoencoder = JumpReluAutoEncoder(activation_dim, dict_size, device=device)
+            autoencoder.load_state_dict(sae.state_dict())
+            autoencoder.apply_b_dec_to_input = cfg_dict["apply_b_dec_to_input"]
+
+        if device is not None:
+            device = autoencoder.W_enc.device
+        return autoencoder.to(dtype=dtype, device=device)
 
 def special_slice(list1, m=5, num_k=20):
-    # Compute N
     N = (len(list1) - m) // num_k
-
-    # Create dictionary with step indices
     result = {}
     for k in range(num_k):
         for i in range(m):
             idx = k * N + i
             if idx < len(list1):
                 result[f"step {idx}"] = list1[idx]
-    
     return result
+
 
 def run_sae_training(
     layer: int,
@@ -473,7 +585,7 @@ def run_sae_training(
     buffer_size: int = 2048,
     llm_batch_size: int = 24,
     sae_batch_size: int = 2048,
-    learning_rate: float = 3e-4,
+    learning_rate: float = 3e-5,
     sparsity_penalty: float = 0.04,
     warmup_steps: int = 1000,
     seed: int = 0,
@@ -520,17 +632,16 @@ def run_sae_training(
     )
 
     # Initialize trainer
-    trainer = TrainerTopK(
+    trainer = JumpReluTrainer(
         activation_dim=activation_dim,
-        dict_class=AutoEncoderTopK,
         dict_size=dict_size,
-        k=40,
-        auxk_alpha = 1/32,
-        decay_start=steps/8*7,
+        lr=learning_rate,
+        layer=layer,
+        dict_class = JumpReluAutoEncoder,
         steps = steps,
+        warmup_steps=warmup_steps,
         seed=seed,
         device=device,
-        layer=layer,
         lm_name=model_name,
         submodule_name=submodule_name,
     )
@@ -585,6 +696,7 @@ def run_sae_training(
     with open(all_info_path, "w") as f:
         json.dump(existing_data, indent=2, fp=f)
     print(f"all info: {all_info_path}") 
+    return trainer.ae
     return trainer.ae
 
 import os
@@ -711,24 +823,9 @@ def evaluate_trained_sae(
                 dtype=llm_dtype,
             )
         ),
-        "scr": (
+        "scr_and_tpp": (
             lambda: scr_and_tpp.run_eval(
                 scr_and_tpp.ScrAndTppEvalConfig(
-                    model_name=model_name,
-                    random_seed=RANDOM_SEED,
-                    llm_batch_size=llm_batch_size,
-                    llm_dtype=llm_dtype,
-                ),
-                selected_saes,
-                device,
-                out_dir,
-                force_rerun,
-            )
-        ),
-        "tpp": (
-            lambda: scr_and_tpp.run_eval(
-                scr_and_tpp.ScrAndTppEvalConfig(
-                    perform_scr = False,
                     model_name=model_name,
                     random_seed=RANDOM_SEED,
                     llm_batch_size=llm_batch_size,
@@ -772,25 +869,10 @@ def evaluate_trained_sae(
     }
     
     # Create required directories                                                                                                                                                                                                    
-    import os
-    import shutil
-
-    # List of directories to be created
-    directories = [
-        "artifacts/autointerp/google",
-        "artifacts/absorption",
-        "artifacts/scr",
-        "artifacts/tpp",
-        "artifacts/sparse_probing"
-    ]
-
-    for dir_path in directories:
-        # If directory exists, delete it and its contents
-        if os.path.exists(dir_path):
-            shutil.rmtree(dir_path)
-        
-        # Recreate the directory
-        os.makedirs(dir_path)
+    os.makedirs("artifacts/autointerp/google", exist_ok=True)                                                                                                                                                                        
+    os.makedirs("artifacts/absorption", exist_ok=True)                                                                                                                                                                               
+    os.makedirs("artifacts/scr_and_tpp", exist_ok=True)                                                                                                                                                                              
+    os.makedirs("artifacts/sparse_probing", exist_ok=True)
     
     # Run selected evaluations
     for eval_type in eval_types:
@@ -802,7 +884,6 @@ def evaluate_trained_sae(
             time_checkpoint = print_time()
         else:
             print(f"Warning: Unknown evaluation type {eval_type}")
-
 def str_to_dtype(dtype_str: str) -> torch.dtype:
     dtype_map = {
         "float32": torch.float32,
@@ -818,7 +899,6 @@ def str_to_dtype(dtype_str: str) -> torch.dtype:
     return dtype
 
 if __name__ == "__main__":
-        
     parser = argparse.ArgumentParser(description="Run experiment")
     parser.add_argument("--out_dir", type=str, default="run_0", help="Output directory")
     args = parser.parse_args()
@@ -850,7 +930,7 @@ if __name__ == "__main__":
   buffer_size=2048,
    llm_batch_size=llm_batch_size,
   sae_batch_size=2048,
- learning_rate=3e-4,
+ learning_rate=7e-6,
  sparsity_penalty=0.04,
  warmup_steps=1000,
   seed=42,
@@ -898,6 +978,7 @@ if __name__ == "__main__":
         for sae_name, sae in selected_saes:
             sae = sae.to(dtype=str_to_dtype(llm_dtype))
             sae.cfg.dtype = llm_dtype
+
         evaluate_trained_sae(
             selected_saes=selected_saes,
             model_name=model_name,
