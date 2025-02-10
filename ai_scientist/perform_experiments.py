@@ -12,7 +12,7 @@ from datetime import datetime
 MAX_ITERS = 10 # originally 10
 MAX_RUNS = 10 # originally 5
 MAX_STDERR_OUTPUT = 1500
-NUM_EXPERIMENT_REFLECTIONS = 3
+NUM_EXPERIMENT_REFLECTIONS = 5
 coder_prompt = """Your goal is to implement the following idea: {title}. Pay attention to the following details from the idea:
 The proposed experiment is as follows: {idea}.
 The implementation plan is as follows: {implementation_plan}.
