@@ -11,8 +11,6 @@ from ai_scientist.llm import get_response_from_llm, extract_json_between_markers
 
 S2_API_KEY = os.getenv("S2_API_KEY")
 
-benchmark_name = "unlearning"
-
 # delete the autoencoder sentence for templates other than autoencoder!
 idea_first_prompt = """{task_description}
 <experiment.py>
@@ -25,8 +23,7 @@ Here are the ideas that you have already generated:
 {prev_ideas_string}
 '''
 
-Now, come up with the next impactful and creative idea for improving sparse autoencoder on {benchmark_name} eval.
-Your new idea should not be more complex than those you have already generated. DO NOT INTRODUCE ANY UNDUELY MORE COMPLEX ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, METRIC.
+Come up with the next impactful and creative idea for research and experiments. Your new idea should not be more complex than those you have already generated. DO NOT INTRODUCE ANY UNDUELY MORE COMPLEX ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, METRIC.
 
 Respond in the following format:
 
@@ -38,7 +35,7 @@ NEW IDEA JSON:
 <JSON>
 ```
 
-In <THOUGHT>, first thoroughly discuss your intuitions and motivations for why your idea can improve on existing SAE on the {benchmark_name} benchmark. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. 
+In <THOUGHT>, first thoroughly discuss your intuitions and motivations for the idea. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. 
 **Justify how the idea does so without introducing too much complexity.**
 Also detail the reasoning behind why they expect the modification of sparse autoencoder you propose will work better for mechanistic interpretability purposes.
 
@@ -68,10 +65,10 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 
 
 idea_reflection_prompt = """Round {current_round}/{num_reflections}.
-In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, in relation to {benchmark_name} eval.
+In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, especially the "Overall_Score" which should be at least 8.5, and each other rating should be at least 8.
 Include any other factors that you think are important in evaluating the idea.
-Ensure the idea is clear and well-justified, and the JSON is the correct format. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
-In the next attempt, try and refine and improve your last idea. THAT IS, GO DEEPER, NOT WIDER.
+Ensure the idea is clear and concise, and the JSON is the correct format. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
+In the next attempt, try and refine and improve your last idea. Stick to the spirit of the idea of TEMPORAL SAE and make sure your do not deviate too much from the prototype idea. DO NOT INTRODUCE ANY EXTRA ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL), FUNCTIONALITY, STATISTICAL METHOD, TECHNIQUE, METIC, OR NONSTANDARD TRAINING SCHEMES THAT ARE NOT CONTAINED (explicit or implicit) IN THE PROTOTYPE IDEA. THAT IS, GO DEEPER, NOT WIDER.
 
 Respond in the same format as before:
 THOUGHT:
@@ -138,7 +135,6 @@ def generate_ideas(
                     code=code,
                     prev_ideas_string=prev_ideas_string,
                     num_reflections=num_reflections,
-                    benchmark_name=benchmark_name,
                 ),
                 client=client,
                 model=model,
@@ -156,9 +152,7 @@ def generate_ideas(
                     print(f"Iteration {j + 2}/{num_reflections}")
                     text, msg_history = get_response_from_llm(
                         idea_reflection_prompt.format(
-                            current_round=j + 2,
-                            num_reflections=num_reflections,
-                            benchmark_name=benchmark_name,
+                            current_round=j + 2, num_reflections=num_reflections
                         ),
                         client=client,
                         model=model,
