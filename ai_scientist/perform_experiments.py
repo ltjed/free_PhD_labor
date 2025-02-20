@@ -13,6 +13,8 @@ MAX_ITERS = 10 # originally 10
 MAX_RUNS = 10 # originally 5
 MAX_STDERR_OUTPUT = 1500
 NUM_EXPERIMENT_REFLECTIONS = 5
+benchmark_name = "unlearning"  # Added to match generate_ideas.py
+
 coder_prompt = """Your goal is to implement the following idea: {title}. Pay attention to the following details from the idea:
 The proposed experiment is as follows: {idea}.
 The implementation plan is as follows: {implementation_plan}.
@@ -26,6 +28,7 @@ If the experiments in the idea is already implemented in 'experiment.py' you are
 First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run (you can try to run with different hyperparameters in the same run across different iterations.).
 
 Note that we already provide the baseline results, so you do not need to re-run it.
+Your primary target is to improve performance on the {benchmark_name} benchmark.
 
 For reference, the baseline results are as follows:
 
@@ -44,6 +47,7 @@ You are given a total of up to {max_runs} runs to complete the necessary experim
 First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run (you can try to run with different hyperparameters in the same run across different iterations.).
 
 Note that we already provide the baseline results, so you do not need to re-run it.
+Your primary target is to improve performance on the {benchmark_name} benchmark.
 
 For reference, the baseline results are as follows:
 
@@ -79,7 +83,7 @@ DECISION:
 
 
 In <THOUGHT>, do the following:
-- Carefully and thoroughly compare the experiment results to the baseline and results from previous runs in NOTES.
+- Carefully and thoroughly compare the experiment results to the baseline and results from previous runs in NOTES, with particular focus on the {benchmark_name} benchmark.
 - Discuss in detail whether they match or contradict expectations, and why.
 - Try to explain the matching and unmatching of expectations with theoretical insights. Give full justification for your arguments.
 - Decide whether changes or further exploration are needed, describe them in detail rigorously.
@@ -121,7 +125,7 @@ FINAL_PLAN:
 )
 
 
-In <THOUGHT>, re-examine your prior reasoning and plan considering the results, baseline, and previous results from NOTES. Discuss thoroughly whether the proposed changes are promising, risking, or principled.
+In <THOUGHT>, re-examine your prior reasoning and plan considering the results, baseline, and previous results from NOTES, with particular focus on the {benchmark_name} benchmark. Discuss thoroughly whether the proposed changes are promising, risking, or principled.
 
 In <DECISION>, summarize your reasoning in <THOUGHT> and decide whether further reflection is needed. If more reflection is needed, skip the next part.
 
@@ -194,7 +198,7 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
             next_prompt = f"""Run {run_num} completed. Here are the results:
 {results}
 
-Consider carefully if you want to re-plan your experiments given the result from this run. This could mean either merely changing hyperparameters or change of implementation of the SAE architecture.
+Consider carefully if you want to re-plan your experiments given the result from this run, with particular focus on the {benchmark_name} benchmark. This could mean either merely changing hyperparameters or change of implementation of the SAE architecture.
 The correct interpretation for scores are as follows: 
 For core, low L0 loss and good reconstruction are desirable.
 For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a great score.
@@ -330,7 +334,8 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
         idea=idea,
         results=results,
         baseline_results=baseline_results,
-        notes=notes
+        notes=notes,
+        benchmark_name=benchmark_name,
     )
     print("[DEBUG] First reflection prompt formatted successfully")
 
@@ -366,7 +371,8 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
             reflection_prompt = next_reflection_prompt.format(
                 previous_reflection=previous_reflection,
                 baseline_results=baseline_results,
-                notes=notes
+                notes=notes,
+                benchmark_name=benchmark_name,
             )
             print(f"[DEBUG] Prompt formatted for iteration {i}")
 
@@ -415,6 +421,7 @@ def perform_experiments(idea, folder_name, coder, baseline_results, client, clie
         context_information = idea,
         max_runs=MAX_RUNS,
         baseline_results=baseline_results,
+        benchmark_name=benchmark_name,
     )
     print(f"Starting experiment with prompt for coder: {next_prompt}")
     print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
