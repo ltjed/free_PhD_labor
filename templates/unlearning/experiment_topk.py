@@ -874,7 +874,7 @@ if __name__ == "__main__":
     # "unlearning", UNLEARNING CURRENTLY UNAVAILABLE
 
     eval_types = [
-        "absorption",
+        # "absorption",
         # "autointerp",
         "core",
         # "scr",
