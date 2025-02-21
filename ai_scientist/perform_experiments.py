@@ -10,9 +10,9 @@ from ai_scientist.llm import get_response_from_llm
 from datetime import datetime
 
 MAX_ITERS = 10 # originally 10
-MAX_RUNS = 10 # originally 5
+MAX_RUNS = 5 # originally 5
 MAX_STDERR_OUTPUT = 1500
-NUM_EXPERIMENT_REFLECTIONS = 5
+NUM_EXPERIMENT_REFLECTIONS = 3 # initially 5
 benchmark_name = "unlearning"  # Added to match generate_ideas.py
 
 def read_prompt_json(base_dir):
