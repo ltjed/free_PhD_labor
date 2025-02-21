@@ -65,7 +65,7 @@ if __name__ == "__main__":
         # "sparse_probing",
         "unlearning",
     ]
-    prompt_content = generate_prompt_json(benchmarks=eval_types, include_example=True)
+    prompt_content = generate_prompt_json(benchmarks=eval_types, include_example=False)
     print(prompt_content)
 
     # To save to a file:

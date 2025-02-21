@@ -15,7 +15,15 @@ MAX_STDERR_OUTPUT = 1500
 NUM_EXPERIMENT_REFLECTIONS = 5
 benchmark_name = "unlearning"  # Added to match generate_ideas.py
 
+def read_prompt_json(base_dir):
+    with open(osp.join(base_dir, "prompt.json"), "r") as f:
+        prompt = json.load(f)
+    return prompt["task_description"], prompt["system"]
+
 coder_prompt = """Your goal is to implement the following idea: {title}. Pay attention to the following details from the idea:
+
+{task_description}
+
 The proposed experiment is as follows: {idea}.
 The implementation plan is as follows: {implementation_plan}.
 
@@ -39,6 +47,9 @@ YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND
 You can then implement the next thing on your list."""
 
 reflected_coder_prompt = """Your goal is to implement the following idea: {title}. Pay attention to the following details from the idea:
+
+{task_description}
+
 The proposed experiment is as follows: {idea}.
 The implementation plan is as follows: {implementation_plan}.
 
@@ -60,6 +71,9 @@ You can then implement the next thing on your list."""
 
 first_reflection_prompt = """\
 Below is the current experiment idea, its results, baseline results, and any relevant notes.
+
+==== TASK DESCRIPTION ====
+{task_description}
 
 ==== EXPERIMENT IDEA ====
 {idea}
@@ -101,6 +115,9 @@ Note that having achieving a great score in one benchmark is already a good resu
 
 next_reflection_prompt = """\
 Below is your previous reflection and plan. Revisit and refine it if necessary.
+
+==== TASK DESCRIPTION ====
+{task_description}
 
 ==== PREVIOUS REFLECTION ====
 {previous_reflection}
@@ -158,6 +175,9 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
         osp.join(folder_name, f"run_{run_num}.py"),
     )
 
+    # Get task description
+    task_description = read_prompt_json(folder_name)[0]
+
     # LAUNCH COMMAND
     command = [
         "python",
@@ -197,6 +217,9 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
             print(f"Suggested plan:\n {plan} \n")
             next_prompt = f"""Run {run_num} completed. Here are the results:
 {results}
+
+==== TASK DESCRIPTION ====
+{task_description}
 
 Consider carefully if you want to re-plan your experiments given the result from this run, with particular focus on the {benchmark_name} benchmark. This could mean either merely changing hyperparameters or change of implementation of the SAE architecture.
 The correct interpretation for scores are as follows: 
@@ -336,6 +359,7 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
         baseline_results=baseline_results,
         notes=notes,
         benchmark_name=benchmark_name,
+        task_description=read_prompt_json(folder_name)[0],
     )
     print("[DEBUG] First reflection prompt formatted successfully")
 
@@ -373,6 +397,7 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
                 baseline_results=baseline_results,
                 notes=notes,
                 benchmark_name=benchmark_name,
+                task_description=read_prompt_json(folder_name)[0],
             )
             print(f"[DEBUG] Prompt formatted for iteration {i}")
 
@@ -422,6 +447,8 @@ def perform_experiments(idea, folder_name, coder, baseline_results, client, clie
         max_runs=MAX_RUNS,
         baseline_results=baseline_results,
         benchmark_name=benchmark_name,
+        task_description=read_prompt_json(folder_name)[0],
+        system=read_prompt_json(folder_name)[1],
     )
     print(f"Starting experiment with prompt for coder: {next_prompt}")
     print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
