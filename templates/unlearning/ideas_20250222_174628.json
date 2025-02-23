@@ -86,14 +86,5 @@
         "Feasibility": 7,
         "Novelty": 7,
         "novel": false
-    },
-    {
-        "Name": "contrastive_sparsity_sae",
-        "Title": "Contrastive Sparse Autoencoders for Targeted Unlearning",
-        "Experiment": "1. Implement covariance penalty with \u03bb \u2208 {0.01, 0.1, 1.0}\n2. Train on Gemma-2B residual stream activations\n3. Evaluate using:\n   a. WMDP-bio accuracy (lower better)\n   b. MMLU retention (higher better)\n   c. Feature-wise KL(WMDP_acts || WikiText_acts)\n4. Measure decoder weight orthogonality via ||W_dec^T W_dec - I||_F\n5. Track dead feature rate vs baseline",
-        "Technical_Details": "The loss function becomes:\n\nL = ||x - x\u0302||\u00b2 + \u03b1||F||\u2081 + \u03bb||F^T F \u2299 (1 - I)||_F\u00b2\n\nWhere F \u2208 \u211d^{B\u00d7d} is batch activations, I is identity matrix, and \u2299 is Hadamard product. This explicitly penalizes off-diagonal elements of the feature covariance matrix. Gradient updates through this term encourage both encoder weights (W_enc) to produce orthogonal activations and decoder weights (W_dec) to reconstruct from orthogonal components.",
-        "Rationale": "1. Covariance minimization forces features to activate on distinct input patterns. WMDP-bio-specific features (rare biology terms) naturally have low covariance with others, making them 'survive' the penalty while general features are suppressed.\n2. Orthogonal decoder weights (evidenced by ||W_dec^T W_dec - I||) ensure clamping a feature minimally affects others, preserving MMLU performance.\n3. Higher KL divergence occurs because WMDP-specific features activate strongly only on forget-set inputs, while remaining near-zero on retain-set.\n4. Quadratic penalty preserves reconstruction: dominant features (high variance) are preserved via diag(F^T F), while co-activations (off-diag) are suppressed.\n5. Existing resampling in SAE training counters dead features induced by L_c.",
-        "Implementation_Plan": "1. In CustomTrainer.loss:\n   a. Compute F = encoded_activations\n   b. cov = F.T @ F\n   c. mask = 1 - torch.eye(cov.size(0), device=device)\n   d. contrastive_loss = \u03bb * torch.sum((cov * mask)**2)\n2. Add \u03bb to trainer config\n3. During evaluation:\n   a. Compute W_dec = self.ae.W_dec\n   b. ortho_penalty = torch.norm(W_dec.T @ W_dec - torch.eye(W_dec.size(1), device=device))\n4. Log dead features (never active in training batch)\n5. Use same resampling logic as baseline",
-        "novel": true
     }
 ]

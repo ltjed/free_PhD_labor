@@ -25,7 +25,7 @@ Here are the ideas that you have already generated:
 {prev_ideas_string}
 '''
 
-Now, come up with the next impactful and creative idea for improving sparse autoencoder on {benchmark_name} eval.
+Now, come up with the next impactful and creative idea for improving sparse autoencoder on {benchmark_name} benchmark.
 Your new idea should not be more complex than those you have already generated. DO NOT INTRODUCE ANY UNDUELY MORE COMPLEX ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, METRIC.
 
 Respond in the following format:
@@ -39,28 +39,16 @@ NEW IDEA JSON:
 ```
 
 In <THOUGHT>, first thoroughly discuss your intuitions and motivations for why your idea can improve on existing SAE on the {benchmark_name} benchmark. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. 
-**Justify how the idea does so without introducing too much complexity.**
-Also detail the reasoning behind why they expect the modification of sparse autoencoder you propose will work better for mechanistic interpretability purposes.
+Provide extremely detailed reasoning on why the proposed idea will improve the target benchmark. Be as specific as possible. including technical details if necessary.
 
 In <JSON>, provide the new idea in JSON format with the following fields:
 - "Name": A shortened descriptor of the idea. Lowercase, no spaces, underscores allowed.
 - "Title": A title for the idea, will be used for the report writing.
 - "Experiment": An outline of the implementation. E.g. which functions need to be added or modified, how results will be obtained, ...
 - "Technical_Details": A precise and verbose technical description of the proposed improvement, using specific technical language and avoiding vague terms. BE SURE TO DEFINE BEFORE YOU USE NONSTANDARD TERMINOLOGY. WHENEVER POSSIBLE, USE MATHEMATICAL LANGUAGE TO AVOID AMBIGUITY.
-- "Motivation_Rationale": A detailed explanation of why the proposed experiment can be expected to improve from the baseline results and the existing methods in literature.
+- "Rationale": An extremely detailed explanation of why the proposed experiment can be expected to improve from the baseline model. Carefully explaining the logic behind every step of reasoning you make. Avoid making unjustified claims about improvement.
 - "Implementation_Plan": A plan of steps to implement the experiment described above by modifying the code template in experiment.py.
-- "Interestingness_Evaluation": Give a one-sentence evaluation of the interestingness of the idea to justify the rating below.  
-- "Interestingness": A rating from 1 to 10 (lowest to highest). 
-- "Feasibility_Evaluation": Carefully evaluate the feasibility to justify the rating below. BE STRICT. Consider the following three factors. 1. Refer to the "Experiment" and "Technical_Details" fields you wrote above, and consider the complexity of the idea in comparison to typical ML conference papers. Note it need not and should better not introduce too deep theoretical elements such as those from pure mathematics. Be relevant and understandable to the machine learning community. The best ideas are simple but insightful. 2. Refer to the "Implementation_Plan" you wrote and consider the implementation difficulties. Note the coding work to implement the experiments is to be completed by a junior CS PhD student within 1 month. 3. Refer to the "Experiment", "Technical_Details", and "Implementation_Plan" and consider the time cost of running the experiment. Note each run of the experiment has to be conducted on a single NVIDIA H100 GPU WITHIN 30 MINS.
-- "Feasibility": A rating from 1 to 10 (lowest to highest). 
-- "Novelty_Evaluation": Give a one-sentence evaluation of the novelty of the idea to justify the rating below. 
-- "Novelty": A rating from 1 to 10 (lowest to highest).
-- "Expected_Research_Impact": Your primary target is to improve performance on the benchmarks "sparse_probing" and "core". Evaluate your expectation of whether the proposed model and experiment are promising to perform well on this benchmark.
-- "Research_Impact": A rating from 1 to 10 (lowest to highest).
-- "Overall_Score": A single number rating computed by 0.1 * Interestingness + 0.4 * Feasibility + 0.2 * Novelty + 0.3 * Rsearch_Impact. DO NOT INCLUDE THE COMPUTATION.
-- "Abstract": An abstract of the idea, which will be used for the report writing. The style, length, and content should be similar to a conference paper abstract. **BUT OMIT ALL RESULTS ABOUT IMPROVED PERFORMANCE SINCE THE IDEA HAS NOT BEEN IMPLEMENTED YET (EVEN IF YOU EXPECT SUCH RESULTS).**
-
-Be cautious and critical on your ratings.
+Be cautious and critical in your output.
 
 This JSON will be automatically parsed, so ensure the format is precise. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
 You will have {num_reflections} rounds to iterate on the idea, but do not need to use them all.
@@ -68,10 +56,9 @@ You will have {num_reflections} rounds to iterate on the idea, but do not need t
 
 
 idea_reflection_prompt = """Round {current_round}/{num_reflections}.
-In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, in relation to {benchmark_name} eval.
-Include any other factors that you think are important in evaluating the idea.
+In your thoughts, first carefully consider the quality, novelty, and feasibility of the idea you just created, in relation to {benchmark_name} eval. Critically identify on the "Rationale" section of the idea json: is there any ambiguity or flaw in the logic or reasoning? Is there any unjustified claims about expected improvements? Think about how to resolve them step-by-step.
 Ensure the idea is clear and well-justified, and the JSON is the correct format. BE SURE TO USE ESCAPING FOR ALL SPECIAL CHARACTERS SUCH AS QUOTES, BACKSLASHES, ETC. IN THE JSON.
-In the next attempt, try and refine and improve your last idea. THAT IS, GO DEEPER, NOT WIDER.
+In the next attempt, try and refine and improve your last idea.
 
 Respond in the same format as before:
 THOUGHT:
@@ -81,7 +68,7 @@ NEW IDEA JSON:
 ```json
 <JSON>
 ```
-**IN THE "Abstract" FIELD, BE SURE TO OMIT ALL RESULTS ABOUT IMPROVED PERFORMANCE SINCE THE IDEA HAS NOT BEEN IMPLEMENTED YET (EVEN IF YOU EXPECT SUCH RESULTS).**
+
 If there is nothing to improve, simply repeat the previous JSON EXACTLY after the thought and include "I am done" at the end of the thoughts but before the JSON.
 ONLY INCLUDE "I am done" IF YOU ARE MAKING NO MORE CHANGES."""
 
