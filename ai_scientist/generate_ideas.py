@@ -4,6 +4,8 @@ import os.path as osp
 import time
 from typing import List, Dict, Union
 
+from datetime import datetime
+
 import backoff
 import requests
 
@@ -114,6 +116,7 @@ def generate_ideas(
     for _ in range(max_num_generations):
         print()
         print(f"Generating idea {_ + 1}/{max_num_generations}")
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
         try:
             prev_ideas_string = "\n\n".join(idea_str_archive)
 
@@ -397,6 +400,8 @@ def check_idea_novelty(
 
         print(f"\nChecking novelty of idea {idx}: {idea['Name']}")
 
+        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+        
         novel = False
         msg_history = []
         papers_str = ""
