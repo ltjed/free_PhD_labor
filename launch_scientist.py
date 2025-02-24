@@ -150,6 +150,11 @@ def do_idea(
     with open(osp.join(base_dir, "run_0", "final_info_standard.json"), "r") as f:
         standard_results = json.load(f)
 
+    # 3. Save the idea as JSON (so we can re-load/use/modify it later).
+    idea_file = osp.join(folder_name, "working_idea.json")
+    with open(idea_file, "w") as f:
+        json.dump(idea, f, indent=4)
+    
     # Create dictionaries for both results
     topk_results = {k: v for k, v in topk_results.items()}
     jumprelu_results = {k: v for k, v in jumprelu_results.items()}
@@ -177,7 +182,7 @@ def do_idea(
         print_time()
         print(f"*Starting idea: {idea_name}*")
         ## PERFORM EXPERIMENTS
-        fnames = [exp_file, vis_file, notes]
+        fnames = [exp_file, vis_file, notes, idea_file]
         io = InputOutput(
             yes=True, chat_history_file=f"{folder_name}/{idea_name}_aider.txt"
         )
@@ -217,7 +222,7 @@ def do_idea(
         
         start_time = print_time("Starting experiments execution")
         try:
-            success = perform_experiments(idea, folder_name, coder, baseline_results, client, client_model)
+            success = perform_experiments(folder_name, coder, baseline_results, client, client_model)
         except Exception as e:
             print(f"Error during experiments: {e}")
             print(f"Experiments failed for idea {idea_name}")

@@ -20,6 +20,70 @@ def read_prompt_json(base_dir):
         prompt = json.load(f)
     return prompt["task_description"], prompt["system"]
 
+def load_working_idea(folder_name):
+    idea_path = osp.join(folder_name, "working_idea.json")
+    if not osp.exists(idea_path):
+        raise FileNotFoundError(f"working_idea.json not found in {folder_name}")
+    try:
+        with open(idea_path, "r") as f:
+            idea = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in working_idea.json: {str(e)}")  
+    return idea
+
+def extract_standardized_section(response, section_name):
+    """Extract content from a standardized section format like 'SECTION_NAME: <CONTENT>'.
+    Handles arbitrary whitespace between section name and content markers.
+    
+    Args:
+        response (str): The full response text
+        section_name (str): Name of the section to extract (e.g., "IMPLEMENTATION_PLAN")
+            
+    Returns:
+        str: The extracted content between < and >, stripped of whitespace
+        bool: Whether the section was found and properly formatted
+        
+    Raises:
+        ValueError: If section is found but missing closing bracket '>'
+    """
+    import re
+    
+    # Create pattern that matches section name followed by any whitespace, colon, any whitespace, then '<'
+    pattern = f"{section_name}\\s*:\\s*<"
+    match = re.search(pattern, response)
+    
+    if not match:
+        return "", False
+    
+    try:
+        content_start = match.end()  # End of the match includes the '<'
+        content_end = response.find(">", content_start)
+        if content_end == -1:
+            raise ValueError(f"Found {section_name} section but missing closing bracket '>'")
+        return response[content_start:content_end].strip(), True
+    except ValueError as e:
+        print(f"[ERROR] {str(e)}")
+        raise
+    except Exception as e:
+        print(f"[ERROR] Unexpected error while extracting {section_name} section: {str(e)}")
+        return "", False
+
+def update_implementation_plan(folder_name, new_plan):
+    """Update the implementation plan in working_idea.json.
+    
+    Args:
+        folder_name (str): Path to the folder containing working_idea.json
+        new_plan (str): New implementation plan to save
+    """
+    idea_path = osp.join(folder_name, "working_idea.json")
+    try:
+        idea = load_working_idea(folder_name)
+        idea["Implementation_Plan"] = new_plan
+        with open(idea_path, "w") as f:
+            json.dump(idea, f, indent=4)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError) as e:
+        print(f"Failed to update implementation plan: {str(e)}")
+
 coder_prompt = """Your goal is to implement the following idea: {title}. Pay attention to the following details from the idea:
 
 {task_description}
@@ -42,6 +106,11 @@ For reference, the baseline results are as follows:
 
 {baseline_results}
 
+IMPORTANT: Before making any changes, provide your implementation plan in the following format:
+
+IMPLEMENTATION_PLAN: 
+<IMPLEMENTATION_PLAN>
+
 After you complete each change, we will run the command `python experiment.py --out_dir=run_i' where i is the run number and evaluate the results.
 YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
 You can then implement the next thing on your list."""
@@ -55,7 +124,7 @@ The implementation plan is as follows: {implementation_plan}.
 
 You are given a total of up to {max_runs} runs to complete the necessary experiments. You do not need to use all {max_runs}.
 
-First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run (you can try to run with different hyperparameters in the same run across different iterations.).
+First, plan the list of experiments you would like to run. For example, this could be a list of slightly different designs choices in the proposed SAE variants you would like to try. Or, if you want to sweep over a specific hyperparameter, plan each value you would like to test for each iteration within that run.
 
 Note that we already provide the baseline results, so you do not need to re-run it.
 Your primary target is to improve performance on the {benchmark_name} benchmark.
@@ -63,6 +132,11 @@ Your primary target is to improve performance on the {benchmark_name} benchmark.
 For reference, the baseline results are as follows:
 
 {baseline_results}
+
+IMPORTANT: Before making any changes, provide your implementation plan in the following format:
+
+IMPLEMENTATION_PLAN: 
+<IMPLEMENTATION_PLAN>
 
 After you complete each change, we will run the command `python experiment.py --out_dir=run_i' where i is the run number and evaluate the results.
 YOUR PROPOSED CHANGE MUST USE THIS COMMAND FORMAT, DO NOT ADD ADDITIONAL COMMAND LINE ARGS.
@@ -89,11 +163,9 @@ Below is the current experiment idea, its results, baseline results, and any rel
 
 Respond in the following format:
 
-THOUGHT:
-<THOUGHT>
+THOUGHT: <THOUGHT>
 
-DECISION:
-<DECISION>
+DECISION: <DECISION>
 
 
 In <THOUGHT>, do the following:
@@ -106,11 +178,10 @@ In <DECISION>, summarize your conlusion from <THOUGHT> without losing informatio
 
 Note:
 The correct interpretation for scores are as follows: 
-For core, low L0 loss and good reconstruction are desirable.
-For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a great score.
-For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a great score.
-For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a great score
-Note that having achieving a great score in one benchmark is already a good result.
+For core, lower L0 loss and better reconstruction are desirable.
+For absorption, a lower "mean_absorption_score" means better performance of the underlying SAE in the run.
+For unlearning, a higher "unlearning_score" indicates better performance in unlearning dangerous knowledge. Generally, a "unlearning_score" > 0.01 is considered a good score.
+For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run.
 """
 
 next_reflection_prompt = """\
@@ -130,15 +201,12 @@ Below is your previous reflection and plan. Revisit and refine it if necessary.
 
 Respond in the following format:
 
-THOUGHT:
-<THOUGHT>
+THOUGHT: <THOUGHT>
 
-DECISION:
-<DECISION>
+DECISION: <DECISION>
 
 if done:(
-FINAL_PLAN:
-<FINAL_PLAN>
+FINAL_PLAN: <FINAL_PLAN>
 )
 
 
@@ -151,11 +219,10 @@ If no further reflection is needed, end your DECISION with 'I am done'. and prov
 
 NOTE:
 The correct interpretation for scores are as follows: 
-For core, low L0 loss and good reconstruction are desirable.
-For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a great score.
-For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a great score.
-For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a great score
-Note that having achieving a great score in one benchmark is already a good result.
+For core, lower L0 loss and better reconstruction are desirable.
+For absorption, a lower "mean_absorption_score" means better performance of the underlying SAE in the run.
+For unlearning, a higher "unlearning_score" indicates better performance in unlearning dangerous knowledge. Generally, a "unlearning_score" > 0.01 is considered a good score.
+For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run.
 """
 
 
@@ -167,7 +234,7 @@ You are an independent ML research expert, providing iterative feedback on an ex
 
 # timeout was originally set to 7200
 # RUN EXPERIMENT
-def run_experiment(folder_name, run_num, idea, baseline_results, client, client_model, timeout=7200):
+def run_experiment(folder_name, run_num, baseline_results, client, client_model, timeout=7200):
     cwd = osp.abspath(folder_name)
     # COPY CODE SO WE CAN SEE IT.
     shutil.copy(
@@ -175,8 +242,9 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
         osp.join(folder_name, f"run_{run_num}.py"),
     )
 
-    # Get task description
+    # Get task description and idea
     task_description = read_prompt_json(folder_name)[0]
+    idea = load_working_idea(folder_name)
 
     # LAUNCH COMMAND
     command = [
@@ -213,8 +281,14 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
             with open(osp.join(cwd, f"run_{run_num}", "final_info.json"), "r") as f:
                 results = json.load(f)
             results = {k: v for k, v in results.items()}
+            
+            # Get reflection on experiment steps
             plan = do_reflection(idea, results, baseline_results, NUM_EXPERIMENT_REFLECTIONS, client, client_model, folder_name)
             print(f"Suggested plan:\n {plan} \n")
+            
+            # Add reflection on overall research idea
+            reflect_on_research_idea(idea, results, baseline_results, client, client_model, folder_name)
+            
             next_prompt = f"""Run {run_num} completed. Here are the results:
 {results}
 
@@ -223,11 +297,10 @@ def run_experiment(folder_name, run_num, idea, baseline_results, client, client_
 
 Consider carefully if you want to re-plan your experiments given the result from this run, with particular focus on the {benchmark_name} benchmark. This could mean either merely changing hyperparameters or change of implementation of the SAE architecture.
 The correct interpretation for scores are as follows: 
-For core, low L0 loss and good reconstruction are desirable.
-For absoprtion, a lower "mean_absorption_score" means better performance of the underlying SAE in the run. Generally, a "mean_absorption_score" < 0.01 is considered a great score.
-For unlearning, a higher score indicate better performance in unlearning dangerous knowledge and thus considered better. Generally, a "unlearning_score" > 0.1 is considered a great score.
-For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run. Generally, a "sae_top_1_test_accuracy" > 0.74 is considered a great score
-Note that having achieving a great score in one benchmark is already a good result.
+For core, lower L0 loss and better reconstruction are desirable.
+For absorption, a lower "mean_absorption_score" means better performance of the underlying SAE in the run.
+For unlearning, a higher "unlearning_score" indicates better performance in unlearning dangerous knowledge. Generally, a "unlearning_score" > 0.01 is considered a good score.
+For sparse probing, a higher "sae_top_1_test_accuracy" score indicates better performance of the underlying SAE in the run.
 
 An expert has written some comment and IMPORTANT suggestions about a plan of what to do next which you should consider and refer to: {plan}
 
@@ -431,14 +504,91 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
 
     return None
 
+def reflect_on_research_idea(idea, results, baseline_results, client, client_model, folder_name):
+    """Reflect on the overall research idea and its potential modifications based on run results.
+    Updates notes.txt with the reflection.
+    
+    Args:
+        idea (dict): The current working idea
+        results (dict): Results from the current run
+        baseline_results (str): Baseline results for comparison
+        client: LLM client
+        client_model: LLM model name
+        folder_name (str): Path to the working directory
+    """
+    print("[DEBUG] Starting research idea reflection...")
+    
+    try:
+        # Load current notes
+        with open(osp.join(folder_name, "notes.txt"), "r") as f:
+            current_notes = f.read()
+            
+        reflection_prompt = f"""Based on the current results and baseline, reflect deeply on the research idea itself.
 
+Current idea: {idea["Title"]}
+Description: {idea["Experiment"]}
 
+Latest results: {results}
+Baseline results: {baseline_results}
+
+Current notes: {current_notes}
+
+Please provide your reflection in the following format:
+
+RESEARCH_REFLECTION: <
+1. Validity of Core Hypothesis
+   - Evaluate whether the fundamental hypothesis of the idea remains valid
+   - Discuss any unexpected findings that challenge or support the hypothesis
+
+2. Suggested Modifications to Research Direction
+   - Identify any needed adjustments to the research approach
+   - Propose potential new directions or variants worth exploring
+
+3. Impact and Significance
+   - Assess the potential impact of the current findings
+   - Discuss how this contributes to the field of SAE research
+>
+
+Your reflection should be thorough and critical, considering both positive and negative results."""
+
+        print("[DEBUG] Sending research reflection prompt to LLM...")
+        reflection_text, _ = get_response_from_llm(
+            msg=reflection_prompt,
+            system_message=system_prompt,
+            client=client,
+            model=client_model,
+        )
+        
+        # Extract the reflection using our standardized format
+        reflection_content, found = extract_standardized_section(reflection_text, "RESEARCH_REFLECTION")
+        if not found:
+            print("[WARNING] Could not find properly formatted research reflection")
+            return
+            
+        # Append reflection to notes
+        with open(osp.join(folder_name, "notes.txt"), "a") as f:
+            f.write("\n\n=== Research Idea Reflection ===\n")
+            f.write(reflection_content)
+            
+        print("[DEBUG] Successfully added research reflection to notes")
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to reflect on research idea: {str(e)}")
+        traceback.print_exc()
 
 # PERFORM EXPERIMENTS
-def perform_experiments(idea, folder_name, coder, baseline_results, client, client_model) -> bool:
+def perform_experiments(folder_name, coder, baseline_results, client, client_model) -> bool:
     ## RUN EXPERIMENT
     current_iter = 0
     run = 1
+    
+    try:
+        # Load idea from working_idea.json
+        idea = load_working_idea(folder_name)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError) as e:
+        print(f"Failed to load working idea: {str(e)}")
+        return False
+    
     next_prompt = coder_prompt.format(
         title=idea["Title"],
         idea=idea["Experiment"],
@@ -462,13 +612,20 @@ def perform_experiments(idea, folder_name, coder, baseline_results, client, clie
         
         coder_out = coder.run(next_prompt)
         print(f"coder_out: {coder_out}, type: {type(coder_out)}")
+        
+        # Extract and update implementation plan if provided using standardized format
+        new_plan, found = extract_standardized_section(coder_out, "IMPLEMENTATION_PLAN")
+        if found:
+            update_implementation_plan(folder_name, new_plan)
+            print(f"Updated implementation plan: {new_plan}")
+        
         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
         if "ALL_COMPLETED" in coder_out:
             break
         
         
-        return_code, next_prompt = run_experiment(folder_name, run, idea, baseline_results, client, client_model)
+        return_code, next_prompt = run_experiment(folder_name, run, baseline_results, client, client_model)
         if return_code == 0:
             run += 1
             current_iter = 0
