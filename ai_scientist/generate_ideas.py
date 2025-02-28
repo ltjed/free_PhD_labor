@@ -15,6 +15,50 @@ S2_API_KEY = os.getenv("S2_API_KEY")
 
 benchmark_name = "unlearning"
 
+# Maximum number of retries for JSON extraction
+MAX_JSON_EXTRACTION_RETRIES = 3
+
+# Helper function to extract JSON with retries
+def extract_json_with_retries(text, client, model, system_message, msg_history, prompt, max_retries=MAX_JSON_EXTRACTION_RETRIES):
+    """
+    Attempts to extract JSON from text. If extraction fails, retries by asking the LLM again with the same prompt.
+    
+    Args:
+        text: The text containing JSON to extract
+        client: LLM client
+        model: LLM model
+        system_message: System message for the LLM
+        msg_history: Message history for the LLM
+        prompt: Original prompt to retry with
+        max_retries: Maximum number of retries
+        
+    Returns:
+        Extracted JSON or None if all retries fail
+    """
+    json_output = extract_json_between_markers(text)
+    
+    retry_count = 0
+    while json_output is None and retry_count < max_retries:
+        retry_count += 1
+        print(f"Failed to extract JSON. Retry attempt {retry_count}/{max_retries}")
+        
+        # Simply retry with the same prompt
+        text, msg_history = get_response_from_llm(
+            prompt,
+            client=client,
+            model=model,
+            system_message=system_message,
+            msg_history=[]  # Reset message history to avoid confusion
+        )
+        
+        # Try to extract JSON again
+        json_output = extract_json_between_markers(text)
+    
+    if json_output is None:
+        print("All JSON extraction retries failed")
+    
+    return json_output, text, msg_history
+
 # delete the autoencoder sentence for templates other than autoencoder!
 idea_first_prompt = """{task_description}
 <experiment.py>
@@ -122,44 +166,66 @@ def generate_ideas(
 
             msg_history = []
             print(f"Iteration 1/{num_reflections}")
+            first_prompt = idea_first_prompt.format(
+                task_description=prompt["task_description"],
+                code=code,
+                prev_ideas_string=prev_ideas_string,
+                num_reflections=num_reflections,
+                benchmark_name=benchmark_name,
+            )
             text, msg_history = get_response_from_llm(
-                idea_first_prompt.format(
-                    task_description=prompt["task_description"],
-                    code=code,
-                    prev_ideas_string=prev_ideas_string,
-                    num_reflections=num_reflections,
-                    benchmark_name=benchmark_name,
-                ),
+                first_prompt,
                 client=client,
                 model=model,
                 system_message=idea_system_prompt,
                 msg_history=msg_history,
             )
-            ## PARSE OUTPUT
-            json_output = extract_json_between_markers(text)
-            assert json_output is not None, "Failed to extract JSON from LLM output"
+            
+            ## PARSE OUTPUT with retries
+            json_output, text, msg_history = extract_json_with_retries(
+                text, 
+                client, 
+                model, 
+                idea_system_prompt, 
+                msg_history, 
+                first_prompt
+            )
+            
+            if json_output is None:
+                raise Exception("Failed to extract JSON from LLM output after retries")
+                
             print(json_output)
 
             # Iteratively improve task.
             if num_reflections > 1:
                 for j in range(num_reflections - 1):
                     print(f"Iteration {j + 2}/{num_reflections}")
+                    reflection_prompt = idea_reflection_prompt.format(
+                        current_round=j + 2,
+                        num_reflections=num_reflections,
+                        benchmark_name=benchmark_name,
+                    )
                     text, msg_history = get_response_from_llm(
-                        idea_reflection_prompt.format(
-                            current_round=j + 2,
-                            num_reflections=num_reflections,
-                            benchmark_name=benchmark_name,
-                        ),
+                        reflection_prompt,
                         client=client,
                         model=model,
                         system_message=idea_system_prompt,
                         msg_history=msg_history,
                     )
-                    ## PARSE OUTPUT
-                    json_output = extract_json_between_markers(text)
-                    assert (
-                            json_output is not None
-                    ), "Failed to extract JSON from LLM output"
+                    
+                    ## PARSE OUTPUT with retries
+                    json_output, text, msg_history = extract_json_with_retries(
+                        text, 
+                        client, 
+                        model, 
+                        idea_system_prompt, 
+                        msg_history, 
+                        reflection_prompt
+                    )
+                    
+                    if json_output is None:
+                        raise Exception("Failed to extract JSON from LLM output after retries")
+                        
                     print(json_output)
 
                     if "I am done" in text:
@@ -219,46 +285,68 @@ def generate_next_idea(
 
                 msg_history = []
                 print(f"Iteration 1/{num_reflections}")
-                text, msg_history = get_response_from_llm(
-                    idea_first_prompt.format(
-                        task_description=prompt["task_description"],
-                        code=code,
-                        prev_ideas_string=prev_ideas_string,
-                        num_reflections=num_reflections,
-                    )
-                    + """
+                first_prompt = idea_first_prompt.format(
+                    task_description=prompt["task_description"],
+                    code=code,
+                    prev_ideas_string=prev_ideas_string,
+                    num_reflections=num_reflections,
+                ) + """
 Completed ideas have an additional "Score" field which indicates the assessment by an expert ML reviewer.
 This is on a standard 1-10 ML conference scale.
 Scores of 0 indicate the idea failed either during experimentation, writeup or reviewing.
-""",
+"""
+                text, msg_history = get_response_from_llm(
+                    first_prompt,
                     client=client,
                     model=model,
                     system_message=idea_system_prompt,
                     msg_history=msg_history,
                 )
-                ## PARSE OUTPUT
-                json_output = extract_json_between_markers(text)
-                assert json_output is not None, "Failed to extract JSON from LLM output"
+                
+                ## PARSE OUTPUT with retries
+                json_output, text, msg_history = extract_json_with_retries(
+                    text, 
+                    client, 
+                    model, 
+                    idea_system_prompt, 
+                    msg_history, 
+                    first_prompt
+                )
+                
+                if json_output is None:
+                    raise Exception("Failed to extract JSON from LLM output after retries")
+                    
                 print(json_output)
 
                 # Iteratively improve task.
                 if num_reflections > 1:
                     for j in range(num_reflections - 1):
                         print(f"Iteration {j + 2}/{num_reflections}")
+                        reflection_prompt = idea_reflection_prompt.format(
+                            current_round=j + 2, 
+                            num_reflections=num_reflections
+                        )
                         text, msg_history = get_response_from_llm(
-                            idea_reflection_prompt.format(
-                                current_round=j + 2, num_reflections=num_reflections
-                            ),
+                            reflection_prompt,
                             client=client,
                             model=model,
                             system_message=idea_system_prompt,
                             msg_history=msg_history,
                         )
-                        ## PARSE OUTPUT
-                        json_output = extract_json_between_markers(text)
-                        assert (
-                                json_output is not None
-                        ), "Failed to extract JSON from LLM output"
+                        
+                        ## PARSE OUTPUT with retries
+                        json_output, text, msg_history = extract_json_with_retries(
+                            text, 
+                            client, 
+                            model, 
+                            idea_system_prompt, 
+                            msg_history, 
+                            reflection_prompt
+                        )
+                        
+                        if json_output is None:
+                            raise Exception("Failed to extract JSON from LLM output after retries")
+                            
                         print(json_output)
 
                         if "I am done" in text:
@@ -408,22 +496,26 @@ def check_idea_novelty(
 
         for j in range(max_num_iterations):
             try:
+                novelty_prompt_formatted = novelty_prompt.format(
+                    current_round=j + 1,
+                    num_rounds=max_num_iterations,
+                    idea=idea,
+                    last_query_results=papers_str,
+                )
+                system_msg = novelty_system_msg.format(
+                    num_rounds=max_num_iterations,
+                    task_description=task_description,
+                    code=code,
+                )
+                
                 text, msg_history = get_response_from_llm(
-                    novelty_prompt.format(
-                        current_round=j + 1,
-                        num_rounds=max_num_iterations,
-                        idea=idea,
-                        last_query_results=papers_str,
-                    ),
+                    novelty_prompt_formatted,
                     client=client,
                     model=model,
-                    system_message=novelty_system_msg.format(
-                        num_rounds=max_num_iterations,
-                        task_description=task_description,
-                        code=code,
-                    ),
+                    system_message=system_msg,
                     msg_history=msg_history,
                 )
+                
                 if "decision made: novel" in text.lower():
                     print("Decision made: novel after round", j)
                     novel = True
@@ -432,9 +524,18 @@ def check_idea_novelty(
                     print("Decision made: not novel after round", j)
                     break
 
-                ## PARSE OUTPUT
-                json_output = extract_json_between_markers(text)
-                assert json_output is not None, "Failed to extract JSON from LLM output"
+                ## PARSE OUTPUT with retries
+                json_output, text, msg_history = extract_json_with_retries(
+                    text, 
+                    client, 
+                    model, 
+                    system_msg, 
+                    msg_history, 
+                    novelty_prompt_formatted
+                )
+                
+                if json_output is None:
+                    raise Exception("Failed to extract JSON from LLM output after retries")
 
                 ## SEARCH FOR PAPERS
                 query = json_output["Query"]

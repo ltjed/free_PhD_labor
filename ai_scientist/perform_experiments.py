@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+import traceback
 from subprocess import TimeoutExpired
 from ai_scientist.llm import get_response_from_llm
 
@@ -14,6 +15,7 @@ MAX_RUNS = 5 # originally 5
 MAX_STDERR_OUTPUT = 1500
 NUM_EXPERIMENT_REFLECTIONS = 3 # initially 5
 benchmark_name = "unlearning"  # Added to match generate_ideas.py
+MAX_SECTION_EXTRACTION_RETRIES = 3  # Maximum number of retries for section extraction
 
 def read_prompt_json(base_dir):
     with open(osp.join(base_dir, "prompt.json"), "r") as f:
@@ -435,7 +437,6 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
         print(f"[ERROR] Exception type: {type(e).__name__}")
         print(f"[ERROR] Exception args: {e.args}")
         print(f"[ERROR] Full exception details:")
-        import traceback
         traceback.print_exc()
         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
 
@@ -500,6 +501,28 @@ Your reflection should be thorough and critical, considering both positive and n
         
         # Extract the reflection using our standardized format
         reflection_content, found = extract_standardized_section(reflection_text, "RESEARCH_REFLECTION")
+        
+        # Add retry logic if extraction fails
+        retry_count = 0
+        while not found and retry_count < MAX_SECTION_EXTRACTION_RETRIES and client is not None and client_model is not None:
+            retry_count += 1
+            print(f"[DEBUG] Failed to extract RESEARCH_REFLECTION section. Retry attempt {retry_count}/{MAX_SECTION_EXTRACTION_RETRIES}")
+            
+            # Retry with the same prompt
+            reflection_text, _ = get_response_from_llm(
+                msg=reflection_prompt,
+                system_message=system_prompt,
+                client=client,
+                model=client_model,
+                msg_history=[]  # Reset message history to avoid confusion
+            )
+            
+            # Try to extract section again
+            reflection_content, found = extract_standardized_section(reflection_text, "RESEARCH_REFLECTION")
+            if found:
+                print(f"[DEBUG] Successfully extracted RESEARCH_REFLECTION section on retry {retry_count}")
+                break
+        
         if not found:
             print("[WARNING] Could not find properly formatted research reflection")
             return
@@ -554,6 +577,10 @@ def perform_experiments(folder_name, coder, baseline_results, client, client_mod
         
         # Extract and update implementation plan if provided using standardized format
         new_plan, found = extract_standardized_section(coder_out, "IMPLEMENTATION_PLAN")
+        
+        # Note: We can't add retry logic here since we don't have direct access to the coder's LLM
+        # The coder is a separate component that we interact with through the run method
+        
         if found:
             update_implementation_plan(folder_name, new_plan)
             print(f"Updated implementation plan: {new_plan}")
