@@ -282,9 +282,9 @@ def run_experiment(folder_name, run_num, baseline_results, client, client_model,
                 results = json.load(f)
             results = {k: v for k, v in results.items()}
             
-            # # Get reflection on experiment steps
-            # plan = do_reflection(idea, results, baseline_results, NUM_EXPERIMENT_REFLECTIONS, client, client_model, folder_name)
-            # print(f"Suggested plan:\n {plan} \n")
+            # Get reflection on experiment steps
+            plan = do_reflection(idea, results, baseline_results, NUM_EXPERIMENT_REFLECTIONS, client, client_model, folder_name)
+            print(f"Suggested plan:\n {plan} \n")
             
             # Add reflection on overall research idea
             reflect_on_research_idea(idea, results, baseline_results, client, client_model, folder_name)
@@ -470,7 +470,7 @@ Baseline results: {baseline_results}
 
 Current notes: {current_notes}
 
-Please provide your reflection in the following format:
+Your reflection must be formatted exactly as:
 
 RESEARCH_REFLECTION: <
 1. Validity of Core Hypothesis
@@ -495,6 +495,8 @@ Your reflection should be thorough and critical, considering both positive and n
             client=client,
             model=client_model,
         )
+        print("[DEBUG] Returned response from reflecting on research idea is:")
+        print(reflection_text)
         
         # Extract the reflection using our standardized format
         reflection_content, found = extract_standardized_section(reflection_text, "RESEARCH_REFLECTION")
