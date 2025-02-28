@@ -884,6 +884,13 @@ def evaluate_trained_sae(
             time_checkpoint = print_time()
         else:
             print(f"Warning: Unknown evaluation type {eval_type}")
+
+    # Clean up artifacts folder to avoid issues with future evaluations
+    import shutil
+    dir_path = "artifacts"
+    shutil.rmtree(dir_path)
+
+
 def str_to_dtype(dtype_str: str) -> torch.dtype:
     dtype_map = {
         "float32": torch.float32,
@@ -903,7 +910,6 @@ if __name__ == "__main__":
     parser.add_argument("--out_dir", type=str, default="run_0", help="Output directory")
     args = parser.parse_args()
     save_dir = args.out_dir
-    
     
     # Do not modify this to gemma-2b models, gemma-2-2b is a different model and actually exists 
     model_name = "google/gemma-2-2b"
@@ -991,3 +997,5 @@ if __name__ == "__main__":
             save_activations=False,
             out_dir=save_dir
         )
+
+    

@@ -802,6 +802,16 @@ def evaluate_trained_sae(
             time_checkpoint = print_time()
         else:
             print(f"Warning: Unknown evaluation type {eval_type}")
+    
+    # Clean up artifacts folder to avoid issues with future evaluations
+    artifacts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "artifacts")
+    if os.path.exists(artifacts_dir):
+        print(f"Cleaning up artifacts directory: {artifacts_dir}")
+        try:
+            shutil.rmtree(artifacts_dir)
+            print("Artifacts directory successfully removed")
+        except Exception as e:
+            print(f"Warning: Failed to remove artifacts directory: {str(e)}")
 
 def str_to_dtype(dtype_str: str) -> torch.dtype:
     dtype_map = {
@@ -910,3 +920,5 @@ if __name__ == "__main__":
             save_activations=False,
             out_dir=save_dir
         )
+
+    
