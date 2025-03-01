@@ -71,8 +71,8 @@ Here are the ideas that you have already generated:
 {prev_ideas_string}
 '''
 
-Now, come up with the next impactful and creative idea for improving sparse autoencoder on {benchmark_name} benchmark.
-Your new idea should not be more complex than those you have already generated. DO NOT INTRODUCE ANY UNDUELY MORE COMPLEX ARCHITECTURE, UNNECESSARILY COMPLEX THEORY (ESPECIALLY MATHEMATICAL) THEORY, FUNCTIONALITY, STATISTICAL METHOD, METRIC.
+Now, come up with an impactful and creative idea to improve sparse autoencoder on {benchmark_name} benchmark.
+Your new idea should not be more complex than those you have already generated. Also, DO NOT CHANGE THE IMPLEMENTATION OF BENCHMARK/EVALUATION.
 
 Respond in the following format:
 
@@ -84,8 +84,8 @@ NEW IDEA JSON:
 <JSON>
 ```
 
-In <THOUGHT>, first thoroughly discuss your intuitions and motivations for why your idea can improve on existing SAE on the {benchmark_name} benchmark. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. 
-Provide extremely detailed reasoning on why the proposed idea will improve the target benchmark. Be as specific as possible. including technical details if necessary.
+In <THOUGHT>, first thoroughly discuss your intuitions and motivations for why your proposed SAE variant can improve on the {benchmark_name} benchmark. Detail your high-level plan, necessary design choices and ideal outcomes of the experiments. 
+Be as specific as possible. including technical details if necessary.
 
 In <JSON>, provide the new idea in JSON format with the following fields:
 - "Name": A shortened descriptor of the idea. Lowercase, no spaces, underscores allowed.
@@ -114,6 +114,14 @@ NEW IDEA JSON:
 ```json
 <JSON>
 ```
+
+Carefully ensure that the NEW IDEA JSON has the same fields as the previous JSON with the following:
+- "Name":
+- "Title": 
+- "Experiment":
+- "Technical_Details":
+- "Rationale":
+- "Implementation_Plan":
 
 If there is nothing to improve, simply repeat the previous JSON EXACTLY after the thought and include "I am done" at the end of the thoughts but before the JSON.
 ONLY INCLUDE "I am done" IF YOU ARE MAKING NO MORE CHANGES."""

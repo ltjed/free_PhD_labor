@@ -673,7 +673,8 @@ def evaluate_trained_sae(
         "artifacts/absorption",
         "artifacts/scr",
         "artifacts/tpp",
-        "artifacts/sparse_probing"
+        "artifacts/sparse_probing",
+        "artifacts/unlearning",
     ]
 
     for dir_path in directories:

@@ -781,7 +781,8 @@ def evaluate_trained_sae(
         "artifacts/absorption",
         "artifacts/scr",
         "artifacts/tpp",
-        "artifacts/sparse_probing"
+        "artifacts/sparse_probing",
+        "artifacts/unlearning",
     ]
 
     for dir_path in directories:
@@ -804,14 +805,8 @@ def evaluate_trained_sae(
             print(f"Warning: Unknown evaluation type {eval_type}")
     
     # Clean up artifacts folder to avoid issues with future evaluations
-    artifacts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "artifacts")
-    if os.path.exists(artifacts_dir):
-        print(f"Cleaning up artifacts directory: {artifacts_dir}")
-        try:
-            shutil.rmtree(artifacts_dir)
-            print("Artifacts directory successfully removed")
-        except Exception as e:
-            print(f"Warning: Failed to remove artifacts directory: {str(e)}")
+    dir_path = "artifacts"
+    shutil.rmtree(dir_path)
 
 def str_to_dtype(dtype_str: str) -> torch.dtype:
     dtype_map = {

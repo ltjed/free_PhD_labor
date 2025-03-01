@@ -30,6 +30,9 @@ import torch.nn as nn
 from torch.autograd import Function
 from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR
+
+import shutil
+
 # The next two functions could be replaced with the ConstrainedAdam Optimizer
 @torch.no_grad()
 def set_decoder_norm_to_unit_norm(
@@ -873,6 +876,8 @@ def evaluate_trained_sae(
     os.makedirs("artifacts/absorption", exist_ok=True)                                                                                                                                                                               
     os.makedirs("artifacts/scr_and_tpp", exist_ok=True)                                                                                                                                                                              
     os.makedirs("artifacts/sparse_probing", exist_ok=True)
+    os.makedires("artifacts/unlearning", exist_ok=True)
+    
     
     # Run selected evaluations
     for eval_type in eval_types:
@@ -886,7 +891,6 @@ def evaluate_trained_sae(
             print(f"Warning: Unknown evaluation type {eval_type}")
 
     # Clean up artifacts folder to avoid issues with future evaluations
-    import shutil
     dir_path = "artifacts"
     shutil.rmtree(dir_path)
 
@@ -911,6 +915,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     save_dir = args.out_dir
     
+    # Clean up artifacts folder to avoid issues with future evaluations
+    dir_path = "artifacts"
+    shutil.rmtree(dir_path)
+
     # Do not modify this to gemma-2b models, gemma-2-2b is a different model and actually exists 
     model_name = "google/gemma-2-2b"
     # model_name = "EleutherAI/pythia-70m-deduped"

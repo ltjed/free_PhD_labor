@@ -99,7 +99,7 @@ You are given a total of up to {max_runs} runs to complete the necessary experim
 
 If the experiments in the idea is already implemented in 'experiment.py' you are given with, you should try to improve its result by further enhancing the implementation.
 
-First, plan the list of experiments you would like to run. For example, if you are sweeping over a specific hyperparameter, plan each value you would like to test for each run (you can try to run with different hyperparameters in the same run across different iterations.).
+First, plan the list of experiments you would like to run. You can try to run with different hyperparameters in the same run across different iterations.
 
 Note that we already provide the baseline results, so you do not need to re-run it.
 Your primary target is to improve performance on the {benchmark_name} benchmark.
@@ -427,11 +427,62 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
 
             if "I am done" in text:
                 print("[DEBUG] 'I am done' detected in response - ending reflections")
-                return text
+                previous_reflection = text
+                break
 
             previous_reflection = text
             print(f"[DEBUG] Updated previous_reflection with iteration {i} results")
-        return text 
+        
+        # Generate a concise summary from the reflection and update notes.txt
+        try:
+            print("[DEBUG] Generating experiment summary for notes.txt")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Generate summary from reflection
+            summary_prompt = f"""Based on the following reflection on an experiment, create a CONCISE summary (max 200 words) that focuses on:
+1. What was attempted in this experimental run
+2. Whether it worked or didn't work and why
+3. Key metrics/outcomes that support the conclusion
+
+Only include the most important points. Keep your summary factual and evidence-based.
+
+Reflection:
+{previous_reflection}
+
+Latest results:
+{results}
+"""
+            
+            summary_text, _ = get_response_from_llm(
+                msg=summary_prompt,
+                system_message="You are a concise technical writer who summarizes experimental results clearly and objectively.",
+                client=client,
+                model=client_model,
+            )
+            
+            print("[DEBUG] Generated summary: " + summary_text[:100] + "...")
+            
+            # Format the summary to add to notes
+            summary_entry = f"\n\n=== Experiment Summary ({timestamp}) ===\n{summary_text.strip()}\n"
+            
+            # Append to notes.txt
+            with open(osp.join(folder_name, "notes.txt"), "a") as note_file:
+                note_file.write(summary_entry)
+            
+            print("[DEBUG] Successfully updated notes.txt with experiment summary")
+        except Exception as e:
+            print(f"[ERROR] Failed to update notes.txt with summary: {str(e)}")
+            traceback.print_exc()
+            # If generating a summary fails, fall back to adding a minimal note
+            try:
+                with open(osp.join(folder_name, "notes.txt"), "a") as note_file:
+                    fallback_entry = f"\n\n=== Experiment Reflection ({timestamp}) ===\nReflection completed but summary generation failed. See logs for details.\n"
+                    note_file.write(fallback_entry)
+                print("[DEBUG] Added fallback entry to notes.txt")
+            except Exception as fallback_err:
+                print(f"[ERROR] Failed to write fallback entry: {str(fallback_err)}")
+        
+        return previous_reflection
     except Exception as e:
         print(f"\n[ERROR] Failed to reflect at step: {e}")
         print(f"[ERROR] Exception type: {type(e).__name__}")
@@ -439,6 +490,17 @@ def do_reflection(idea, results, baseline_results, num_reflections, client, clie
         print(f"[ERROR] Full exception details:")
         traceback.print_exc()
         print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]")
+        
+        # If we have a partial reflection, try to add a minimal note
+        if 'previous_reflection' in locals():
+            try:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                minimal_entry = f"\n\n=== Partial Experiment Note ({timestamp}) ===\nReflection process was interrupted. Partial results may be available in the logs.\n"
+                with open(osp.join(folder_name, "notes.txt"), "a") as note_file:
+                    note_file.write(minimal_entry)
+                print("[DEBUG] Added minimal note to notes.txt despite error")
+            except Exception as write_err:
+                print(f"[ERROR] Failed to write minimal note: {str(write_err)}")
 
     return None
 
@@ -577,9 +639,6 @@ def perform_experiments(folder_name, coder, baseline_results, client, client_mod
         
         # Extract and update implementation plan if provided using standardized format
         new_plan, found = extract_standardized_section(coder_out, "IMPLEMENTATION_PLAN")
-        
-        # Note: We can't add retry logic here since we don't have direct access to the coder's LLM
-        # The coder is a separate component that we interact with through the run method
         
         if found:
             update_implementation_plan(folder_name, new_plan)
